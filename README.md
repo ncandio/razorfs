@@ -1,61 +1,78 @@
-# RAZOR Filesystem
+# razorfs Filesystem
 
-**High-Performance Succinct N-ary Filesystem for Linux**
+A high-performance Linux filesystem inspired by the [ncandio/n-ary_python_package](https://github.com/ncandio/n-ary_python_package) - an ultra-fast C++17 N-ary tree implementation with Python bindings featuring 85% space compression.
 
-[![Linux](https://img.shields.io/badge/Linux-Compatible-green.svg)](https://www.kernel.org/)
-[![FUSE](https://img.shields.io/badge/FUSE-3.0+-blue.svg)](https://github.com/libfuse/libfuse)
-[![License](https://img.shields.io/badge/License-GPL%20v2-orange.svg)](LICENSE)
-[![Performance](https://img.shields.io/badge/Performance-21.4M_ops/sec-red.svg)](#performance)
+## What is razorfs?
 
-## Overview
+The razorfs filesystem stores your files and directories using advanced tree structures that are much more efficient than traditional filesystems. Think of it as a smarter way to organize data on your computer that uses less memory and runs faster.
 
-RAZOR is an advanced filesystem implementation featuring succinct N-ary tree data structures optimized for modern multi-core, NUMA architectures. Built on the foundational work from [ncandio/n-ary_python_package](https://github.com/ncandio/n-ary_python_package.git), RAZOR extends the original implementation with enterprise-grade features for production Linux deployments.
+The name "razor" was chosen for some advanced cutting-edge capabilities in specific scenarios where it has been tested.
+
+## ⚠️ Alpha Version - Under Serious Testing
+
+**Important**: This version should be considered **ALPHA** and is under serious testing. Use with caution in production environments.
+
+## Testing Status
+
+- ✅ **FUSE Implementation**: Currently tested and benchmarked 
+- 🚧 **Kernel Module**: In development - experimental use only
+- 🔬 **Advanced Testing Suite**: In development
 
 ## Key Features
 
-### 🚀 **Performance Optimizations**
-- **21.4M operations/second** sustained performance
-- **4KB page-aligned storage** for optimal kernel integration
-- **64-byte cache-line aligned nodes** for CPU efficiency
-- **RCU lockless reads** for scalable concurrent access
-- **SIMD acceleration (AVX2)** for vectorized operations
-- **NUMA-aware allocation** for multi-socket servers
+### 🗜️ **Compressed Storage (Succinct)**
+- Uses 85% less memory than traditional filesystems
+- Stores more data in the same space
+- Files and directories are packed efficiently using mathematical compression
 
-### 📊 **Advanced Data Structures**
-- **Succinct encoding** with 85% compression ratio vs traditional filesystems
-- **N-ary tree architecture** with configurable branching factor (64-128)
-- **2n+1 bit structure encoding** for minimal memory footprint
-- **Locality optimization** with page-relative indexing
-- **Multi-child node support** for efficient directory hierarchies
+### ⚡ **NUMA Friendly** 
+- Optimized for multi-processor servers
+- Automatically places data close to the CPU that needs it
+- Reduces memory access delays on large systems
 
-### 🐧 **Linux Integration**
-- **Dual-mode implementation**: Kernel module and FUSE userspace
-- **VFS compatibility** with standard Linux filesystem interface
-- **Linux page size optimization** (4KB pages, 63 nodes per page)
-- **Kernel slab allocator integration**
-- **procfs statistics and monitoring**
+### 🏃 **Cache Friendly / Locality Optimized**
+- Data is organized to work well with your CPU's cache memory
+- Related files are stored close together
+- Faster access because the processor can predict what data it needs next
 
-## Quick Start
+### 💾 **Persistent Storage**
+- **Automatic filesystem state preservation across reboots** - Your filesystem survives power outages and restarts
+- **Binary snapshot format with checksum validation** - Creates compressed backups that detect corruption
+- Files and directories are automatically saved even if the system crashes unexpectedly
 
-### Prerequisites
+### 🔒 **RCU Concurrent Access with Lockless Reads**
+- Multiple programs can read files simultaneously without waiting
+- No blocking when reading data - multiple users can access files at the same time
+- Writing is controlled to prevent conflicts, but reading is always fast
+
+### 🖥️ **NUMA-Aware Memory Allocation**
+- On servers with multiple CPUs, memory is allocated on the processor closest to where it's needed
+- Reduces delays when accessing data across different CPU sockets
+- Better performance on large multi-processor systems
+
+### 🔧 **Page-Aligned Storage for Optimal Kernel Integration**
+- Data is stored in 4KB chunks that match Linux kernel expectations
+- Direct integration with Linux memory management
+- More efficient use of system resources
+
+### 🛡️ **Enterprise-Grade Recovery Mechanisms**
+- Automatic corruption detection and recovery
+- Multiple backup strategies to prevent data loss
+- Graceful handling of hardware failures
+
+## How It Works
+
+The razorfs filesystem takes the advanced tree algorithms from ncandio's n-ary package and adapts them for storing files and directories. Instead of just being a data structure in memory, it becomes a complete filesystem that can:
+
+- Store your files more efficiently
+- Access them faster than traditional filesystems  
+- Automatically backup and recover your data
+- Scale better on modern multi-core systems
+
+## Quick Start (FUSE - Recommended for Testing)
 
 ```bash
-# Install development dependencies
-sudo apt-get update
-sudo apt-get install build-essential linux-headers-$(uname -r) libfuse3-dev pkg-config
-
-# Verify FUSE3 availability
-pkg-config --exists fuse3 && echo "✅ FUSE3 ready" || echo "❌ FUSE3 missing"
-```
-
-### Build and Mount FUSE Filesystem
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd RAZOR_repo
-
-# Build FUSE implementation
+# Build the FUSE implementation
 cd fuse
 make
 
@@ -63,163 +80,44 @@ make
 mkdir /tmp/razor_fs
 ./razorfs_fuse /tmp/razor_fs
 
-# Test basic operations
-echo "Hello RAZOR!" > /tmp/razor_fs/test.txt
+# Use it like any other filesystem
+echo "Hello razorfs!" > /tmp/razor_fs/test.txt
 cat /tmp/razor_fs/test.txt
-```
-
-### Build Kernel Module (Optional)
-
-```bash
-# Build kernel module
-cd kernel
-make
-
-# Load module (requires appropriate permissions)
-sudo insmod razorfs.ko
-
-# Check module status
-lsmod | grep razorfs
-```
-
-## Repository Structure
-
-```
-RAZOR_repo/
-├── README.md                 # This file
-├── src/                      # Core implementation
-│   └── linux_filesystem_narytree.cpp
-├── kernel/                   # Kernel module
-│   ├── razorfs_kernel.c      # Kernel implementation
-│   ├── Makefile              # Kernel build system
-│   └── razorfs.ko            # Compiled module (after build)
-├── fuse/                     # FUSE userspace implementation  
-│   ├── razorfs_fuse.cpp      # FUSE implementation
-│   ├── Makefile              # FUSE build system
-│   └── razorfs_fuse          # Compiled binary (after build)
-├── benchmarks/               # Performance testing
-│   └── fuse_performance_benchmark.py
-├── docs/                     # Documentation
-│   └── README_PRE_PRODUCTION.md
-├── tests/                    # Test suites
-├── scripts/                  # Utility scripts
-└── examples/                 # Usage examples
-```
-
-## Architecture
-
-### Memory Layout
-- **Node Structure**: Exactly 64 bytes per filesystem node
-- **Page Structure**: 4KB pages containing 63 nodes + metadata
-- **Cache Alignment**: All structures aligned to CPU cache lines
-- **Memory Efficiency**: Zero fragmentation, direct kernel page allocator integration
-
-### Advanced Features
-- **NUMA Support**: `razor_numa_node` parameter for memory locality
-- **SIMD Acceleration**: `enable_simd` parameter for AVX2 operations
-- **Debug Options**: `debug_level` parameter for troubleshooting
-- **Cache Control**: `cache_size` parameter for performance tuning
-
-## Performance
-
-### Benchmark Results
-- **Operations/second**: 21.4M (sustained)
-- **Memory efficiency**: 0.16KB per tree node
-- **Concurrent performance**: 506K rapid allocations/second
-- **Thread safety**: 100% success rate with 8 concurrent threads
-- **Memory stability**: Zero memory leaks detected
-
-### Comparison vs Traditional Filesystems
-- **85% smaller memory footprint** vs pointer-based trees
-- **8x faster range queries** with SIMD acceleration
-- **Linear scaling** with CPU core count
-- **50% better cache utilization** vs traditional directory structures
-
-## Mounting Instructions
-
-### FUSE Mount (Recommended for testing)
-```bash
-# Build FUSE implementation
-cd fuse && make
-
-# Mount filesystem
-./razorfs_fuse /path/to/mountpoint
-
-# Background mount
-./razorfs_fuse /path/to/mountpoint &
 
 # Unmount
-fusermount3 -u /path/to/mountpoint
+fusermount3 -u /tmp/razor_fs
 ```
 
-### Kernel Module Mount (Production)
-```bash
-# Build and install module
-cd kernel && make
-sudo insmod razorfs.ko
+## Experimental Kernel Module
 
-# Create mount point and mount
+```bash
+# Build the filesystem (experimental - alpha version)
+cd kernel
+make -f Makefile_persistent
+
+# Load the kernel module (use with extreme caution)
+sudo insmod razorfs_persistent.ko
+
+# Mount the filesystem
 sudo mkdir /mnt/razorfs
 sudo mount -t razorfs none /mnt/razorfs
-
-# Unmount and remove module
-sudo umount /mnt/razorfs
-sudo rmmod razorfs
 ```
 
-## Configuration Parameters
+## Why Use razorfs?
 
-### Kernel Module Parameters
-- `razor_numa_node`: NUMA node for memory allocation (-1 for auto)
-- `cache_size`: Cache size in bytes (default: 64MB)
-- `enable_simd`: Enable SIMD acceleration (1=enabled, 0=disabled)
-- `debug_level`: Debug output level (0=none, 1=basic, 2=verbose)
+- **Faster**: Optimized data structures and memory management
+- **Smaller**: 85% less memory usage than traditional filesystems
+- **Safer**: Automatic backups and recovery mechanisms  
+- **Modern**: Designed for today's multi-core, multi-processor systems
+- **Advanced**: Cutting-edge capabilities for specific tested scenarios
 
-### Example with custom parameters:
-```bash
-sudo insmod razorfs.ko razor_numa_node=0 cache_size=134217728 enable_simd=1
-```
+## Development Status
 
-## Monitoring and Statistics
-
-```bash
-# View filesystem statistics
-cat /proc/razorfs/stats
-
-# Monitor kernel messages
-dmesg | grep razorfs
-
-# Performance monitoring
-cat /proc/razorfs/performance
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Module loading fails**: 
-- Ensure kernel headers match running kernel: `uname -r`
-- Check module compatibility: `modinfo razorfs.ko`
-
-**FUSE mount permission denied**:
-- Ensure user is in `fuse` group: `sudo usermod -a -G fuse $USER`
-- Use sudo for system mount points
-
-**Performance issues**:
-- Enable SIMD: `echo 1 > /sys/module/razorfs/parameters/enable_simd`
-- Tune NUMA placement: Set appropriate `razor_numa_node` value
-- Increase cache size for large workloads
-
-## Contributing
-
-RAZOR filesystem is based on the excellent foundational work from:
-**https://github.com/ncandio/n-ary_python_package.git**
-
-Enhanced by: **Nico Liberato** for enterprise filesystem applications.
-
-## License
-
-GPL v2 - See LICENSE file for details.
+- ✅ FUSE implementation with testing
+- 🚧 Kernel module under serious testing
+- 🔬 Advanced benchmark suite development
+- 📊 Performance validation in progress
+- 🛡️ Security testing and hardening
 
 ## RAZOR Filesystem Persistence Architecture
 
