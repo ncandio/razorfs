@@ -45,11 +45,6 @@ The name "razor" was chosen for some advanced cutting-edge capabilities in speci
 - No blocking when reading data - multiple users can access files at the same time
 - Writing is controlled to prevent conflicts, but reading is always fast
 
-### 🖥️ **NUMA-Aware Memory Allocation**
-- On servers with multiple CPUs, memory is allocated on the processor closest to where it's needed
-- Reduces delays when accessing data across different CPU sockets
-- Better performance on large multi-processor systems
-
 ### 🔧 **Page-Aligned Storage for Optimal Kernel Integration**
 - Data is stored in 4KB chunks that match Linux kernel expectations
 - Direct integration with Linux memory management
