@@ -118,11 +118,11 @@ sudo mount -t razorfs none /mnt/razorfs
 
 ### FUSE Implementation Comparison
 
-![RAZOR Filesystem Performance Comparison](analysis_charts/comprehensive_5fs_comparison.png)
+![razorfs Performance Comparison](analysis_charts/comprehensive_5fs_comparison.png)
 
 **⚠️ Alpha Testing Results - Datacenter & Specialized Scenarios Only**
 
-This performance analysis shows preliminary test results comparing RAZOR's FUSE implementation against traditional filesystems (ext4, ext3, ReiserFS, Btrfs). These results are from controlled testing environments and may not reflect real-world performance in all scenarios.
+This performance analysis shows preliminary test results comparing razorfs FUSE implementation against traditional filesystems (ext4, ext3, ReiserFS, Btrfs). These results are from controlled testing environments and may not reflect real-world performance in all scenarios.
 
 #### Observed Test Results:
 
@@ -154,11 +154,11 @@ This performance analysis shows preliminary test results comparing RAZOR's FUSE 
 
 These results represent initial testing in controlled environments. The filesystem is designed for specific datacenter scenarios and may not be suitable for general-purpose use.
 
-## RAZOR Filesystem Persistence Architecture
+## razorfs Persistence Architecture
 
 ### Overview
 
-The RAZOR filesystem ensures data persistence through a sophisticated snapshot-based system that combines binary serialization with kernel-level integration. This system guarantees filesystem state preservation across reboots, crashes, and planned maintenance operations.
+The razorfs filesystem ensures data persistence through a sophisticated snapshot-based system that combines binary serialization with kernel-level integration. This system guarantees filesystem state preservation across reboots, crashes, and planned maintenance operations.
 
 **Key Persistence Features:**
 - **Automatic Snapshot Creation**: On unmount operations and periodic intervals
@@ -253,4 +253,4 @@ The persistence system is optimized for minimal performance impact:
 
 This implementation is directly inspired by and evolved from the innovative succinct data structure approach found in the ncandio/n-ary_python_package repository. We acknowledge and thank the original contributors for their groundbreaking work in succinct N-ary tree architectures.
 
-The current RAZOR implementation represents a significant enterprise enhancement of the original ncandio n-ary tree package, specifically optimized for filesystem and kernel-level applications with comprehensive persistence mechanisms.
+The current razorfs implementation represents a significant enterprise enhancement of the original ncandio n-ary tree package, specifically optimized for filesystem and kernel-level applications with comprehensive persistence mechanisms.
