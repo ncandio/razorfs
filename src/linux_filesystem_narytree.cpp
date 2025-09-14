@@ -12,6 +12,10 @@
 #include <stack>
 #include <type_traits>
 #include <immintrin.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <cstring>
+#include <ctime>
 
 // Linux kernel compatibility headers (when compiled for kernel)
 #ifdef __KERNEL__
@@ -653,21 +657,271 @@ private:
         }
     }
     
+
+public:
+    // ======================== FILESYSTEM-SPECIFIC METHODS ========================
+
+    /**
+     * Find a node by filesystem path (e.g., "/dir/file.txt")
+     */
+    FilesystemNode* find_by_path(const std::string& path) {
+        if (path.empty() || path[0] != '/') {
+            return nullptr;
+        }
+
+        if (path == "/") {
+            return get_root_node();
+        }
+
+        // Split path into components
+        std::vector<std::string> components;
+        size_t start = 1; // Skip leading '/'
+        size_t end = path.find('/', start);
+
+        while (end != std::string::npos) {
+            if (end > start) {
+                components.push_back(path.substr(start, end - start));
+            }
+            start = end + 1;
+            end = path.find('/', start);
+        }
+
+        // Add final component
+        if (start < path.length()) {
+            components.push_back(path.substr(start));
+        }
+
+        // Traverse tree following path components
+        FilesystemNode* current = get_root_node();
+        if (!current) return nullptr;
+
+        for (const auto& component : components) {
+            current = find_child_by_name(current, component);
+            if (!current) return nullptr;
+        }
+
+        return current;
+    }
+
+    /**
+     * Find a child node by name within a parent directory
+     */
+    FilesystemNode* find_child_by_name(FilesystemNode* parent, const std::string& name) {
+        if (!parent) return nullptr;
+
+        // Calculate hash of the name for fast comparison
+        uint32_t name_hash = hash_string(name);
+
+        // Search all pages for children of this parent
+        for (auto& page : pages_) {
+            if (!page) continue;
+
+            for (size_t i = 0; i < page->used_nodes.load(); ++i) {
+                FilesystemNode& node = page->nodes[i];
+                if (node.parent_idx == parent->inode_number &&
+                    node.hash_value == name_hash) {
+                    // Hash match - verify actual name (stored in data field for now)
+                    // TODO: Implement proper name storage/comparison
+                    return &node;
+                }
+            }
+        }
+
+        return nullptr;
+    }
+
+    /**
+     * Get the root node of the filesystem
+     */
+    FilesystemNode* get_root_node() {
+        if (pages_.empty() || !pages_[0]) return nullptr;
+
+        // Root is always the first node in the first page
+        if (pages_[0]->used_nodes.load() > 0) {
+            return &pages_[0]->nodes[0];
+        }
+
+        return nullptr;
+    }
+
+    /**
+     * Create a new filesystem node (file or directory)
+     */
+    FilesystemNode* create_node(FilesystemNode* parent, const std::string& name,
+                               uint32_t inode_num, uint16_t mode_flags,
+                               uint64_t size = 0) {
+        // Find available slot
+        for (auto& page : pages_) {
+            if (!page) continue;
+
+            size_t used = page->used_nodes.load();
+            if (used < NODES_PER_PAGE) {
+                FilesystemNode& node = page->nodes[used];
+
+                // Initialize the node
+                node.data = static_cast<T>(inode_num);
+                node.parent_idx = parent ? parent->inode_number : 0;
+                node.first_child_idx = INVALID_INDEX;
+                node.inode_number = inode_num;
+                node.hash_value = hash_string(name);
+                node.child_count = 0;
+                node.depth = parent ? parent->depth + 1 : 0;
+                node.flags = mode_flags;
+                node.size_or_blocks = size;
+                node.timestamp = get_current_timestamp();
+
+                // Update parent's child count
+                if (parent) {
+                    parent->child_count++;
+                }
+
+                // Mark page as having one more used node
+                page->used_nodes.store(used + 1);
+                total_nodes_.fetch_add(1);
+
+                return &node;
+            }
+        }
+
+        // Need to allocate new page
+        allocate_new_page();
+
+        // Retry with new page
+        if (!pages_.empty() && pages_.back()) {
+            FilesystemNode& node = pages_.back()->nodes[0];
+
+            node.data = static_cast<T>(inode_num);
+            node.parent_idx = parent ? parent->inode_number : 0;
+            node.first_child_idx = INVALID_INDEX;
+            node.inode_number = inode_num;
+            node.hash_value = hash_string(name);
+            node.child_count = 0;
+            node.depth = parent ? parent->depth + 1 : 0;
+            node.flags = mode_flags;
+            node.size_or_blocks = size;
+            node.timestamp = get_current_timestamp();
+
+            if (parent) {
+                parent->child_count++;
+            }
+
+            pages_.back()->used_nodes.store(1);
+            total_nodes_.fetch_add(1);
+
+            return &node;
+        }
+
+        return nullptr;
+    }
+
+    /**
+     * Remove a node from the filesystem tree
+     */
+    bool remove_node(FilesystemNode* node) {
+        if (!node) return false;
+
+        // Find parent and decrease child count
+        if (node->parent_idx != 0) {
+            FilesystemNode* parent = find_node_by_inode(node->parent_idx);
+            if (parent && parent->child_count > 0) {
+                parent->child_count--;
+            }
+        }
+
+        // Mark node as deleted/invalid
+        node->inode_number = 0;
+        node->flags = 0;
+        total_nodes_.fetch_sub(1);
+
+        return true;
+    }
+
+    /**
+     * Find a node by its inode number
+     */
+    FilesystemNode* find_node_by_inode(uint32_t inode_num) {
+        for (auto& page : pages_) {
+            if (!page) continue;
+
+            for (size_t i = 0; i < page->used_nodes.load(); ++i) {
+                if (page->nodes[i].inode_number == inode_num) {
+                    return &page->nodes[i];
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    /**
+     * Convert node to struct stat for POSIX compatibility
+     */
+    void node_to_stat(const FilesystemNode* node, struct stat* stbuf) const {
+        if (!node || !stbuf) return;
+
+        memset(stbuf, 0, sizeof(struct stat));
+        stbuf->st_ino = node->inode_number;
+        stbuf->st_mode = node->flags;
+        stbuf->st_nlink = (node->flags & 0x4000) ? 2 : 1; // Directory has 2, file has 1
+        stbuf->st_uid = getuid();
+        stbuf->st_gid = getgid();
+        stbuf->st_size = node->size_or_blocks;
+        stbuf->st_atime = stbuf->st_mtime = stbuf->st_ctime = node->timestamp;
+    }
+
+    /**
+     * Update node metadata
+     */
+    void update_node(FilesystemNode* node, uint64_t new_size = UINT64_MAX,
+                    uint64_t new_timestamp = UINT64_MAX) {
+        if (!node) return;
+
+        if (new_size != UINT64_MAX) {
+            node->size_or_blocks = new_size;
+        }
+
+        if (new_timestamp != UINT64_MAX) {
+            node->timestamp = new_timestamp;
+        } else {
+            node->timestamp = get_current_timestamp();
+        }
+
+        node->version.fetch_add(1);
+    }
+
     /**
      * Collect children of a directory node
      */
     void collect_children(const FilesystemNode* parent, std::vector<const FilesystemNode*>& children) const {
         if (!parent || parent->child_count == 0) return;
-        
+
         // Search all pages for nodes with this parent
         for (const auto& page : pages_) {
             if (!page) continue;
-            
+
             for (size_t i = 0; i < page->used_nodes.load(); ++i) {
                 if (page->nodes[i].parent_idx == parent->inode_number) {
                     children.push_back(&page->nodes[i]);
                 }
             }
         }
+    }
+
+private:
+    /**
+     * Simple string hash function
+     */
+    uint32_t hash_string(const std::string& str) const {
+        uint32_t hash = 5381;
+        for (char c : str) {
+            hash = ((hash << 5) + hash) + static_cast<uint32_t>(c);
+        }
+        return hash;
+    }
+
+    /**
+     * Get current timestamp in seconds
+     */
+    uint64_t get_current_timestamp() const {
+        return static_cast<uint64_t>(time(nullptr));
     }
 };

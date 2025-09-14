@@ -1,12 +1,5 @@
-/**
- * RAZOR Filesystem FUSE Implementation
- * 
- * This file implements RAZOR filesystem using FUSE for userspace testing.
- * Based on the original RAZOR filesystem from linux_filesystem_narytree.cpp
- * 
- * Attribution: Inspired by https://github.com/ncandio/n-ary_python_package.git
- * Enhanced by: Nico Liberato
- */
+// RAZOR FUSE Filesystem Implementation
+// Unified architecture using n-ary tree as single source of truth
 
 #define FUSE_USE_VERSION 31
 
@@ -21,230 +14,235 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <chrono>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <sys/time.h>
+#include <unordered_set>
+#include <signal.h>
+#include <algorithm>
+#include <vector>
+#include <unordered_map>
 
-// Include RAZOR filesystem implementation (adapted for FUSE)
+// Include RAZOR filesystem implementation
 #include "../src/linux_filesystem_narytree.cpp"
 
-// FUSE-specific adaptations
+// Unified RAZOR filesystem using tree-only architecture
 class RazorFuseFilesystem {
 private:
-    LinuxFilesystemNaryTree<uint64_t> razor_tree_;  // Use uint64_t as inode number
-    std::unordered_map<std::string, struct stat> file_stats_;
-    std::unordered_map<std::string, std::vector<std::string>> file_contents_;
+    LinuxFilesystemNaryTree<uint64_t> razor_tree_;
     std::atomic<uint64_t> next_inode_;
-    
+
+    // Temporary: filename storage until we implement proper name storage in tree
+    std::unordered_map<uint64_t, std::string> inode_to_name_;
+
+    // Small file content (< 1KB stored in memory)
+    std::unordered_map<uint64_t, std::string> small_file_content_;
+
 public:
-    RazorFuseFilesystem() : razor_tree_(64, -1), next_inode_(1) {
-        // Initialize root directory
-        struct stat root_stat = {};
-        root_stat.st_mode = S_IFDIR | 0755;
-        root_stat.st_nlink = 2;
-        root_stat.st_ino = 1;
-        root_stat.st_uid = getuid();
-        root_stat.st_gid = getgid();
-        root_stat.st_atime = root_stat.st_mtime = root_stat.st_ctime = time(nullptr);
-        
-        file_stats_["/"] = root_stat;
-        
-        razor_tree_.insert_filesystem_entry(1, 1, 0, "/", 0, 
-                                           std::chrono::duration_cast<std::chrono::microseconds>(
-                                               std::chrono::system_clock::now().time_since_epoch()).count());
+    RazorFuseFilesystem() : razor_tree_(64, -1), next_inode_(2) {
+        init_root();
     }
-    
+
+private:
+    void init_root() {
+        // Create root directory node directly in tree
+        uint16_t root_mode = S_IFDIR | 0755;
+        auto* root_node = razor_tree_.create_node(nullptr, "/", 1, root_mode, 0);
+
+        if (root_node) {
+            inode_to_name_[1] = "/";
+            std::cout << "Root directory created in unified tree" << std::endl;
+        } else {
+            std::cerr << "Failed to create root!" << std::endl;
+        }
+    }
+
+public:
     int getattr(const char* path, struct stat* stbuf, struct fuse_file_info* fi) {
         (void) fi;
         memset(stbuf, 0, sizeof(struct stat));
-        
-        std::string path_str(path);
-        auto it = file_stats_.find(path_str);
-        if (it != file_stats_.end()) {
-            *stbuf = it->second;
+
+        auto* node = razor_tree_.find_by_path(std::string(path));
+        if (node) {
+            razor_tree_.node_to_stat(node, stbuf);
             return 0;
         }
-        
+
         return -ENOENT;
     }
-    
+
     int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
                 off_t offset, struct fuse_file_info* fi, enum fuse_readdir_flags flags) {
-        (void) offset;
-        (void) fi;
-        (void) flags;
-        
-        std::string path_str(path);
-        
+        (void) offset; (void) fi; (void) flags;
+
+        auto* dir_node = razor_tree_.find_by_path(std::string(path));
+        if (!dir_node || !(dir_node->flags & S_IFDIR)) {
+            return -ENOTDIR;
+        }
+
         filler(buf, ".", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
         filler(buf, "..", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
-        
-        // Use RAZOR tree to get directory children
-        auto stats_it = file_stats_.find(path_str);
-        if (stats_it != file_stats_.end() && S_ISDIR(stats_it->second.st_mode)) {
-            uint32_t parent_inode = stats_it->second.st_ino;
-            auto children = razor_tree_.get_directory_children(parent_inode);
-            
-            for (const auto* child : children) {
-                // Use inode number to look up path in file_stats_
-                uint64_t child_inode = child->data;
-                std::string filename = "file_" + std::to_string(child_inode);
-                
-                // Try to find actual filename from file_stats_
-                for (const auto& pair : file_stats_) {
-                    if (pair.second.st_ino == child_inode) {
-                        size_t last_slash = pair.first.find_last_of('/');
-                        filename = (last_slash != std::string::npos) ? 
-                                 pair.first.substr(last_slash + 1) : pair.first;
-                        break;
-                    }
-                }
-                
-                if (!filename.empty()) {
+
+        // List children
+        std::vector<const typename LinuxFilesystemNaryTree<uint64_t>::FilesystemNode*> children;
+        razor_tree_.collect_children(dir_node, children);
+
+        for (const auto* child : children) {
+            if (child->inode_number == 0) continue; // Skip deleted
+
+            auto name_it = inode_to_name_.find(child->inode_number);
+            if (name_it != inode_to_name_.end()) {
+                // Extract just the filename part
+                std::string full_path = name_it->second;
+                size_t last_slash = full_path.find_last_of('/');
+                std::string filename = (last_slash != std::string::npos) ?
+                                     full_path.substr(last_slash + 1) : full_path;
+
+                if (!filename.empty() && filename != "/") {
                     filler(buf, filename.c_str(), nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
                 }
             }
         }
-        
+
         return 0;
     }
-    
-    int open(const char* path, struct fuse_file_info* fi) {
-        std::string path_str(path);
-        auto it = file_stats_.find(path_str);
-        if (it == file_stats_.end()) {
-            return -ENOENT;
-        }
-        
-        if (!S_ISREG(it->second.st_mode)) {
-            return -EISDIR;
-        }
-        
-        return 0;
-    }
-    
-    int read(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-        (void) fi;
-        
-        std::string path_str(path);
-        auto content_it = file_contents_.find(path_str);
-        if (content_it == file_contents_.end()) {
-            return -ENOENT;
-        }
-        
-        // Simple implementation: treat file as single string
-        std::string content = content_it->second.empty() ? "" : content_it->second[0];
-        
-        if (offset >= static_cast<off_t>(content.length())) {
-            return 0;
-        }
-        
-        size_t read_size = std::min(size, content.length() - offset);
-        memcpy(buf, content.c_str() + offset, read_size);
-        
-        return read_size;
-    }
-    
-    int write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
-        (void) fi;
-        
-        std::string path_str(path);
-        auto content_it = file_contents_.find(path_str);
-        if (content_it == file_contents_.end()) {
-            return -ENOENT;
-        }
-        
-        // Simple implementation: overwrite content
-        std::string new_content(buf, size);
-        file_contents_[path_str] = {new_content};
-        
-        // Update file size in stats
-        auto stats_it = file_stats_.find(path_str);
-        if (stats_it != file_stats_.end()) {
-            stats_it->second.st_size = new_content.length();
-            stats_it->second.st_mtime = time(nullptr);
-        }
-        
-        return size;
-    }
-    
-    int create(const char* path, mode_t mode, struct fuse_file_info* fi) {
-        (void) fi;
-        
-        std::string path_str(path);
-        if (file_stats_.find(path_str) != file_stats_.end()) {
-            return -EEXIST;
-        }
-        
-        // Create file stats
-        struct stat file_stat = {};
-        file_stat.st_mode = S_IFREG | mode;
-        file_stat.st_nlink = 1;
-        file_stat.st_ino = next_inode_.fetch_add(1);
-        file_stat.st_uid = getuid();
-        file_stat.st_gid = getgid();
-        file_stat.st_size = 0;
-        file_stat.st_atime = file_stat.st_mtime = file_stat.st_ctime = time(nullptr);
-        
-        file_stats_[path_str] = file_stat;
-        file_contents_[path_str] = {};
-        
-        // Add to RAZOR tree
-        std::string parent_path = path_str.substr(0, path_str.find_last_of('/'));
-        if (parent_path.empty()) parent_path = "/";
-        
-        auto parent_it = file_stats_.find(parent_path);
-        uint32_t parent_inode = (parent_it != file_stats_.end()) ? parent_it->second.st_ino : 1;
-        
-        razor_tree_.insert_filesystem_entry(file_stat.st_ino, file_stat.st_ino, parent_inode, path_str, 0,
-                                           std::chrono::duration_cast<std::chrono::microseconds>(
-                                               std::chrono::system_clock::now().time_since_epoch()).count());
-        
-        return 0;
-    }
-    
+
     int mkdir(const char* path, mode_t mode) {
         std::string path_str(path);
-        if (file_stats_.find(path_str) != file_stats_.end()) {
-            return -EEXIST;
-        }
-        
-        // Create directory stats
-        struct stat dir_stat = {};
-        dir_stat.st_mode = S_IFDIR | mode;
-        dir_stat.st_nlink = 2;
-        dir_stat.st_ino = next_inode_.fetch_add(1);
-        dir_stat.st_uid = getuid();
-        dir_stat.st_gid = getgid();
-        dir_stat.st_atime = dir_stat.st_mtime = dir_stat.st_ctime = time(nullptr);
-        
-        file_stats_[path_str] = dir_stat;
-        
-        // Add to RAZOR tree
         std::string parent_path = path_str.substr(0, path_str.find_last_of('/'));
         if (parent_path.empty()) parent_path = "/";
-        
-        auto parent_it = file_stats_.find(parent_path);
-        uint32_t parent_inode = (parent_it != file_stats_.end()) ? parent_it->second.st_ino : 1;
-        
-        razor_tree_.insert_filesystem_entry(dir_stat.st_ino, dir_stat.st_ino, parent_inode, path_str, 0,
-                                           std::chrono::duration_cast<std::chrono::microseconds>(
-                                               std::chrono::system_clock::now().time_since_epoch()).count());
-        
+
+        // Extract just the directory name
+        std::string dir_name = path_str.substr(path_str.find_last_of('/') + 1);
+
+        auto* parent_node = razor_tree_.find_by_path(parent_path);
+        if (!parent_node) return -ENOENT;
+
+        uint64_t new_inode = next_inode_.fetch_add(1);
+        uint16_t dir_mode = S_IFDIR | (mode & 0777);
+
+        auto* new_node = razor_tree_.create_node(parent_node, dir_name,
+                                               new_inode, dir_mode, 0);
+        if (new_node) {
+            inode_to_name_[new_inode] = path_str;
+            return 0;
+        }
+
+        return -ENOSPC;
+    }
+
+    int create(const char* path, mode_t mode, struct fuse_file_info* fi) {
+        (void) fi;
+        std::string path_str(path);
+        std::string parent_path = path_str.substr(0, path_str.find_last_of('/'));
+        if (parent_path.empty()) parent_path = "/";
+
+        // Extract just the filename
+        std::string filename = path_str.substr(path_str.find_last_of('/') + 1);
+
+        auto* parent_node = razor_tree_.find_by_path(parent_path);
+        if (!parent_node) return -ENOENT;
+
+        uint64_t new_inode = next_inode_.fetch_add(1);
+        uint16_t file_mode = S_IFREG | (mode & 0777);
+
+        auto* new_node = razor_tree_.create_node(parent_node, filename,
+                                               new_inode, file_mode, 0);
+        if (new_node) {
+            inode_to_name_[new_inode] = path_str;
+            small_file_content_[new_inode] = ""; // Empty file
+            return 0;
+        }
+
+        return -ENOSPC;
+    }
+
+    int open(const char* path, struct fuse_file_info* fi) {
+        (void) fi;
+        auto* node = razor_tree_.find_by_path(std::string(path));
+        return node && (node->flags & S_IFREG) ? 0 : -ENOENT;
+    }
+
+    int read(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
+        (void) fi;
+        auto* node = razor_tree_.find_by_path(std::string(path));
+        if (!node || !(node->flags & S_IFREG)) return -ENOENT;
+
+        auto content_it = small_file_content_.find(node->inode_number);
+        if (content_it == small_file_content_.end()) return 0;
+
+        const std::string& content = content_it->second;
+        if (offset >= (off_t)content.length()) return 0;
+
+        size_t available = content.length() - offset;
+        size_t to_copy = std::min(size, available);
+
+        memcpy(buf, content.c_str() + offset, to_copy);
+        return to_copy;
+    }
+
+    int write(const char* path, const char* buf, size_t size, off_t offset, struct fuse_file_info* fi) {
+        (void) fi;
+        auto* node = razor_tree_.find_by_path(std::string(path));
+        if (!node || !(node->flags & S_IFREG)) return -ENOENT;
+
+        std::string& content = small_file_content_[node->inode_number];
+
+        // Ensure content is large enough
+        if (offset + size > content.length()) {
+            content.resize(offset + size, '\0');
+        }
+
+        // Write data
+        memcpy(&content[offset], buf, size);
+
+        // Update node size
+        razor_tree_.update_node(node, content.length());
+
+        return size;
+    }
+
+    int unlink(const char* path) {
+        auto* node = razor_tree_.find_by_path(std::string(path));
+        if (!node || !(node->flags & S_IFREG)) return -ENOENT;
+
+        uint64_t inode = node->inode_number;
+        razor_tree_.remove_node(node);
+        inode_to_name_.erase(inode);
+        small_file_content_.erase(inode);
+
         return 0;
     }
-    
-    // Performance monitoring methods
-    auto get_razor_stats() const {
-        return razor_tree_.get_filesystem_memory_stats();
-    }
-    
-    size_t get_file_count() const {
-        return file_stats_.size();
+
+    int rmdir(const char* path) {
+        auto* node = razor_tree_.find_by_path(std::string(path));
+        if (!node || !(node->flags & S_IFDIR)) return -ENOTDIR;
+
+        // Check if empty
+        std::vector<const typename LinuxFilesystemNaryTree<uint64_t>::FilesystemNode*> children;
+        razor_tree_.collect_children(node, children);
+
+        // Filter active children
+        int active_count = 0;
+        for (const auto* child : children) {
+            if (child->inode_number != 0) active_count++;
+        }
+
+        if (active_count > 0) return -ENOTEMPTY;
+
+        uint64_t inode = node->inode_number;
+        razor_tree_.remove_node(node);
+        inode_to_name_.erase(inode);
+
+        return 0;
     }
 };
 
 // Global filesystem instance
 static RazorFuseFilesystem* g_razor_fs = nullptr;
 
-// FUSE operation callbacks
+// FUSE callbacks
 static int razor_getattr(const char* path, struct stat* stbuf, struct fuse_file_info* fi) {
     return g_razor_fs->getattr(path, stbuf, fi);
 }
@@ -252,6 +250,14 @@ static int razor_getattr(const char* path, struct stat* stbuf, struct fuse_file_
 static int razor_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
                         off_t offset, struct fuse_file_info* fi, enum fuse_readdir_flags flags) {
     return g_razor_fs->readdir(path, buf, filler, offset, fi, flags);
+}
+
+static int razor_mkdir(const char* path, mode_t mode) {
+    return g_razor_fs->mkdir(path, mode);
+}
+
+static int razor_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
+    return g_razor_fs->create(path, mode, fi);
 }
 
 static int razor_open(const char* path, struct fuse_file_info* fi) {
@@ -266,17 +272,19 @@ static int razor_write(const char* path, const char* buf, size_t size, off_t off
     return g_razor_fs->write(path, buf, size, offset, fi);
 }
 
-static int razor_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
-    return g_razor_fs->create(path, mode, fi);
+static int razor_unlink(const char* path) {
+    return g_razor_fs->unlink(path);
 }
 
-static int razor_mkdir(const char* path, mode_t mode) {
-    return g_razor_fs->mkdir(path, mode);
+static int razor_rmdir(const char* path) {
+    return g_razor_fs->rmdir(path);
 }
 
 static const struct fuse_operations razor_oper = {
     .getattr    = razor_getattr,
     .mkdir      = razor_mkdir,
+    .unlink     = razor_unlink,
+    .rmdir      = razor_rmdir,
     .open       = razor_open,
     .read       = razor_read,
     .write      = razor_write,
@@ -285,18 +293,13 @@ static const struct fuse_operations razor_oper = {
 };
 
 int main(int argc, char* argv[]) {
-    // Initialize global filesystem instance
     g_razor_fs = new RazorFuseFilesystem();
-    
-    printf("RAZOR Filesystem FUSE Implementation\n");
-    printf("Based on: https://github.com/ncandio/n-ary_python_package.git\n");
-    printf("Enhanced by: Nico Liberato\n\n");
-    
-    // Start FUSE main loop
+
+    printf("RAZOR Filesystem (Unified Architecture)\n");
+    printf("Single source of truth: N-ary tree\n\n");
+
     int ret = fuse_main(argc, argv, &razor_oper, nullptr);
-    
-    // Cleanup
+
     delete g_razor_fs;
-    
     return ret;
 }
