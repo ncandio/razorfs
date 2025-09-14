@@ -2,26 +2,35 @@
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](fuse/Makefile) [![License](https://img.shields.io/badge/license-GPL--2.0-blue)](LICENSE) [![Focus](https://img.shields.io/badge/focus-FUSE-orange)]()
 
-A modern filesystem implementation with a focus on a clean, tree-based architecture.
+A modern filesystem implementation with enterprise-grade persistence and transaction logging.
 
 ---
 
 ## Current Status & Development Focus
 
-The `razorfs` project has recently undergone a significant architectural refactoring. The primary focus of development and testing is now on the **FUSE (Filesystem in Userspace) implementation**, which provides a stable and reliable way to use the filesystem.
+The `razorfs` project is currently in heavy testing and development phase, with primary focus on the **FUSE (Filesystem in Userspace) implementation** and **SRC core library**. This provides a stable and reliable foundation for the filesystem.
 
-Key characteristics of the current `main` branch:
+### Current Implementation Status
 
-- **Unified Tree Architecture**: The FUSE implementation now uses the N-ary tree as the **single source of truth** for all filesystem structure and metadata. This improves maintainability and simplifies the implementation.
-- **Functional Core**: All basic filesystem operations are fully functional:
-  - ✅ Create files and directories (`create`, `mkdir`)
-  - ✅ Read and write data with proper offset handling (`read`, `write`)
-  - ✅ Delete files and directories (`unlink`, `rmdir`)
-- **Persistence**: The filesystem state is saved to a binary file (`/tmp/razorfs.dat`) on shutdown and reloaded on startup.
+- **Production-Ready FUSE Layer**: The FUSE implementation now uses the complete RAZOR core API with full persistence support
+- **Enterprise Persistence**: Filesystem state is automatically saved and restored using the core RAZOR transaction logging system
+- **Full Filesystem Operations**: All standard operations are implemented and tested:
+  - ✅ Create/delete files and directories with proper permissions
+  - ✅ Read/write operations with offset handling and metadata updates
+  - ✅ Directory listing with proper stat information
+  - ✅ Automatic persistence on mount/unmount operations
+
+### Active Development Areas
+
+We are conducting extensive testing on:
+- **Core Library (`src/` folder)**: Transaction logging, crash recovery, and data integrity systems
+- **FUSE Implementation (`fuse/` folder)**: Performance optimization and edge case handling
+- **Integration Testing**: Real-world usage patterns and stress testing
 
 ### Features Under Development
-- **Compression**: The architecture is designed to support compression, but this feature is currently under active development and not yet enabled. We are unable to maintain the compression ratios promised in earlier documentation as we focus on core stability.
-- **Performance Tuning**: The current implementation is focused on correctness. Performance optimizations are a future goal.
+- **Compression System**: Compression capabilities are under active development. We are working on implementing efficient compression algorithms, but cannot currently maintain the high compression ratios mentioned in earlier project documentation. The focus is on achieving reliable compression with reasonable performance trade-offs.
+- **Performance Optimization**: Cache-aware data structures and SIMD optimizations are being evaluated
+- **Advanced Features**: Extended attributes, symbolic links, and advanced permissions are planned
 
 ## Quick Start (FUSE)
 
