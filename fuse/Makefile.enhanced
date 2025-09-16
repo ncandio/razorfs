@@ -1,0 +1,114 @@
+# Enhanced RazorFS FUSE Makefile with Robust Persistence
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -g
+INCLUDES = -I.. -I../src
+LIBS = -lfuse3 -lpthread
+
+# Source files for enhanced version
+ENHANCED_SOURCES = razorfs_fuse_enhanced.cpp ../src/razorfs_persistence.cpp
+TEST_SOURCES = ../test_enhanced_persistence.cpp ../src/razorfs_persistence.cpp
+
+# Targets
+ENHANCED_TARGET = razorfs_fuse_enhanced
+TEST_TARGET = test_enhanced_persistence
+
+# Check for required headers
+FUSE_CHECK := $(shell pkg-config --exists fuse3 && echo "yes" || echo "no")
+
+.PHONY: all enhanced test clean install check-deps
+
+all: check-deps enhanced test
+
+check-deps:
+ifeq ($(FUSE_CHECK),no)
+	@echo "Error: FUSE3 development libraries not found"
+	@echo "Please install with: sudo apt-get install libfuse3-dev pkg-config"
+	@exit 1
+else
+	@echo "✅ FUSE3 development libraries found"
+endif
+
+enhanced: check-deps $(ENHANCED_TARGET)
+
+$(ENHANCED_TARGET): $(ENHANCED_SOURCES)
+	@echo "🔨 Building Enhanced RazorFS with robust persistence..."
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS) `pkg-config --cflags --libs fuse3`
+	@echo "✅ Enhanced RazorFS built successfully: $(ENHANCED_TARGET)"
+
+test: $(TEST_TARGET)
+
+$(TEST_TARGET): $(TEST_SOURCES)
+	@echo "🔨 Building persistence test suite..."
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ -lpthread
+	@echo "✅ Test suite built successfully: $(TEST_TARGET)"
+
+# Run persistence tests
+test-persistence: $(TEST_TARGET)
+	@echo "🧪 Running enhanced persistence test suite..."
+	./$(TEST_TARGET)
+
+# Quick functional test of enhanced filesystem
+test-enhanced: $(ENHANCED_TARGET)
+	@echo "🚀 Running quick functional test of enhanced RazorFS..."
+	@mkdir -p /tmp/razorfs_test_mount
+	@echo "Starting enhanced filesystem..."
+	@timeout 30s ./$(ENHANCED_TARGET) /tmp/razorfs_test_mount -f &
+	@sleep 2
+	@echo "Testing basic operations..."
+	@echo "test content" > /tmp/razorfs_test_mount/test_file.txt || true
+	@mkdir /tmp/razorfs_test_mount/test_dir || true
+	@ls -la /tmp/razorfs_test_mount/ || true
+	@cat /tmp/razorfs_test_mount/test_file.txt || true
+	@echo "Unmounting..."
+	@fusermount3 -u /tmp/razorfs_test_mount || true
+	@rmdir /tmp/razorfs_test_mount || true
+	@echo "✅ Enhanced filesystem test completed"
+
+# Performance comparison test
+test-performance: $(ENHANCED_TARGET)
+	@echo "📊 Running performance comparison..."
+	@echo "This will test the enhanced version against the baseline"
+	@./test_enhanced_performance.sh
+
+# Install enhanced version
+install: $(ENHANCED_TARGET)
+	@echo "📦 Installing enhanced RazorFS..."
+	sudo cp $(ENHANCED_TARGET) /usr/local/bin/
+	@echo "✅ Enhanced RazorFS installed to /usr/local/bin/"
+
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	rm -f $(ENHANCED_TARGET) $(TEST_TARGET)
+	rm -f /tmp/razorfs_enhanced.dat /tmp/razorfs_enhanced.dat.journal
+	rm -f /tmp/razorfs_test*.dat /tmp/razorfs_test*.journal
+	@echo "✅ Clean completed"
+
+# Debug build
+debug: CXXFLAGS = -std=c++17 -Wall -Wextra -O0 -g -DDEBUG
+debug: enhanced
+
+# Help target
+help:
+	@echo "Enhanced RazorFS Makefile"
+	@echo "========================="
+	@echo ""
+	@echo "Targets:"
+	@echo "  all                 - Build enhanced filesystem and tests"
+	@echo "  enhanced            - Build enhanced RazorFS with robust persistence"
+	@echo "  test                - Build test suite"
+	@echo "  test-persistence    - Run persistence reliability tests"
+	@echo "  test-enhanced       - Run functional tests on enhanced filesystem"
+	@echo "  test-performance    - Run performance comparison tests"
+	@echo "  install             - Install enhanced version system-wide"
+	@echo "  clean               - Remove build artifacts"
+	@echo "  debug               - Build with debug symbols"
+	@echo "  help                - Show this help"
+	@echo ""
+	@echo "Enhanced Features:"
+	@echo "  ✅ Crash-safe persistence with journaling"
+	@echo "  ✅ CRC32 data integrity checking"
+	@echo "  ✅ Efficient string table compression"
+	@echo "  ✅ Asynchronous background sync"
+	@echo "  ✅ Performance monitoring"
+	@echo "  ✅ Atomic file operations"
