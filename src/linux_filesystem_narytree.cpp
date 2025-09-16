@@ -432,4 +432,5 @@ public:
         return stats;
     }
 };// Type alias for compatibility
-using LinuxFilesystemNaryTree = OptimizedFilesystemNaryTree;
+template<typename T>
+using LinuxFilesystemNaryTree = OptimizedFilesystemNaryTree<T>;

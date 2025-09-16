@@ -7,18 +7,25 @@ LIBS = $(shell pkg-config fuse3 --libs) -lpthread
 TARGET = razorfs_fuse
 SOURCE = razorfs_fuse.cpp
 
+# Additional source files from src directory
+RAZOR_SOURCES = ../src/razor_core.c ../src/razor_write.c ../src/razor_transaction_log.c ../src/razor_permissions.c ../src/razor_sync.c
+RAZOR_OBJECTS = $(RAZOR_SOURCES:.c=.o)
+
 all: $(TARGET)
 
-$(TARGET): $(SOURCE)
-	$(CXX) $(CXXFLAGS) -o $@ $< $(LIBS)
+# Rule for building the FUSE filesystem
+$(TARGET): $(SOURCE) $(RAZOR_OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(RAZOR_OBJECTS) $(LIBS)
+
+# Rules for building RAZOR core objects
+../src/razor_%.o: ../src/razor_%.c
+	$(CC) $(CFLAGS) -fPIC -pthread -c $< -o $@
 
 clean:
-	rm -f $(TARGET) *.o core gmon.out
+	rm -f $(TARGET) *.o ../src/*.o core gmon.out
 
 test: $(TARGET)
 	@echo "Building RAZOR filesystem..."
 	@echo "Run with: ./$(TARGET) <mountpoint>"
-
-.PHONY: all clean test
 
 .PHONY: all clean test

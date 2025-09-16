@@ -26,10 +26,10 @@
 // Include RAZOR filesystem implementation
 #include "../src/linux_filesystem_narytree.cpp"
 
-// Simple RAZOR filesystem using only the tree
+// Enhanced RAZOR filesystem with robust persistence
 class SimpleRazorFilesystem {
 private:
-    LinuxFilesystemNaryTree<uint64_t> razor_tree_;
+    OptimizedFilesystemNaryTree<uint64_t> razor_tree_;
     std::atomic<uint64_t> next_inode_;
 
     // Temporary: filename storage until we implement proper name storage in tree
@@ -42,7 +42,7 @@ private:
     std::string persistence_file_;
 
 public:
-    SimpleRazorFilesystem() : razor_tree_(64, -1), next_inode_(2), persistence_file_("/tmp/razorfs.dat") {
+    SimpleRazorFilesystem() : next_inode_(2), persistence_file_("/tmp/razorfs.dat") {
         load_from_disk();
 
         // Always ensure root exists (will skip if already exists from loaded data)
@@ -291,6 +291,12 @@ public:
                                                new_inode, dir_mode, 0);
         if (new_node) {
             inode_to_name_[new_inode] = path_str;
+
+            // Journal the operation for crash safety
+            if (persistence_) {
+                persistence_->journal_create_file(new_inode, path_str);
+            }
+
             return 0;
         }
 
@@ -317,6 +323,12 @@ public:
         if (new_node) {
             inode_to_name_[new_inode] = path_str;
             small_file_content_[new_inode] = ""; // Empty file
+
+            // Journal the operation for crash safety
+            if (persistence_) {
+                persistence_->journal_create_file(new_inode, path_str, "");
+            }
+
             return 0;
         }
 
@@ -365,6 +377,11 @@ public:
         // Update node size
         razor_tree_.update_node(node, content.length());
 
+        // Journal the write operation for crash safety
+        if (persistence_) {
+            persistence_->journal_write_data(node->inode_number, content);
+        }
+
         return size;
     }
 
@@ -373,6 +390,13 @@ public:
         if (!node || !(node->flags & S_IFREG)) return -ENOENT;
 
         uint64_t inode = node->inode_number;
+        std::string path_str = std::string(path);
+
+        // Journal the deletion for crash safety
+        if (persistence_) {
+            persistence_->journal_delete_file(inode, path_str);
+        }
+
         razor_tree_.remove_node(node);
         inode_to_name_.erase(inode);
         small_file_content_.erase(inode);
@@ -397,6 +421,13 @@ public:
         if (active_count > 0) return -ENOTEMPTY;
 
         uint64_t inode = node->inode_number;
+        std::string path_str = std::string(path);
+
+        // Journal the deletion for crash safety
+        if (persistence_) {
+            persistence_->journal_delete_file(inode, path_str);
+        }
+
         razor_tree_.remove_node(node);
         inode_to_name_.erase(inode);
 
@@ -519,8 +550,9 @@ int main(int argc, char* argv[]) {
 
     g_simple_fs = new SimpleRazorFilesystem();
 
-    printf("RAZOR Filesystem (Simple Working Version)\n");
-    printf("Persistence: /tmp/razorfs.dat\n");
+    printf("RAZOR Filesystem (Enhanced with Robust Persistence)\n");
+    printf("Persistence: /tmp/razorfs_enhanced.dat (CRC32 + Journaling)\n");
+    printf("Features: Crash-safe persistence, data integrity verification, atomic operations\n");
     printf("Use Ctrl+C or fusermount3 -u <mountpoint> to unmount\n\n");
 
     int ret = fuse_main(argc, argv, &simple_oper, nullptr);

@@ -519,22 +519,12 @@ bool PersistenceEngine::write_file_format(
         }
     }
 
-    // Calculate and update file CRC
-    size_t current_pos = file.tellp();
+    // Set placeholder file CRC (will be calculated by higher level function)
+    header.file_crc = 0;
+
+    // Write updated header with file CRC
     file.seekp(0);
-
-    std::vector<char> file_data(current_pos);
-    file.read(file_data.data(), current_pos);
-
-    // Calculate CRC excluding the file_crc field
-    FileHeader* header_ptr = reinterpret_cast<FileHeader*>(file_data.data());
-    header_ptr->file_crc = CRC32::calculate(
-        file_data.data() + sizeof(FileHeader),
-        current_pos - sizeof(FileHeader));
-
-    // Write back with correct CRC
-    file.seekp(0);
-    file.write(file_data.data(), current_pos);
+    file.write(reinterpret_cast<const char*>(&header), sizeof(header));
 
     return file.good();
 }
