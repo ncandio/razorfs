@@ -1,6 +1,7 @@
 #!/bin/bash
 
-echo "=== SIMPLE PERSISTENCE TEST ==="
+echo "=== REAL N-ARY TREE PERSISTENCE TEST ==="
+echo "Testing new O(log n) tree implementation instead of linear search"
 
 # Clean start
 rm -f /tmp/razorfs.dat

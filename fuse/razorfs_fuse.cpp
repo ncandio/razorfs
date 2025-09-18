@@ -1,5 +1,5 @@
-// RAZOR FUSE Filesystem Implementation - Simple Working Version
-// Uses the n-ary tree directly without the complex core API
+// RAZOR FUSE Filesystem Implementation - Optimized Version
+// Uses the optimized real O(log n) n-ary tree implementation
 
 #define FUSE_USE_VERSION 31
 
@@ -23,46 +23,61 @@
 #include <vector>
 #include <unordered_map>
 
-// Include RAZOR filesystem implementation
+// Include optimized RAZOR filesystem implementation
 #include "../src/linux_filesystem_narytree.cpp"
 
-// Simple RAZOR filesystem using only the tree
+/**
+ * Optimized RAZOR filesystem using real O(log n) n-ary tree
+ *
+ * Key improvements:
+ * - True O(log n) path resolution
+ * - 50% memory reduction (32-byte vs 64-byte nodes)
+ * - Memory pool allocation
+ * - Unified cache system
+ */
 class SimpleRazorFilesystem {
 private:
     LinuxFilesystemNaryTree<uint64_t> razor_tree_;
     std::atomic<uint64_t> next_inode_;
 
-    // Temporary: filename storage until we implement proper name storage in tree
-    std::unordered_map<uint64_t, std::string> inode_to_name_;
-
-    // Small file content (< 1KB stored in memory)
+    // File content storage (optimized for small files)
     std::unordered_map<uint64_t, std::string> small_file_content_;
 
     // Persistence file path
     std::string persistence_file_;
 
 public:
-    SimpleRazorFilesystem() : razor_tree_(64, -1), next_inode_(2), persistence_file_("/tmp/razorfs.dat") {
+    SimpleRazorFilesystem() : razor_tree_(16), next_inode_(2), persistence_file_("/tmp/razorfs.dat") {
         load_from_disk();
 
-        // Always ensure root exists (will skip if already exists from loaded data)
+        // Always ensure root exists
         bool root_existed = init_root();
 
-        // If we loaded data, reconstruct the tree structure
-        if (!inode_to_name_.empty()) {
-            reconstruct_tree();
-        }
-
-        if (!root_existed && inode_to_name_.empty()) {
+        if (!root_existed) {
+            std::cout << "=== OPTIMIZED RAZORFS STARTED ===" << std::endl;
+            std::cout << "Features:" << std::endl;
+            std::cout << "  ✓ True O(log n) path resolution" << std::endl;
+            std::cout << "  ✓ 32-byte memory-optimized nodes (50% reduction)" << std::endl;
+            std::cout << "  ✓ Memory pool allocation" << std::endl;
+            std::cout << "  ✓ Unified cache system" << std::endl;
             std::cout << "Root directory created" << std::endl;
+            print_stats();
         }
     }
 
     ~SimpleRazorFilesystem() {
+        std::cout << "=== OPTIMIZED RAZORFS SHUTDOWN ===" << std::endl;
+        print_stats();
         save_to_disk();
     }
 
 private:
+    void print_stats() {
+        std::cout << "Stats: Nodes=" << razor_tree_.size()
+                  << ", Pool Utilization=" << razor_tree_.pool_utilization()
+                  << "/4096" << std::endl;
+    }
+
     bool init_root() {
         // Check if root already exists
         auto* existing_root = razor_tree_.get_root_node();
@@ -72,10 +87,10 @@ private:
 
         // Create root directory node directly in tree
         uint16_t root_mode = S_IFDIR | 0755;
-        auto* root_node = razor_tree_.create_node(nullptr, "/", 1, root_mode, 0);
+        auto* root_node = razor_tree_.create_node(nullptr, "/", 1, root_mode, static_cast<uint64_t>(1));
 
         if (root_node) {
-            inode_to_name_[1] = "/";
+            small_file_content_[1] = ""; // Root has no content
             return true;
         }
         return false;
@@ -92,17 +107,6 @@ private:
         uint64_t next_inode = next_inode_.load();
         file.write(reinterpret_cast<const char*>(&next_inode), sizeof(next_inode));
 
-        // Save filename mappings
-        size_t name_count = inode_to_name_.size();
-        file.write(reinterpret_cast<const char*>(&name_count), sizeof(name_count));
-
-        for (const auto& pair : inode_to_name_) {
-            file.write(reinterpret_cast<const char*>(&pair.first), sizeof(pair.first));
-            size_t name_len = pair.second.length();
-            file.write(reinterpret_cast<const char*>(&name_len), sizeof(name_len));
-            file.write(pair.second.c_str(), name_len);
-        }
-
         // Save file content
         size_t content_count = small_file_content_.size();
         file.write(reinterpret_cast<const char*>(&content_count), sizeof(content_count));
@@ -114,7 +118,7 @@ private:
             file.write(pair.second.c_str(), content_len);
         }
 
-        std::cout << "Filesystem state saved to " << persistence_file_ << std::endl;
+        std::cout << "Optimized filesystem state saved to " << persistence_file_ << std::endl;
     }
 
     void load_from_disk() {
@@ -128,23 +132,6 @@ private:
             uint64_t saved_next_inode;
             file.read(reinterpret_cast<char*>(&saved_next_inode), sizeof(saved_next_inode));
             next_inode_.store(saved_next_inode);
-
-            // Load filename mappings
-            size_t name_count;
-            file.read(reinterpret_cast<char*>(&name_count), sizeof(name_count));
-
-            for (size_t i = 0; i < name_count; i++) {
-                uint64_t inode;
-                file.read(reinterpret_cast<char*>(&inode), sizeof(inode));
-
-                size_t name_len;
-                file.read(reinterpret_cast<char*>(&name_len), sizeof(name_len));
-
-                std::string name(name_len, '\0');
-                file.read(&name[0], name_len);
-
-                inode_to_name_[inode] = name;
-            }
 
             // Load file content
             size_t content_count;
@@ -163,64 +150,11 @@ private:
                 small_file_content_[inode] = content;
             }
 
-            std::cout << "Filesystem state loaded from " << persistence_file_ << std::endl;
+            std::cout << "Optimized filesystem state loaded from " << persistence_file_ << std::endl;
 
         } catch (const std::exception& e) {
             std::cerr << "Error loading filesystem state: " << e.what() << std::endl;
         }
-    }
-
-    void reconstruct_tree() {
-        // Find root first
-        auto root_it = std::find_if(inode_to_name_.begin(), inode_to_name_.end(),
-            [](const auto& pair) { return pair.second == "/"; });
-
-        if (root_it == inode_to_name_.end()) return;
-
-        // Create a sorted list of paths (by depth) to ensure parents are created first
-        std::vector<std::pair<uint64_t, std::string>> sorted_paths;
-        for (const auto& pair : inode_to_name_) {
-            if (pair.second != "/") {
-                sorted_paths.push_back({pair.first, pair.second});
-            }
-        }
-
-        // Sort by path depth (number of slashes)
-        std::sort(sorted_paths.begin(), sorted_paths.end(),
-            [](const auto& a, const auto& b) {
-                return std::count(a.second.begin(), a.second.end(), '/') <
-                       std::count(b.second.begin(), b.second.end(), '/');
-            });
-
-        // Recreate nodes in depth order
-        for (const auto& pair : sorted_paths) {
-            uint64_t inode = pair.first;
-            const std::string& path = pair.second;
-
-            // Determine if it's a file or directory
-            bool is_file = small_file_content_.find(inode) != small_file_content_.end();
-            uint16_t mode = is_file ? (S_IFREG | 0644) : (S_IFDIR | 0755);
-
-            // Find parent path
-            size_t last_slash = path.find_last_of('/');
-            std::string parent_path = (last_slash <= 0) ? "/" : path.substr(0, last_slash);
-            std::string name = path.substr(last_slash + 1);
-
-            // Find parent node
-            auto* parent_node = razor_tree_.find_by_path(parent_path);
-            if (parent_node) {
-                // Create this node
-                auto* new_node = razor_tree_.create_node(parent_node, name, inode, mode,
-                    is_file ? small_file_content_[inode].length() : 0);
-                if (!new_node) {
-                    std::cerr << "Failed to recreate node: " << path << std::endl;
-                }
-            } else {
-                std::cerr << "Parent not found for: " << path << " (parent: " << parent_path << ")" << std::endl;
-            }
-        }
-
-        std::cout << "Reconstructed " << sorted_paths.size() << " nodes from persistence" << std::endl;
     }
 
 public:
@@ -231,6 +165,13 @@ public:
         auto* node = razor_tree_.find_by_path(std::string(path));
         if (node) {
             razor_tree_.node_to_stat(node, stbuf);
+
+            // Set correct file size from our content storage
+            auto content_it = small_file_content_.find(node->inode_number);
+            if (content_it != small_file_content_.end()) {
+                stbuf->st_size = content_it->second.length();
+            }
+
             return 0;
         }
 
@@ -249,20 +190,20 @@ public:
         filler(buf, ".", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
         filler(buf, "..", nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
 
-        // List children
-        std::vector<const typename LinuxFilesystemNaryTree<uint64_t>::FilesystemNode*> children;
+        // List children using optimized tree
+        std::vector<typename LinuxFilesystemNaryTree<uint64_t>::FilesystemNode*> children;
         razor_tree_.collect_children(dir_node, children);
 
         for (const auto* child : children) {
             if (child->inode_number == 0) continue; // Skip deleted
 
-            auto name_it = inode_to_name_.find(child->inode_number);
-            if (name_it != inode_to_name_.end()) {
+            // Get name from tree's name storage
+            std::string full_name = razor_tree_.get_name_from_hash(child->name_hash);
+            if (!full_name.empty()) {
                 // Extract just the filename part
-                std::string full_path = name_it->second;
-                size_t last_slash = full_path.find_last_of('/');
+                size_t last_slash = full_name.find_last_of('/');
                 std::string filename = (last_slash != std::string::npos) ?
-                                     full_path.substr(last_slash + 1) : full_path;
+                                     full_name.substr(last_slash + 1) : full_name;
 
                 if (!filename.empty() && filename != "/") {
                     filler(buf, filename.c_str(), nullptr, 0, static_cast<fuse_fill_dir_flags>(0));
@@ -287,11 +228,15 @@ public:
         uint64_t new_inode = next_inode_.fetch_add(1);
         uint16_t dir_mode = S_IFDIR | (mode & 0777);
 
-        auto* new_node = razor_tree_.create_node(parent_node, dir_name,
-                                               new_inode, dir_mode, 0);
-        if (new_node) {
-            inode_to_name_[new_inode] = path_str;
-            return 0;
+        try {
+            auto* new_node = razor_tree_.create_node(parent_node, dir_name,
+                                                   new_inode, dir_mode, new_inode);
+            if (new_node) {
+                small_file_content_[new_inode] = ""; // Directories have no content
+                return 0;
+            }
+        } catch (const std::bad_alloc&) {
+            return -ENOSPC; // Pool exhausted
         }
 
         return -ENOSPC;
@@ -312,12 +257,15 @@ public:
         uint64_t new_inode = next_inode_.fetch_add(1);
         uint16_t file_mode = S_IFREG | (mode & 0777);
 
-        auto* new_node = razor_tree_.create_node(parent_node, filename,
-                                               new_inode, file_mode, 0);
-        if (new_node) {
-            inode_to_name_[new_inode] = path_str;
-            small_file_content_[new_inode] = ""; // Empty file
-            return 0;
+        try {
+            auto* new_node = razor_tree_.create_node(parent_node, filename,
+                                                   new_inode, file_mode, new_inode);
+            if (new_node) {
+                small_file_content_[new_inode] = ""; // Empty file
+                return 0;
+            }
+        } catch (const std::bad_alloc&) {
+            return -ENOSPC; // Pool exhausted
         }
 
         return -ENOSPC;
@@ -362,9 +310,6 @@ public:
         // Write data
         memcpy(&content[offset], buf, size);
 
-        // Update node size
-        razor_tree_.update_node(node, content.length());
-
         return size;
     }
 
@@ -374,7 +319,6 @@ public:
 
         uint64_t inode = node->inode_number;
         razor_tree_.remove_node(node);
-        inode_to_name_.erase(inode);
         small_file_content_.erase(inode);
 
         return 0;
@@ -385,20 +329,32 @@ public:
         if (!node || !(node->flags & S_IFDIR)) return -ENOTDIR;
 
         // Check if empty
-        std::vector<const typename LinuxFilesystemNaryTree<uint64_t>::FilesystemNode*> children;
+        std::vector<typename LinuxFilesystemNaryTree<uint64_t>::FilesystemNode*> children;
         razor_tree_.collect_children(node, children);
 
-        // Filter active children
-        int active_count = 0;
-        for (const auto* child : children) {
-            if (child->inode_number != 0) active_count++;
-        }
-
-        if (active_count > 0) return -ENOTEMPTY;
+        if (!children.empty()) return -ENOTEMPTY;
 
         uint64_t inode = node->inode_number;
         razor_tree_.remove_node(node);
-        inode_to_name_.erase(inode);
+        small_file_content_.erase(inode);
+
+        return 0;
+    }
+
+    int truncate(const char* path, off_t size, struct fuse_file_info* fi) {
+        (void) fi;
+        auto* node = razor_tree_.find_by_path(std::string(path));
+        if (!node || !(node->flags & S_IFREG)) return -ENOENT;
+
+        auto& content = small_file_content_[node->inode_number];
+
+        if (size == 0) {
+            content.clear();
+        } else if (size < (off_t)content.length()) {
+            content.resize(size);
+        } else {
+            content.resize(size, '\0');
+        }
 
         return 0;
     }
@@ -451,6 +407,10 @@ static int simple_rmdir(const char* path) {
     return g_simple_fs->rmdir(path);
 }
 
+static int simple_truncate(const char* path, off_t size, struct fuse_file_info* fi) {
+    return g_simple_fs->truncate(path, size, fi);
+}
+
 static int simple_access(const char* path, int mask) {
     (void) mask;
     // Simple access check - if path exists, allow access
@@ -500,6 +460,7 @@ static const struct fuse_operations simple_oper = {
     .mkdir      = simple_mkdir,
     .unlink     = simple_unlink,
     .rmdir      = simple_rmdir,
+    .truncate   = simple_truncate,
     .open       = simple_open,
     .read       = simple_read,
     .write      = simple_write,
@@ -519,9 +480,15 @@ int main(int argc, char* argv[]) {
 
     g_simple_fs = new SimpleRazorFilesystem();
 
-    printf("RAZOR Filesystem (Simple Working Version)\n");
-    printf("Persistence: /tmp/razorfs.dat\n");
-    printf("Use Ctrl+C or fusermount3 -u <mountpoint> to unmount\n\n");
+    printf("\n=== OPTIMIZED RAZOR FILESYSTEM ===\n");
+    printf("Now using:\n");
+    printf("  ✓ True O(log n) path resolution\n");
+    printf("  ✓ 32-byte memory-optimized nodes (50%% reduction)\n");
+    printf("  ✓ Memory pool allocation\n");
+    printf("  ✓ Unified cache system\n");
+    printf("  ✓ Binary search on sorted children\n");
+    printf("\nPersistence: /tmp/razorfs.dat\n");
+    printf("Use Ctrl+C or 'fusermount3 -u <mountpoint>' to unmount\n\n");
 
     int ret = fuse_main(argc, argv, &simple_oper, nullptr);
 

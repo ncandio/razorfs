@@ -1,0 +1,285 @@
+# Dockerfile for RazorFS vs Traditional Filesystems Comparison
+FROM ubuntu:22.04
+
+LABEL description="Filesystem Comparison: RazorFS vs ext4/btrfs/reiserfs"
+LABEL maintainer="RazorFS Team"
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    # Build tools
+    build-essential \
+    cmake \
+    pkg-config \
+    git \
+    \
+    # Filesystem tools
+    e2fsprogs \
+    btrfs-progs \
+    reiserfsprogs \
+    \
+    # FUSE support
+    fuse3 \
+    libfuse3-dev \
+    \
+    # Benchmark tools
+    fio \
+    iozone3 \
+    bonnie++ \
+    sysbench \
+    stress-ng \
+    \
+    # System monitoring
+    htop \
+    iotop \
+    sysstat \
+    procps \
+    psmisc \
+    \
+    # Python for analysis
+    python3 \
+    python3-pip \
+    python3-venv \
+    \
+    # Utilities
+    bc \
+    time \
+    curl \
+    wget \
+    nano \
+    tree \
+    strace \
+    ltrace \
+    \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages for analysis
+RUN pip3 install \
+    pandas \
+    matplotlib \
+    seaborn \
+    numpy \
+    psutil \
+    tabulate
+
+# Create working directory
+WORKDIR /app
+
+# Create necessary directories
+RUN mkdir -p /app/results \
+    /app/test-data \
+    /app/benchmarks \
+    /app/filesystems \
+    /mnt/razorfs \
+    /mnt/ext4 \
+    /mnt/btrfs \
+    /mnt/reiserfs \
+    /tmp/fs-images
+
+# Copy RazorFS source code
+COPY src/ /app/src/
+COPY fuse/ /app/fuse/
+
+# Build RazorFS
+WORKDIR /app/fuse
+RUN make clean && make
+
+# Copy benchmark scripts
+WORKDIR /app
+COPY benchmarks/ /app/benchmarks/
+COPY scripts/ /app/scripts/
+
+# Make scripts executable
+RUN chmod +x /app/benchmarks/*.sh \
+    && chmod +x /app/scripts/*.sh \
+    && chmod +x /app/fuse/razorfs_fuse
+
+# Create filesystem image creation script
+RUN cat > /app/create-filesystem-images.sh << 'EOF'
+#!/bin/bash
+set -e
+
+IMG_SIZE=${1:-100M}
+IMAGE_DIR="/tmp/fs-images"
+
+echo "Creating ${IMG_SIZE} filesystem images in ${IMAGE_DIR}..."
+
+# Create ext4 image
+dd if=/dev/zero of=${IMAGE_DIR}/ext4.img bs=1M count=100 2>/dev/null
+mkfs.ext4 -F ${IMAGE_DIR}/ext4.img >/dev/null 2>&1
+
+# Create btrfs image
+dd if=/dev/zero of=${IMAGE_DIR}/btrfs.img bs=1M count=100 2>/dev/null
+mkfs.btrfs -f ${IMAGE_DIR}/btrfs.img >/dev/null 2>&1
+
+# Create reiserfs image
+dd if=/dev/zero of=${IMAGE_DIR}/reiserfs.img bs=1M count=100 2>/dev/null
+mkfs.reiserfs -f -q ${IMAGE_DIR}/reiserfs.img >/dev/null 2>&1
+
+echo "Filesystem images created successfully"
+EOF
+
+RUN chmod +x /app/create-filesystem-images.sh
+
+# Create filesystem mounting script
+RUN cat > /app/mount-filesystems.sh << 'EOF'
+#!/bin/bash
+set -e
+
+IMAGE_DIR="/tmp/fs-images"
+
+echo "Mounting filesystems..."
+
+# Mount traditional filesystems using loop devices
+mount -t ext4 -o loop ${IMAGE_DIR}/ext4.img /mnt/ext4
+mount -t btrfs -o loop ${IMAGE_DIR}/btrfs.img /mnt/btrfs
+mount -t reiserfs -o loop ${IMAGE_DIR}/reiserfs.img /mnt/reiserfs
+
+# Start RazorFS in background
+mkdir -p /tmp/razorfs-temp
+/app/fuse/razorfs_fuse /mnt/razorfs &
+sleep 2
+
+echo "All filesystems mounted successfully"
+EOF
+
+RUN chmod +x /app/mount-filesystems.sh
+
+# Create unmounting script
+RUN cat > /app/unmount-filesystems.sh << 'EOF'
+#!/bin/bash
+
+echo "Unmounting filesystems..."
+
+# Unmount RazorFS
+fusermount3 -u /mnt/razorfs 2>/dev/null || true
+
+# Unmount traditional filesystems
+umount /mnt/ext4 2>/dev/null || true
+umount /mnt/btrfs 2>/dev/null || true
+umount /mnt/reiserfs 2>/dev/null || true
+
+echo "All filesystems unmounted"
+EOF
+
+RUN chmod +x /app/unmount-filesystems.sh
+
+# Create main benchmark runner
+RUN cat > /app/run-filesystem-comparison.sh << 'EOF'
+#!/bin/bash
+set -e
+
+MODE=${1:-quick}
+RESULTS_DIR="/app/results"
+
+echo "=== RazorFS vs Traditional Filesystems Comparison ==="
+echo "Mode: ${MODE}"
+echo "Results directory: ${RESULTS_DIR}"
+
+# Create results directory with timestamp
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+RESULT_SUBDIR="${RESULTS_DIR}/${MODE}_${TIMESTAMP}"
+mkdir -p "${RESULT_SUBDIR}"
+
+# System information
+echo "Collecting system information..."
+cat > "${RESULT_SUBDIR}/system_info.txt" << SYSEOF
+=== System Information ===
+Date: $(date)
+Kernel: $(uname -a)
+CPU: $(grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2 | xargs)
+Memory: $(free -h | grep "Mem:" | awk '{print $2}')
+Disk: $(df -h / | tail -1 | awk '{print $2}')
+Docker Version: $(docker --version 2>/dev/null || echo "N/A")
+SYSEOF
+
+# Create filesystem images
+./create-filesystem-images.sh
+
+# Mount filesystems
+./mount-filesystems.sh
+
+# Run benchmarks based on mode
+case ${MODE} in
+    "quick")
+        echo "Running quick comparison tests..."
+        ./benchmarks/quick-comparison.sh "${RESULT_SUBDIR}"
+        ;;
+    "full")
+        echo "Running comprehensive comparison tests..."
+        ./benchmarks/comprehensive-comparison.sh "${RESULT_SUBDIR}"
+        ;;
+    "stress")
+        echo "Running stress tests..."
+        ./benchmarks/stress-comparison.sh "${RESULT_SUBDIR}"
+        ;;
+    "micro")
+        echo "Running micro-benchmarks..."
+        ./benchmarks/micro-benchmarks.sh "${RESULT_SUBDIR}"
+        ;;
+    *)
+        echo "Unknown mode: ${MODE}"
+        echo "Available modes: quick, full, stress, micro"
+        exit 1
+        ;;
+esac
+
+# Generate graphs if requested
+if [[ "${GRAPH_OUTPUT}" == "true" ]]; then
+    echo "Generating performance graphs..."
+    python3 ./scripts/generate-comparison-graphs.py "${RESULT_SUBDIR}"
+fi
+
+# Cleanup
+./unmount-filesystems.sh
+
+echo "=== Benchmark Complete ==="
+echo "Results saved to: ${RESULT_SUBDIR}"
+EOF
+
+RUN chmod +x /app/run-filesystem-comparison.sh
+
+# Create diagnostics script
+RUN cat > /app/diagnose-filesystems.sh << 'EOF'
+#!/bin/bash
+
+echo "=== Filesystem Diagnostics ==="
+
+# Check available filesystem tools
+echo "Checking filesystem tools..."
+echo "ext4: $(which mkfs.ext4 && echo "✓" || echo "✗")"
+echo "btrfs: $(which mkfs.btrfs && echo "✓" || echo "✗")"
+echo "reiserfs: $(which mkfs.reiserfs && echo "✓" || echo "✗")"
+echo "FUSE: $(which fusermount3 && echo "✓" || echo "✗")"
+
+# Check RazorFS build
+echo -e "\nChecking RazorFS build..."
+if [[ -x "/app/fuse/razorfs_fuse" ]]; then
+    echo "RazorFS: ✓"
+else
+    echo "RazorFS: ✗ (not built)"
+fi
+
+# Test filesystem creation
+echo -e "\nTesting filesystem creation..."
+./create-filesystem-images.sh >/dev/null 2>&1 && echo "Filesystem images: ✓" || echo "Filesystem images: ✗"
+
+# Test mounting
+echo -e "\nTesting filesystem mounting..."
+./mount-filesystems.sh >/dev/null 2>&1
+if mount | grep -q "/mnt/ext4"; then echo "ext4 mount: ✓"; else echo "ext4 mount: ✗"; fi
+if mount | grep -q "/mnt/btrfs"; then echo "btrfs mount: ✓"; else echo "btrfs mount: ✗"; fi
+if mount | grep -q "/mnt/reiserfs"; then echo "reiserfs mount: ✓"; else echo "reiserfs mount: ✗"; fi
+if mount | grep -q "/mnt/razorfs"; then echo "RazorFS mount: ✓"; else echo "RazorFS mount: ✗"; fi
+
+./unmount-filesystems.sh >/dev/null 2>&1
+
+echo -e "\n=== Diagnostics Complete ==="
+EOF
+
+RUN chmod +x /app/diagnose-filesystems.sh
+
+# Set default command
+CMD ["./run-filesystem-comparison.sh", "quick"]
