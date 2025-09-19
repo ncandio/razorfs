@@ -6,14 +6,19 @@ A modern filesystem implementation with enterprise-grade persistence and transac
 
 ## 📊 Performance Charts
 
-Performance analysis charts available at:
-```
-C:\Users\liber\Desktop\Testing-Razor-FS\results\charts\
-├── filesystem_performance_comparison.png    # RazorFS vs EXT4/ReiserFS/EXT2
-├── performance_retention_analysis.png       # 112.5% retention (O log n proof)
-├── performance_scaling_comparison.png       # Scaling behavior analysis
-└── algorithmic_complexity_proof.png        # Theoretical vs actual O(log n)
-```
+### Filesystem Performance Comparison
+![Filesystem Performance Comparison](results/charts/filesystem_performance_comparison.png)
+
+### Performance Retention Analysis (O(log n) Proof)
+![Performance Retention Analysis](results/charts/performance_retention_analysis.png)
+
+### Performance Scaling Comparison
+![Performance Scaling Comparison](results/charts/performance_scaling_comparison.png)
+
+### Algorithmic Complexity Proof
+![Algorithmic Complexity Proof](results/charts/algorithmic_complexity_proof.png)
+
+**Charts also available locally at**: `C:\Users\liber\Desktop\Testing-Razor-FS\results\charts\`
 
 ---
 
