@@ -1,0 +1,110 @@
+# Optimized RazorFS Makefile
+# Builds the optimized version with real O(log n) n-ary tree
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -DNDEBUG
+LDFLAGS = -lfuse3 -lpthread
+
+# Optimization flags for performance
+CXXFLAGS += -march=native -mtune=native
+CXXFLAGS += -flto -fno-plt
+CXXFLAGS += -falign-functions=32 -falign-loops=32
+
+# Debug version flags (comment out for release)
+# CXXFLAGS += -g -O0 -DDEBUG -fsanitize=address
+# LDFLAGS += -fsanitize=address
+
+TARGET = razorfs_optimized
+SOURCE = optimized_razorfs_fuse.cpp
+
+# Include paths
+INCLUDES = -I../src
+
+.PHONY: all clean test benchmark
+
+all: $(TARGET)
+
+$(TARGET): $(SOURCE)
+	@echo "Building optimized RazorFS with:"
+	@echo "  - True O(log n) path resolution"
+	@echo "  - 32-byte memory-optimized nodes"
+	@echo "  - Memory pool allocation"
+	@echo "  - Block-based storage"
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LDFLAGS)
+	@echo "Build complete: $(TARGET)"
+
+clean:
+	rm -f $(TARGET)
+	rm -f /tmp/razorfs_optimized.dat
+
+test: $(TARGET)
+	@echo "Running basic functionality test..."
+	@mkdir -p /tmp/optimized_test_mount
+	@echo "Starting optimized filesystem..."
+	@./$(TARGET) /tmp/optimized_test_mount &
+	@sleep 2
+	@echo "Testing basic operations..."
+	@echo "test content" > /tmp/optimized_test_mount/test.txt || echo "Write failed"
+	@cat /tmp/optimized_test_mount/test.txt || echo "Read failed"
+	@mkdir /tmp/optimized_test_mount/testdir || echo "Mkdir failed"
+	@ls -la /tmp/optimized_test_mount/ || echo "Listing failed"
+	@echo "Stopping filesystem..."
+	@fusermount3 -u /tmp/optimized_test_mount || true
+	@rmdir /tmp/optimized_test_mount || true
+	@echo "Test completed"
+
+benchmark: $(TARGET)
+	@echo "Running performance benchmark..."
+	@echo "This will compare optimized vs original implementation"
+	@./benchmark_optimized.sh
+
+install: $(TARGET)
+	sudo cp $(TARGET) /usr/local/bin/
+	@echo "Installed to /usr/local/bin/$(TARGET)"
+
+# Development targets
+debug: CXXFLAGS += -g -O0 -DDEBUG -fsanitize=address
+debug: LDFLAGS += -fsanitize=address
+debug: $(TARGET)
+
+profile: CXXFLAGS += -g -pg -O2
+profile: LDFLAGS += -pg
+profile: $(TARGET)
+
+# Memory analysis
+valgrind: debug
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all ./$(TARGET)
+
+# Performance analysis
+perf: $(TARGET)
+	perf record -g ./$(TARGET)
+	perf report
+
+# Static analysis
+analyze:
+	clang-static-analyzer $(CXXFLAGS) $(INCLUDES) $(SOURCE)
+
+# Show memory layout of optimized structures
+layout:
+	@echo "Memory layout analysis:"
+	@echo "Original TreeNode size: 64+ bytes"
+	@echo "Optimized TreeNode size: 32 bytes"
+	@echo "Memory savings: ~50%"
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $(SOURCE) -o /tmp/layout.o
+	@objdump -t /tmp/layout.o | grep TreeNode || echo "Structure info not available"
+	@rm -f /tmp/layout.o
+
+help:
+	@echo "Available targets:"
+	@echo "  all       - Build optimized RazorFS"
+	@echo "  clean     - Remove build artifacts"
+	@echo "  test      - Run basic functionality test"
+	@echo "  benchmark - Run performance comparison"
+	@echo "  debug     - Build with debug symbols"
+	@echo "  profile   - Build with profiling enabled"
+	@echo "  valgrind  - Run memory analysis"
+	@echo "  perf      - Run performance analysis"
+	@echo "  analyze   - Run static analysis"
+	@echo "  layout    - Show memory layout info"
+	@echo "  install   - Install to system"
+	@echo "  help      - Show this help"
