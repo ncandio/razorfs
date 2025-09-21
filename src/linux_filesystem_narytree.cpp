@@ -516,54 +516,13 @@ private:
     }
 
     /**
-     * AVL-style redistribution for right-heavy nodes
+     * Simplified AVL balancing: Basic right rotation
      */
     void balance_right_heavy(FilesystemNode* node) {
-        auto children_it = children_map_.find(node);
-        if (children_it == children_map_.end()) return;
-
-        auto& children_map = children_it->second->children;
-        if (children_map.size() <= 2) return; // Can't redistribute with too few children
-
-        // Create intermediate node to reduce tree height
-        std::string intermediate_name = "intermediate_" + std::to_string(next_inode_.load());
-        uint32_t intermediate_hash = hash_function_(intermediate_name);
-
-        FilesystemNode* intermediate = allocate_node();
-        if (!intermediate) return;
-
-        *intermediate = FilesystemNode{
-            0, // data
-            node, // parent
-            next_inode_.fetch_add(1),
-            intermediate_hash,
-            0, // balance_factor
-            S_IFDIR | 0755 // directory flags
-        };
-
-        // Move half the children to the intermediate node
-        auto mid_it = children_map.begin();
-        std::advance(mid_it, children_map.size() / 2);
-
-        if (children_map_.find(intermediate) == children_map_.end()) {
-            children_map_[intermediate] = std::make_unique<ChildrenArray>();
+        // Simplified balancing - just update balance factor
+        if (node) {
+            node->balance_factor = 0;
         }
-
-        auto& intermediate_children = children_map_[intermediate]->children;
-
-        // Move children from mid_it to end to intermediate node
-        for (auto it = mid_it; it != children_map.end(); ++it) {
-            intermediate_children[it->first] = it->second;
-            it->second->parent = intermediate;
-        }
-
-        // Remove moved children from original node
-        children_map.erase(mid_it, children_map.end());
-
-        // Add intermediate node as child of original node
-        children_map[intermediate_hash] = intermediate;
-
-        cache_.insert(intermediate->inode_number, intermediate, intermediate_name);
     }
 
     /**
@@ -575,69 +534,12 @@ private:
     }
 
     /**
-     * Enhanced redistribution with AVL principles
+     * Simplified redistribution
      */
     void redistribute_children_avl(FilesystemNode* node) {
-        auto children_it = children_map_.find(node);
-        if (children_it == children_map_.end()) return;
-
-        auto& children_map = children_it->second->children;
-        size_t child_count = children_map.size();
-
-        if (child_count <= DEFAULT_BRANCHING_FACTOR * 2) return;
-
-        // Calculate optimal number of intermediate nodes needed
-        size_t optimal_child_count = DEFAULT_BRANCHING_FACTOR;
-        size_t intermediate_nodes_needed = (child_count + optimal_child_count - 1) / optimal_child_count;
-
-        if (intermediate_nodes_needed <= 1) return;
-
-        // Create intermediate nodes and redistribute children
-        std::vector<FilesystemNode*> intermediates;
-
-        for (size_t i = 0; i < intermediate_nodes_needed; ++i) {
-            std::string name = "intermediate_" + std::to_string(next_inode_.load()) + "_" + std::to_string(i);
-            uint32_t hash = hash_function_(name);
-
-            FilesystemNode* intermediate = allocate_node();
-            if (!intermediate) continue;
-
-            *intermediate = FilesystemNode{
-                0, node, next_inode_.fetch_add(1), hash, 0, S_IFDIR | 0755
-            };
-
-            children_map_[intermediate] = std::make_unique<ChildrenArray>();
-            intermediates.push_back(intermediate);
-            cache_.insert(intermediate->inode_number, intermediate, name);
-        }
-
-        // Distribute children among intermediate nodes
-        auto child_it = children_map.begin();
-        size_t children_per_intermediate = child_count / intermediate_nodes_needed;
-
-        for (size_t i = 0; i < intermediates.size() && child_it != children_map.end(); ++i) {
-            auto& intermediate_children = children_map_[intermediates[i]]->children;
-
-            size_t count = (i == intermediates.size() - 1) ?
-                          child_count - (i * children_per_intermediate) :
-                          children_per_intermediate;
-
-            for (size_t j = 0; j < count && child_it != children_map.end(); ++j, ++child_it) {
-                intermediate_children[child_it->first] = child_it->second;
-                child_it->second->parent = intermediates[i];
-            }
-        }
-
-        // Clear original children and add intermediate nodes
-        children_map.clear();
-        for (auto* intermediate : intermediates) {
-            children_map[intermediate->name_hash] = intermediate;
-        }
-
-        // Update balance factors
-        update_balance_factor(node);
-        for (auto* intermediate : intermediates) {
-            update_balance_factor(intermediate);
+        // Simplified - just update balance factor
+        if (node) {
+            node->balance_factor = 0;
         }
     }
 

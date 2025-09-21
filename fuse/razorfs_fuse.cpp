@@ -87,7 +87,7 @@ private:
 
         // Create root directory node directly in tree
         uint16_t root_mode = S_IFDIR | 0755;
-        auto* root_node = razor_tree_.create_node(nullptr, "/", 1, root_mode, static_cast<uint64_t>(1));
+        auto* root_node = razor_tree_.create_node(nullptr, "root", 1, root_mode, static_cast<uint64_t>(1));
 
         if (root_node) {
             small_file_content_[1] = ""; // Root has no content
