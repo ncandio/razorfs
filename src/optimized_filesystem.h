@@ -426,36 +426,85 @@ private:
         return bytes_read;
     }
 
-    size_t write_to_blocks(std::vector<uint32_t>& block_ids, const void* data, size_t size, size_t /* offset */) {
-        // Simplified implementation - always append new blocks
-        // A full implementation would handle in-place updates
+    size_t write_to_blocks(std::vector<uint32_t>& block_ids, const void* data, size_t size, size_t offset) {
+        // FIXED: Proper in-place updates with offset support
+        // No longer append-only - handles random access writes
 
         const char* buf = static_cast<const char*>(data);
         size_t bytes_written = 0;
+        size_t current_offset = offset;
 
         while (bytes_written < size) {
-            uint32_t block_id = block_manager_.allocate_block();
-            if (block_id == UINT32_MAX) break; // No more blocks
+            // Calculate which block we need and offset within that block
+            size_t block_index = current_offset / BlockManager::BLOCK_SIZE;
+            size_t block_offset = current_offset % BlockManager::BLOCK_SIZE;
 
-            size_t to_write = std::min(size - bytes_written, BlockManager::BLOCK_SIZE);
-            if (block_manager_.write_block(block_id, buf + bytes_written, to_write)) {
-                block_ids.push_back(block_id);
-                bytes_written += to_write;
-            } else {
-                block_manager_.deallocate_block(block_id);
-                break;
+            // Ensure we have enough blocks allocated
+            while (block_ids.size() <= block_index) {
+                uint32_t new_block_id = block_manager_.allocate_block();
+                if (new_block_id == UINT32_MAX) {
+                    return bytes_written; // No more blocks available
+                }
+                block_ids.push_back(new_block_id);
             }
+
+            uint32_t block_id = block_ids[block_index];
+            size_t remaining_in_block = BlockManager::BLOCK_SIZE - block_offset;
+            size_t to_write = std::min(size - bytes_written, remaining_in_block);
+
+            // Read existing block data if we're doing partial write
+            std::vector<char> block_data(BlockManager::BLOCK_SIZE, 0);
+            if (block_offset > 0 || to_write < BlockManager::BLOCK_SIZE) {
+                block_manager_.read_block(block_id, block_data.data(), BlockManager::BLOCK_SIZE, 0);
+            }
+
+            // Update the relevant portion of the block
+            memcpy(block_data.data() + block_offset, buf + bytes_written, to_write);
+
+            // Write the updated block back
+            if (!block_manager_.write_block(block_id, block_data.data(), BlockManager::BLOCK_SIZE)) {
+                break; // Write failed
+            }
+
+            bytes_written += to_write;
+            current_offset += to_write;
         }
 
         return bytes_written;
     }
 
     void save_to_disk() {
-        std::ofstream file(persistence_file_, std::ios::binary);
-        if (!file.is_open()) {
-            std::cerr << "Failed to save filesystem state" << std::endl;
-            return;
+        try {
+            RazorFS::ErrorHandler::safe_file_write(persistence_file_, [this](std::ofstream& file) {
+                if (!file.is_open()) {
+                    throw RazorFS::PersistenceException("Failed to open persistence file for writing");
+                }
+
+                // Write filesystem metadata header
+                const uint32_t magic = 0x52415A4F; // "RAZO"
+                const uint32_t version = 1;
+                file.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
+                file.write(reinterpret_cast<const char*>(&version), sizeof(version));
+
+                if (!file.good()) {
+                    throw RazorFS::PersistenceException("Failed to write filesystem header");
+                }
+
+                // Save tree structure
+                save_tree_to_stream(file);
+
+                // Save file data
+                save_file_data_to_stream(file);
+
+                if (!file.good()) {
+                    throw RazorFS::PersistenceException("Failed to complete filesystem save");
+                }
+            });
+        } catch (const RazorFS::PersistenceException& e) {
+            RazorFS::ErrorHandler::handle_critical_error("save_to_disk", e);
+            throw; // Re-throw to caller
         }
+    }
 
         // Save header
         uint32_t version = 1;

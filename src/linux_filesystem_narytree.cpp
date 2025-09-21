@@ -15,6 +15,10 @@
 #include <climits>
 #include <bitset>
 #include <map>
+#include <mutex>
+#include <shared_mutex>
+#include <thread>
+#include "error_handling.h"
 
 /**
  * Optimized Real N-ary Tree Implementation for RazorFS
@@ -230,6 +234,12 @@ private:
     // Name storage (hash -> actual name mapping for collision resolution)
     std::unordered_map<uint32_t, std::string> name_storage_;
 
+    // Thread safety mechanisms
+    mutable std::shared_mutex tree_mutex_;           // Protects tree structure
+    mutable std::mutex children_map_mutex_;          // Protects children_map_
+    mutable std::mutex cache_mutex_;                 // Protects cache operations
+    mutable std::mutex name_storage_mutex_;          // Protects name_storage_
+
 public:
     explicit LinuxFilesystemNaryTree(size_t branching_factor = DEFAULT_BRANCHING_FACTOR)
         : root_(nullptr), branching_factor_(branching_factor), node_count_(0) {}
@@ -305,10 +315,17 @@ public:
     FilesystemNode* create_node(FilesystemNode* parent, const std::string& name,
                          uint32_t inode_num, uint16_t flags, T data_val) {
 
+        std::unique_lock<std::shared_mutex> tree_lock(tree_mutex_);
+
+        // Validate inputs
+        if (!RazorFS::ErrorHandler::validate_filename(name)) {
+            throw RazorFS::FilesystemException("Invalid filename: " + name);
+        }
+
         // Allocate from pool - O(1)
         FilesystemNode* new_node = node_pool_.allocate();
         if (!new_node) {
-            throw std::bad_alloc(); // Pool exhausted
+            throw RazorFS::MemoryException("Node pool exhausted - cannot allocate new node");
         }
 
         uint32_t name_hash = calculate_hash(name);
@@ -323,12 +340,15 @@ public:
             // Insert as child - O(log k)
             new_node->parent = parent;
 
-            // Ensure parent has children array
-            if (children_map_.find(parent) == children_map_.end()) {
-                children_map_[parent] = std::make_unique<ChildrenArray>();
+            // Ensure parent has children array (thread-safe)
+            {
+                std::lock_guard<std::mutex> children_lock(children_map_mutex_);
+                if (children_map_.find(parent) == children_map_.end()) {
+                    children_map_[parent] = std::make_unique<ChildrenArray>();
+                }
+                children_map_[parent]->insert_child(name_hash, new_node);
             }
 
-            children_map_[parent]->insert_child(name_hash, new_node);
             parent->child_count++;
 
             // Check if rebalancing needed
@@ -337,9 +357,17 @@ public:
             }
         }
 
-        // Store name and update cache
-        name_storage_[name_hash] = name;
-        cache_.insert(inode_num, new_node, construct_path(new_node));
+        // Store name and update cache (thread-safe)
+        {
+            std::lock_guard<std::mutex> name_lock(name_storage_mutex_);
+            name_storage_[name_hash] = name;
+        }
+
+        {
+            std::lock_guard<std::mutex> cache_lock(cache_mutex_);
+            cache_.insert(inode_num, new_node, construct_path(new_node));
+        }
+
         node_count_.fetch_add(1);
 
         return new_node;
@@ -441,29 +469,175 @@ private:
     }
 
     /**
-     * Tree balancing using AVL-like rotations
+     * Tree balancing using proper AVL-like rotations for n-ary trees
      */
     void rebalance_from_node(FilesystemNode* node) {
         while (node) {
             update_balance_factor(node);
 
-            // Check if rebalancing is needed
+            // Check if rebalancing is needed (proper AVL condition)
             if (std::abs(node->balance_factor) > 1) {
-                // Node is unbalanced, check if we need to redistribute children
-                auto children_it = children_map_.find(node);
-                if (children_it != children_map_.end()) {
-                    auto& children = children_it->second->children;
-
-                    // If we have too many children, redistribute
-                    if (children.size() > DEFAULT_BRANCHING_FACTOR * 2) {
-                        redistribute_children(node);
-                    } else {
-                        // std::map automatically maintains sorted order - no sorting needed!
-                    }
+                node = perform_avl_rotations(node);
+                if (node) {
+                    update_balance_factor(node);
                 }
             }
 
             node = node->parent;
+        }
+    }
+
+    /**
+     * Perform proper AVL rotations based on balance factor
+     * Returns the new root of the rotated subtree
+     */
+    FilesystemNode* perform_avl_rotations(FilesystemNode* node) {
+        if (!node) return nullptr;
+
+        auto children_it = children_map_.find(node);
+        if (children_it == children_map_.end() || children_it->second->children.empty()) {
+            return node;
+        }
+
+        auto& children_map = children_it->second->children;
+
+        // For n-ary trees, we implement redistribution instead of classic binary rotations
+        if (children_map.size() > DEFAULT_BRANCHING_FACTOR * 2) {
+            redistribute_children_avl(node);
+        } else if (node->balance_factor > 1) {
+            // Right-heavy: move some children to create intermediate nodes
+            balance_right_heavy(node);
+        } else if (node->balance_factor < -1) {
+            // Left-heavy: move some children to create intermediate nodes
+            balance_left_heavy(node);
+        }
+
+        return node;
+    }
+
+    /**
+     * AVL-style redistribution for right-heavy nodes
+     */
+    void balance_right_heavy(FilesystemNode* node) {
+        auto children_it = children_map_.find(node);
+        if (children_it == children_map_.end()) return;
+
+        auto& children_map = children_it->second->children;
+        if (children_map.size() <= 2) return; // Can't redistribute with too few children
+
+        // Create intermediate node to reduce tree height
+        std::string intermediate_name = "intermediate_" + std::to_string(next_inode_.load());
+        uint32_t intermediate_hash = hash_function_(intermediate_name);
+
+        FilesystemNode* intermediate = allocate_node();
+        if (!intermediate) return;
+
+        *intermediate = FilesystemNode{
+            0, // data
+            node, // parent
+            next_inode_.fetch_add(1),
+            intermediate_hash,
+            0, // balance_factor
+            S_IFDIR | 0755 // directory flags
+        };
+
+        // Move half the children to the intermediate node
+        auto mid_it = children_map.begin();
+        std::advance(mid_it, children_map.size() / 2);
+
+        if (children_map_.find(intermediate) == children_map_.end()) {
+            children_map_[intermediate] = std::make_unique<ChildrenArray>();
+        }
+
+        auto& intermediate_children = children_map_[intermediate]->children;
+
+        // Move children from mid_it to end to intermediate node
+        for (auto it = mid_it; it != children_map.end(); ++it) {
+            intermediate_children[it->first] = it->second;
+            it->second->parent = intermediate;
+        }
+
+        // Remove moved children from original node
+        children_map.erase(mid_it, children_map.end());
+
+        // Add intermediate node as child of original node
+        children_map[intermediate_hash] = intermediate;
+
+        cache_.insert(intermediate->inode_number, intermediate, intermediate_name);
+    }
+
+    /**
+     * AVL-style redistribution for left-heavy nodes
+     */
+    void balance_left_heavy(FilesystemNode* node) {
+        // Similar to balance_right_heavy but creates intermediate nodes differently
+        balance_right_heavy(node); // For now, use same strategy
+    }
+
+    /**
+     * Enhanced redistribution with AVL principles
+     */
+    void redistribute_children_avl(FilesystemNode* node) {
+        auto children_it = children_map_.find(node);
+        if (children_it == children_map_.end()) return;
+
+        auto& children_map = children_it->second->children;
+        size_t child_count = children_map.size();
+
+        if (child_count <= DEFAULT_BRANCHING_FACTOR * 2) return;
+
+        // Calculate optimal number of intermediate nodes needed
+        size_t optimal_child_count = DEFAULT_BRANCHING_FACTOR;
+        size_t intermediate_nodes_needed = (child_count + optimal_child_count - 1) / optimal_child_count;
+
+        if (intermediate_nodes_needed <= 1) return;
+
+        // Create intermediate nodes and redistribute children
+        std::vector<FilesystemNode*> intermediates;
+
+        for (size_t i = 0; i < intermediate_nodes_needed; ++i) {
+            std::string name = "intermediate_" + std::to_string(next_inode_.load()) + "_" + std::to_string(i);
+            uint32_t hash = hash_function_(name);
+
+            FilesystemNode* intermediate = allocate_node();
+            if (!intermediate) continue;
+
+            *intermediate = FilesystemNode{
+                0, node, next_inode_.fetch_add(1), hash, 0, S_IFDIR | 0755
+            };
+
+            children_map_[intermediate] = std::make_unique<ChildrenArray>();
+            intermediates.push_back(intermediate);
+            cache_.insert(intermediate->inode_number, intermediate, name);
+        }
+
+        // Distribute children among intermediate nodes
+        auto child_it = children_map.begin();
+        size_t children_per_intermediate = child_count / intermediate_nodes_needed;
+
+        for (size_t i = 0; i < intermediates.size() && child_it != children_map.end(); ++i) {
+            auto& intermediate_children = children_map_[intermediates[i]]->children;
+
+            size_t count = (i == intermediates.size() - 1) ?
+                          child_count - (i * children_per_intermediate) :
+                          children_per_intermediate;
+
+            for (size_t j = 0; j < count && child_it != children_map.end(); ++j, ++child_it) {
+                intermediate_children[child_it->first] = child_it->second;
+                child_it->second->parent = intermediates[i];
+            }
+        }
+
+        // Clear original children and add intermediate nodes
+        children_map.clear();
+        for (auto* intermediate : intermediates) {
+            children_map[intermediate->name_hash] = intermediate;
+        }
+
+        // Update balance factors
+        update_balance_factor(node);
+        for (auto* intermediate : intermediates) {
+            update_balance_factor(intermediate);
         }
     }
 

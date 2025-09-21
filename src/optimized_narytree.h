@@ -8,6 +8,7 @@
 #include <functional>
 #include <stdexcept>
 #include <unordered_map>
+#include <map>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <cstring>
@@ -58,58 +59,52 @@ public:
     };
 
     /**
-     * Efficient children storage using sorted arrays
-     * Enables true O(log n) binary search
+     * Efficient children storage using std::map
+     * FIXED: Enables TRUE O(log k) for ALL operations (search, insert, delete)
+     * Previous std::vector implementation was O(k) for insert/erase due to element shifting
      */
     struct ChildrenArray {
-        struct ChildEntry {
-            uint32_t name_hash;
-            TreeNode* node;
+        // FIXED: Use std::map for TRUE O(log k) operations
+        // PROBLEM: std::vector insert/erase was O(k) due to element shifting
+        // SOLUTION: std::map guarantees O(log k) for insert/find/erase
+        std::map<uint32_t, TreeNode*> children;
 
-            ChildEntry(uint32_t hash, TreeNode* n) : name_hash(hash), node(n) {}
-        };
+        ChildrenArray() = default;
 
-        std::vector<ChildEntry> children;
-
-        ChildrenArray() {
-            children.reserve(DEFAULT_BRANCHING_FACTOR);
-        }
-
-        // True O(log k) binary search where k = child_count
+        // TRUE O(log k) binary search where k = child_count
         TreeNode* find_child(uint32_t target_hash) const {
-            auto it = std::lower_bound(children.begin(), children.end(), target_hash,
-                [](const ChildEntry& entry, uint32_t hash) {
-                    return entry.name_hash < hash;
-                });
-
-            if (it != children.end() && it->name_hash == target_hash) {
-                return it->node;
-            }
-            return nullptr;
+            auto it = children.find(target_hash);
+            return (it != children.end()) ? it->second : nullptr;
         }
 
-        // O(log k) insertion maintaining sorted order
+        // TRUE O(log k) insertion - NO element shifting!
         void insert_child(uint32_t hash, TreeNode* node) {
-            auto it = std::lower_bound(children.begin(), children.end(), hash,
-                [](const ChildEntry& entry, uint32_t hash) {
-                    return entry.name_hash < hash;
-                });
-            children.insert(it, ChildEntry(hash, node));
+            children[hash] = node;
         }
 
-        // O(log k) removal
+        // TRUE O(log k) removal - NO element shifting!
         bool remove_child(uint32_t hash) {
-            auto it = std::lower_bound(children.begin(), children.end(), hash,
-                [](const ChildEntry& entry, uint32_t hash) {
-                    return entry.name_hash < hash;
-                });
-
-            if (it != children.end() && it->name_hash == hash) {
-                children.erase(it);
-                return true;
-            }
-            return false;
+            return children.erase(hash) > 0;
         }
+
+        // Utility methods
+        size_t size() const {
+            return children.size();
+        }
+
+        bool empty() const {
+            return children.empty();
+        }
+
+        void clear() {
+            children.clear();
+        }
+
+        // Iterator support for range-based loops
+        auto begin() const { return children.begin(); }
+        auto end() const { return children.end(); }
+        auto begin() { return children.begin(); }
+        auto end() { return children.end(); }
     };
 
     /**
@@ -390,11 +385,11 @@ public:
 
         auto children_it = children_map_.find(parent);
         if (children_it != children_map_.end()) {
-            const auto& children_array = children_it->second->children;
-            children.reserve(children_array.size());
+            const auto& children_map = children_it->second->children;
+            children.reserve(children_map.size());
 
-            for (const auto& entry : children_array) {
-                children.push_back(entry.node);
+            for (const auto& [hash, child_node] : children_map) {
+                children.push_back(child_node);
             }
         }
     }
@@ -418,11 +413,7 @@ private:
         // In a full implementation, this would split the node
         auto children_it = children_map_.find(node);
         if (children_it != children_map_.end()) {
-            auto& children = children_it->second->children;
-            std::sort(children.begin(), children.end(),
-                [](const auto& a, const auto& b) {
-                    return a.name_hash < b.name_hash;
-                });
+            // std::map automatically maintains sorted order by hash - no sorting needed!
         }
     }
 
@@ -432,8 +423,8 @@ private:
         // Destroy all children first
         auto children_it = children_map_.find(node);
         if (children_it != children_map_.end()) {
-            for (const auto& entry : children_it->second->children) {
-                destroy_tree(entry.node);
+            for (const auto& [hash, child_node] : children_it->second->children) {
+                destroy_tree(child_node);
             }
             children_map_.erase(children_it);
         }
