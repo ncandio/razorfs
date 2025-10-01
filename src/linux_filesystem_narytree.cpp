@@ -8,55 +8,34 @@
 #include <algorithm>
 #include <array>
 #include <sys/stat.h>
+#include <iostream>
 
-/**
- * High-Performance O(log n) Filesystem N-ary Tree
- *
- * Key Optimizations:
- * 1. Hash table indexing for O(1) name lookups within directories
- * 2. B-tree structure for sorted operations
- * 3. Direct child arrays instead of linear searches
- * 4. Multi-level caching for hot paths
- * 5. RCU-safe lockless reads
- */
 template <typename T>
 class OptimizedFilesystemNaryTree {
 public:
-    static constexpr size_t LINUX_PAGE_SIZE = 4096;
-    static constexpr size_t CACHE_LINE_SIZE = 64;
-    static constexpr size_t MAX_CHILDREN_INLINE = 8;  // Small dirs inline
-    static constexpr size_t HASH_TABLE_SIZE = 64;     // Per-directory hash table
-
-    // Forward declarations
+    static constexpr size_t MAX_CHILDREN_INLINE = 8;
+    struct FilesystemNode;
     struct DirectoryHashTable;
 
-    /**
-     * Optimized node structure with direct child access
-     */
-    struct alignas(CACHE_LINE_SIZE) FilesystemNode {
-        // Core data
+    struct ChildInfo {
+        std::string name;
+        uint32_t inode;
+    };
+
+    struct alignas(64) FilesystemNode {
         T data;
+        std::string name;
         uint32_t inode_number;
         uint32_t parent_inode;
-
-        // Performance-critical fields
-        uint32_t hash_value;              // Hash of filename
+        uint32_t hash_value;
         uint16_t child_count;
         uint16_t flags;
-
-        // For small directories: inline children (O(1) access)
         std::array<uint32_t, MAX_CHILDREN_INLINE> inline_children;
-
-        // For large directories: hash table pointer (O(1) average)
         std::unique_ptr<DirectoryHashTable> child_hash_table;
-
-        // Filesystem metadata
         uint64_t size_or_blocks;
         uint64_t timestamp;
         uint16_t mode;
         uint16_t reserved;
-
-        // RCU version for lockless reads
         std::atomic<uint64_t> version;
 
         FilesystemNode() : inode_number(0), parent_inode(0), hash_value(0),
@@ -66,303 +45,252 @@ public:
         }
     };
 
-    /**
-     * Hash table for large directories
-     * Provides O(1) average case lookup
-     */
     struct DirectoryHashTable {
-        struct HashBucket {
-            uint32_t inode_number;
-            uint32_t name_hash;
-            std::string name;  // Could be optimized with string interning
-            HashBucket* next;
-
-            HashBucket() : inode_number(0), name_hash(0), next(nullptr) {}
+        struct HashEntry {
+            std::string name;
+            uint32_t inode;
+            uint32_t hash_value;
         };
 
-        std::array<HashBucket*, HASH_TABLE_SIZE> buckets;
-        size_t entry_count;
+        std::vector<std::vector<HashEntry>> buckets;
+        size_t bucket_count;
+        size_t total_entries;
 
-        DirectoryHashTable() : entry_count(0) {
-            buckets.fill(nullptr);
+        DirectoryHashTable() : bucket_count(16), total_entries(0) {
+            buckets.resize(bucket_count);
         }
 
-        // O(1) average case lookup
-        uint32_t find_child(const std::string& name, uint32_t name_hash) const {
-            size_t bucket_idx = name_hash % HASH_TABLE_SIZE;
-            HashBucket* bucket = buckets[bucket_idx];
+        void insert(const std::string& name, uint32_t inode) {
+            uint32_t hash = hash_string(name);
+            size_t bucket_idx = hash % bucket_count;
 
-            while (bucket) {
-                if (bucket->name_hash == name_hash && bucket->name == name) {
-                    return bucket->inode_number;
+            // Check if already exists
+            for (auto& entry : buckets[bucket_idx]) {
+                if (entry.name == name) {
+                    entry.inode = inode; // Update
+                    return;
                 }
-                bucket = bucket->next;
+            }
+
+            // Add new entry
+            buckets[bucket_idx].push_back({name, inode, hash});
+            total_entries++;
+
+            // Resize if load factor too high
+            if (total_entries > bucket_count * 2) {
+                resize();
+            }
+        }
+
+        uint32_t find(const std::string& name) {
+            uint32_t hash = hash_string(name);
+            size_t bucket_idx = hash % bucket_count;
+
+            for (const auto& entry : buckets[bucket_idx]) {
+                if (entry.name == name) {
+                    return entry.inode;
+                }
             }
             return 0; // Not found
         }
 
-        // O(1) insertion
-        void insert_child(const std::string& name, uint32_t name_hash, uint32_t inode_num) {
-            size_t bucket_idx = name_hash % HASH_TABLE_SIZE;
-            HashBucket* new_bucket = new HashBucket();
-            new_bucket->name = name;
-            new_bucket->name_hash = name_hash;
-            new_bucket->inode_number = inode_num;
-            new_bucket->next = buckets[bucket_idx];
-            buckets[bucket_idx] = new_bucket;
-            entry_count++;
-        }
+        bool remove(const std::string& name) {
+            uint32_t hash = hash_string(name);
+            size_t bucket_idx = hash % bucket_count;
 
-        ~DirectoryHashTable() {
-            for (auto& bucket_head : buckets) {
-                HashBucket* current = bucket_head;
-                while (current) {
-                    HashBucket* next = current->next;
-                    delete current;
-                    current = next;
+            auto& bucket = buckets[bucket_idx];
+            for (auto it = bucket.begin(); it != bucket.end(); ++it) {
+                if (it->name == name) {
+                    bucket.erase(it);
+                    total_entries--;
+                    return true;
                 }
             }
-        }
-    };
-
-    /**
-     * B-tree index for sorted operations (directory listings, range queries)
-     */
-    struct BTreeIndex {
-        static constexpr size_t BTREE_ORDER = 32;  // High branching factor
-
-        struct BTreeNode {
-            bool is_leaf;
-            size_t key_count;
-            std::array<uint32_t, BTREE_ORDER - 1> keys;      // inode numbers
-            std::array<std::string, BTREE_ORDER - 1> names;   // sorted names
-            std::array<std::unique_ptr<BTreeNode>, BTREE_ORDER> children;
-
-            BTreeNode(bool leaf) : is_leaf(leaf), key_count(0) {}
-        };
-
-        std::unique_ptr<BTreeNode> root;
-
-        BTreeIndex() : root(std::make_unique<BTreeNode>(true)) {}
-
-        // O(log n) search in sorted order
-        std::vector<uint32_t> range_query(const std::string& start_name,
-                                         const std::string& end_name) const {
-            std::vector<uint32_t> results;
-            range_search(root.get(), start_name, end_name, results);
-            return results;
+            return false;
         }
 
     private:
-        void range_search(BTreeNode* node, const std::string& start,
-                         const std::string& end, std::vector<uint32_t>& results) const {
-            if (!node) return;
+        uint32_t hash_string(const std::string& str) {
+            uint32_t hash = 0;
+            for (char c : str) {
+                hash = hash * 31 + c;
+            }
+            return hash;
+        }
 
-            if (node->is_leaf) {
-                for (size_t i = 0; i < node->key_count; ++i) {
-                    if (node->names[i] >= start && node->names[i] <= end) {
-                        results.push_back(node->keys[i]);
-                    }
-                }
-            } else {
-                // Internal node - search children
-                for (size_t i = 0; i <= node->key_count; ++i) {
-                    range_search(node->children[i].get(), start, end, results);
+        void resize() {
+            auto old_buckets = std::move(buckets);
+            bucket_count *= 2;
+            buckets.clear();
+            buckets.resize(bucket_count);
+            total_entries = 0;
+
+            // Rehash all entries
+            for (const auto& bucket : old_buckets) {
+                for (const auto& entry : bucket) {
+                    insert(entry.name, entry.inode);
                 }
             }
         }
     };
 
-private:
-    // Inode to node mapping for O(1) inode lookups
-    std::unordered_map<uint32_t, std::unique_ptr<FilesystemNode>> inode_map_;
-
-    // Root node
-    FilesystemNode* root_;
-
-    // Global B-tree index for sorted operations across entire filesystem
-    std::unique_ptr<BTreeIndex> global_index_;
-
-    // RCU version management
-    std::atomic<uint64_t> global_version_;
-
-    // Statistics
-    std::atomic<size_t> total_nodes_;
-    std::atomic<size_t> total_directories_;
-
-public:
-    OptimizedFilesystemNaryTree() : root_(nullptr),
-                                   global_index_(std::make_unique<BTreeIndex>()),
-                                   global_version_(0), total_nodes_(0),
-                                   total_directories_(0) {
+    OptimizedFilesystemNaryTree() : root_(nullptr), global_version_(0), total_nodes_(0), total_directories_(0) {
         create_root();
     }
 
-    /**
-     * O(1) child lookup using hash table or inline array
-     */
     FilesystemNode* find_child_optimized(FilesystemNode* parent, const std::string& name) {
         if (!parent) return nullptr;
 
         uint32_t name_hash = hash_string(name);
 
-        // Small directory: use inline array (O(1) for small dirs)
-        if (parent->child_count <= MAX_CHILDREN_INLINE) {
-            for (size_t i = 0; i < parent->child_count; ++i) {
-                uint32_t child_inode = parent->inline_children[i];
-                auto it = inode_map_.find(child_inode);
-                if (it != inode_map_.end() && it->second->hash_value == name_hash) {
-                    return it->second.get();
+        // First check inline children (up to 8)
+        for (size_t i = 0; i < std::min(static_cast<size_t>(parent->child_count), MAX_CHILDREN_INLINE); ++i) {
+            uint32_t child_inode = parent->inline_children[i];
+            if (child_inode != 0) {
+                FilesystemNode* child = find_by_inode(child_inode);
+                if (child && child->hash_value == name_hash && child->name == name) {
+                    return child;
                 }
             }
-            return nullptr;
         }
 
-        // Large directory: use hash table (O(1) average)
-        if (parent->child_hash_table) {
-            uint32_t child_inode = parent->child_hash_table->find_child(name, name_hash);
+        // If more than 8 children, check hash table
+        if (parent->child_count > MAX_CHILDREN_INLINE && parent->child_hash_table) {
+            uint32_t child_inode = parent->child_hash_table->find(name);
             if (child_inode != 0) {
-                auto it = inode_map_.find(child_inode);
-                return (it != inode_map_.end()) ? it->second.get() : nullptr;
+                return find_by_inode(child_inode);
             }
         }
 
         return nullptr;
     }
 
-    /**
-     * O(1) inode lookup using hash map
-     */
     FilesystemNode* find_by_inode(uint32_t inode_number) {
         auto it = inode_map_.find(inode_number);
         return (it != inode_map_.end()) ? it->second.get() : nullptr;
     }
 
-    /**
-     * O(log n) path resolution
-     * Each component lookup is O(1), path depth determines complexity
-     */
     FilesystemNode* find_by_path(const std::string& path) {
-        if (path.empty() || path == "/") return root_;
+        if (path.empty() || path[0] != '/') {
+            return nullptr;
+        }
 
-        auto components = split_path(path);
+        if (path == "/") {
+            return root_;
+        }
+
         FilesystemNode* current = root_;
+        auto path_components = split_path(path);
 
-        for (const auto& component : components) {
-            current = find_child_optimized(current, component);  // O(1)
-            if (!current) return nullptr;
+        for (const std::string& component : path_components) {
+            if (component.empty()) continue;
+
+            current = find_child_optimized(current, component);
+            if (!current) {
+                return nullptr; // Path not found
+            }
         }
 
         return current;
     }
 
-    /**
-     * O(1) child insertion with automatic structure promotion
-     */
-    bool add_child_optimized(FilesystemNode* parent, FilesystemNode* child,
-                           const std::string& child_name) {
+    bool add_child_optimized(FilesystemNode* parent, std::unique_ptr<FilesystemNode> child, const std::string& child_name) {
         if (!parent || !child) return false;
 
+        uint32_t child_inode = child->inode_number;
         uint32_t name_hash = hash_string(child_name);
+
+        // Set child properties
+        child->name = child_name;
         child->hash_value = name_hash;
         child->parent_inode = parent->inode_number;
 
-        // Promote from inline to hash table if needed
-        if (parent->child_count >= MAX_CHILDREN_INLINE && !parent->child_hash_table) {
-            promote_to_hash_table(parent);
-        }
-
+        // Try to store in inline children first (up to 8)
         if (parent->child_count < MAX_CHILDREN_INLINE) {
-            // Use inline storage
-            parent->inline_children[parent->child_count] = child->inode_number;
-        } else {
-            // Use hash table
-            if (!parent->child_hash_table) {
-                parent->child_hash_table = std::make_unique<DirectoryHashTable>();
-            }
-            parent->child_hash_table->insert_child(child_name, name_hash, child->inode_number);
+            parent->inline_children[parent->child_count] = child_inode;
+            parent->child_count++;
+
+            // Add to inode map
+            inode_map_[child_inode] = std::move(child);
+            total_nodes_++;
+            return true;
         }
 
-        parent->child_count++;
-        parent->version.fetch_add(1);  // RCU version increment
+        // Need to use hash table for > 8 children
+        if (!parent->child_hash_table) {
+            parent->child_hash_table = std::make_unique<DirectoryHashTable>();
+        }
 
+        parent->child_hash_table->insert(child_name, child_inode);
+        parent->child_count++;
+
+        // Add to inode map
+        inode_map_[child_inode] = std::move(child);
+        total_nodes_++;
         return true;
     }
 
-    /**
-     * O(log n) sorted directory listing using B-tree
-     */
-    std::vector<std::string> list_directory_sorted(FilesystemNode* dir) {
-        std::vector<std::string> result;
-        if (!dir) return result;
+    bool remove_child(FilesystemNode* parent, const std::string& name) {
+        if (!parent) return false;
 
-        // Use B-tree for efficient sorted traversal
-        // This would need the B-tree to be properly maintained during insertions
-
-        // For now, fallback to collecting and sorting (can be optimized)
-        std::vector<FilesystemNode*> children = get_all_children(dir);
-        std::sort(children.begin(), children.end(),
-                 [](const FilesystemNode* a, const FilesystemNode* b) {
-                     return a->hash_value < b->hash_value; // Could use actual names
-                 });
-
-        for (const auto* child : children) {
-            // Would need to store actual names - this is a simplification
-            result.push_back(std::to_string(child->inode_number));
-        }
-
-        return result;
-    }
-
-private:
-    void create_root() {
-        auto root_node = std::make_unique<FilesystemNode>();
-        root_node->inode_number = 1;
-        root_node->mode = S_IFDIR | 0755;
-        root_node->timestamp = time(nullptr);
-        root_ = root_node.get();
-        inode_map_[1] = std::move(root_node);
-        total_directories_.fetch_add(1);
-    }
-
-    void promote_to_hash_table(FilesystemNode* parent) {
-        parent->child_hash_table = std::make_unique<DirectoryHashTable>();
-
-        // Move inline children to hash table
-        for (size_t i = 0; i < parent->child_count && i < MAX_CHILDREN_INLINE; ++i) {
+        // First try to find in inline children
+        for (size_t i = 0; i < std::min(static_cast<size_t>(parent->child_count), MAX_CHILDREN_INLINE); ++i) {
             uint32_t child_inode = parent->inline_children[i];
-            auto it = inode_map_.find(child_inode);
-            if (it != inode_map_.end()) {
-                // Would need actual name - this is simplified
-                std::string child_name = std::to_string(child_inode);
-                parent->child_hash_table->insert_child(child_name,
-                                                     it->second->hash_value,
-                                                     child_inode);
-            }
-        }
-    }
+            if (child_inode != 0) {
+                FilesystemNode* child = find_by_inode(child_inode);
+                if (child && child->name == name) {
+                    // Remove from inline array
+                    for (size_t j = i; j < MAX_CHILDREN_INLINE - 1; ++j) {
+                        parent->inline_children[j] = parent->inline_children[j + 1];
+                    }
+                    parent->inline_children[MAX_CHILDREN_INLINE - 1] = 0;
+                    parent->child_count--;
 
-    std::vector<FilesystemNode*> get_all_children(FilesystemNode* parent) {
-        std::vector<FilesystemNode*> children;
-
-        if (parent->child_count <= MAX_CHILDREN_INLINE) {
-            // Inline children
-            for (size_t i = 0; i < parent->child_count; ++i) {
-                auto it = inode_map_.find(parent->inline_children[i]);
-                if (it != inode_map_.end()) {
-                    children.push_back(it->second.get());
+                    // Remove from inode map
+                    inode_map_.erase(child_inode);
+                    total_nodes_--;
+                    return true;
                 }
             }
-        } else if (parent->child_hash_table) {
-            // Hash table children
-            for (const auto& bucket_head : parent->child_hash_table->buckets) {
-                auto* bucket = bucket_head;
-                while (bucket) {
-                    auto it = inode_map_.find(bucket->inode_number);
-                    if (it != inode_map_.end()) {
-                        children.push_back(it->second.get());
-                    }
-                    bucket = bucket->next;
+        }
+
+        // Try to find in hash table
+        if (parent->child_hash_table) {
+            uint32_t child_inode = parent->child_hash_table->find(name);
+            if (child_inode != 0) {
+                parent->child_hash_table->remove(name);
+                parent->child_count--;
+
+                // Remove from inode map
+                inode_map_.erase(child_inode);
+                total_nodes_--;
+                return true;
+            }
+        }
+
+        return false; // Child not found
+    }
+
+    std::vector<ChildInfo> get_children_info(FilesystemNode* parent) {
+        std::vector<ChildInfo> children;
+        if (!parent) return children;
+
+        // Get inline children
+        for (size_t i = 0; i < std::min(static_cast<size_t>(parent->child_count), MAX_CHILDREN_INLINE); ++i) {
+            uint32_t child_inode = parent->inline_children[i];
+            if (child_inode != 0) {
+                FilesystemNode* child = find_by_inode(child_inode);
+                if (child) {
+                    children.push_back({child->name, child_inode});
+                }
+            }
+        }
+
+        // Get children from hash table
+        if (parent->child_hash_table && parent->child_count > MAX_CHILDREN_INLINE) {
+            for (const auto& bucket : parent->child_hash_table->buckets) {
+                for (const auto& entry : bucket) {
+                    children.push_back({entry.name, entry.inode});
                 }
             }
         }
@@ -370,67 +298,127 @@ private:
         return children;
     }
 
-    std::vector<std::string> split_path(const std::string& path) {
-        std::vector<std::string> components;
-        std::string current;
+    // --- PUBLIC HELPERS FOR PERSISTENCE ---
+    uint32_t hash_string(const std::string& str) {
+        uint32_t hash = 0;
+        for (char c : str) { hash = hash * 31 + c; }
+        return hash;
+    }
 
-        for (char c : path) {
-            if (c == '/') {
-                if (!current.empty()) {
-                    components.push_back(current);
-                    current.clear();
+    std::vector<FilesystemNode*> get_all_nodes() {
+        std::vector<FilesystemNode*> nodes;
+        nodes.reserve(inode_map_.size());
+        for (const auto& pair : inode_map_) {
+            nodes.push_back(pair.second.get());
+        }
+        return nodes;
+    }
+
+    void load_from_nodes(std::vector<std::unique_ptr<FilesystemNode>>& nodes) {
+        // Clear current state
+        inode_map_.clear();
+        root_ = nullptr;
+        total_nodes_ = 0;
+        total_directories_ = 0;
+
+        // Load all nodes into inode map
+        for (auto& node : nodes) {
+            if (node) {
+                uint32_t inode = node->inode_number;
+                inode_map_[inode] = std::move(node);
+                total_nodes_++;
+
+                // Set root if this is inode 1
+                if (inode == 1) {
+                    root_ = inode_map_[1].get();
                 }
-            } else {
-                current += c;
             }
         }
 
-        if (!current.empty()) {
-            components.push_back(current);
+        // Count directories
+        for (const auto& pair : inode_map_) {
+            if (pair.second && (pair.second->mode & S_IFMT) == S_IFDIR) {
+                total_directories_++;
+            }
+        }
+    }
+
+private:
+    std::unordered_map<uint32_t, std::unique_ptr<FilesystemNode>> inode_map_;
+    FilesystemNode* root_;
+    std::atomic<uint64_t> global_version_;
+    std::atomic<size_t> total_nodes_;
+    std::atomic<size_t> total_directories_;
+
+    void create_root() {
+        auto root_node = std::make_unique<FilesystemNode>();
+        root_node->inode_number = 1;
+        root_node->parent_inode = 0; // Root has no parent
+        root_node->name = "/";
+        root_node->hash_value = hash_string("/");
+        root_node->child_count = 0;
+        root_node->flags = 0;
+        root_node->size_or_blocks = 0;
+        root_node->timestamp = time(nullptr);
+        root_node->mode = S_IFDIR | 0755;
+        root_node->reserved = 0;
+        root_node->version = 0;
+        root_node->inline_children.fill(0);
+        root_node->child_hash_table = nullptr;
+
+        root_ = root_node.get();
+        inode_map_[1] = std::move(root_node);
+        total_nodes_ = 1;
+        total_directories_ = 1;
+    }
+
+    void promote_to_hash_table(FilesystemNode* parent) {
+        if (!parent || parent->child_hash_table) {
+            return; // Already has hash table
+        }
+
+        // Create hash table
+        parent->child_hash_table = std::make_unique<DirectoryHashTable>();
+
+        // Move all inline children to hash table
+        for (size_t i = 0; i < MAX_CHILDREN_INLINE; ++i) {
+            uint32_t child_inode = parent->inline_children[i];
+            if (child_inode != 0) {
+                FilesystemNode* child = find_by_inode(child_inode);
+                if (child) {
+                    parent->child_hash_table->insert(child->name, child_inode);
+                }
+                parent->inline_children[i] = 0; // Clear inline slot
+            }
+        }
+    }
+
+    std::vector<std::string> split_path(const std::string& path) {
+        std::vector<std::string> components;
+
+        if (path.empty() || path[0] != '/') {
+            return components;
+        }
+
+        size_t start = 1; // Skip leading '/'
+        size_t pos = start;
+
+        while (pos < path.length()) {
+            pos = path.find('/', start);
+            if (pos == std::string::npos) {
+                pos = path.length();
+            }
+
+            if (pos > start) {
+                components.push_back(path.substr(start, pos - start));
+            }
+
+            start = pos + 1;
         }
 
         return components;
     }
+};
 
-    uint32_t hash_string(const std::string& str) {
-        // Simple hash function - could use FNV or CityHash for better distribution
-        uint32_t hash = 0;
-        for (char c : str) {
-            hash = hash * 31 + c;
-        }
-        return hash;
-    }
-
-public:
-    // Performance statistics
-    struct PerformanceStats {
-        size_t total_nodes;
-        size_t inline_directories;
-        size_t hash_table_directories;
-        size_t average_directory_size;
-        double average_lookup_time_ns;
-    };
-
-    PerformanceStats get_performance_stats() const {
-        PerformanceStats stats;
-        stats.total_nodes = total_nodes_.load();
-        stats.inline_directories = 0;
-        stats.hash_table_directories = 0;
-
-        // Count directory types
-        for (const auto& pair : inode_map_) {
-            const auto& node = pair.second;
-            if (node->mode & S_IFDIR) {
-                if (node->child_count <= MAX_CHILDREN_INLINE) {
-                    stats.inline_directories++;
-                } else {
-                    stats.hash_table_directories++;
-                }
-            }
-        }
-
-        return stats;
-    }
-};// Type alias for compatibility
 template<typename T>
 using LinuxFilesystemNaryTree = OptimizedFilesystemNaryTree<T>;

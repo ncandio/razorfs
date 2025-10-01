@@ -2,7 +2,7 @@
 
 CXX = g++
 CXXFLAGS = -std=c++17 -O3 -Wall -Wextra -march=native $(shell pkg-config fuse3 --cflags)
-LIBS = $(shell pkg-config fuse3 --libs) -lpthread
+LIBS = $(shell pkg-config fuse3 --libs) -lpthread -lz
 
 TARGET = razorfs_fuse
 SOURCE = razorfs_fuse.cpp
