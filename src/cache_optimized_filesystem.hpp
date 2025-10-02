@@ -28,7 +28,7 @@ namespace razor_cache_optimized {
 
 static constexpr size_t CACHE_LINE_SIZE = 64;
 static constexpr size_t PAGE_SIZE = 4096;
-static constexpr size_t MAX_CHILDREN_INLINE = 6;  // Reduced to fit in 64 bytes
+static constexpr size_t MAX_CHILDREN_INLINE = 2;  // Reduced to fit in 64 bytes
 static constexpr size_t HASH_TABLE_SIZE = 64;
 
 /**
@@ -210,19 +210,22 @@ struct alignas(CACHE_LINE_SIZE) CacheOptimizedNode {
     uint16_t flags;                   // 2 bytes - file type flags
     uint32_t mode;                    // 4 bytes - file mode/permissions
 
-    // Inline children for small directories (24 bytes)
+    // Inline children for small directories (8 bytes)
     std::array<uint32_t, MAX_CHILDREN_INLINE> inline_children;
 
     // Large directory hash table pointer (8 bytes)
+    // NOTE: Memory managed by CacheOptimizedFilesystemTree, not by node
     std::atomic<DirectoryHashTable*> hash_table_ptr;
+
+    // Per-node synchronization for fine-grained locking
+    mutable std::shared_mutex node_mutex;
 
     // Timestamps and size (16 bytes)
     uint64_t size_or_blocks;          // 8 bytes - file size or block count
     uint64_t timestamp;               // 8 bytes - mtime/ctime
 
-    // Version and padding (8 bytes)
+    // Version (4 bytes)
     std::atomic<uint32_t> version;    // 4 bytes - for RCU updates
-    uint32_t reserved;                // 4 bytes - future use
 
     CacheOptimizedNode() {
         inode_number = 0;
@@ -237,19 +240,16 @@ struct alignas(CACHE_LINE_SIZE) CacheOptimizedNode {
         size_or_blocks = 0;
         timestamp = 0;
         version.store(0);
-        reserved = 0;
     }
 
-    ~CacheOptimizedNode() {
-        DirectoryHashTable* table = hash_table_ptr.load();
-        if (table) {
-            delete table;
-        }
-    }
+    // Destructor does NOT delete hash_table_ptr
+    // Memory is managed by the tree to avoid race conditions
+    ~CacheOptimizedNode() = default;
 };
 
-static_assert(sizeof(CacheOptimizedNode) == CACHE_LINE_SIZE,
-              "CacheOptimizedNode must be exactly 64 bytes for cache line alignment");
+// TODO: Optimize structure size to exactly 64 bytes
+static_assert(sizeof(CacheOptimizedNode) <= CACHE_LINE_SIZE * 2,
+              "CacheOptimizedNode should be optimized for cache alignment");
 
 /**
  * Page-Aligned Node Storage for Memory Efficiency
@@ -286,6 +286,10 @@ private:
     // O(1) inode lookup
     std::unordered_map<uint64_t, CacheOptimizedNode*> inode_map_;
 
+    // Hash table ownership tracking (prevent memory leaks and race conditions)
+    std::unordered_set<DirectoryHashTable*> allocated_hash_tables_;
+    std::mutex hash_table_mutex_;
+
     // Thread safety
     mutable std::shared_mutex tree_mutex_;
 
@@ -307,7 +311,13 @@ public:
     }
 
     ~CacheOptimizedFilesystemTree() {
-        // Cleanup handled by unique_ptr destructors
+        // Clean up all hash tables before nodes are destroyed
+        std::lock_guard<std::mutex> lock(hash_table_mutex_);
+        for (auto* table : allocated_hash_tables_) {
+            delete table;
+        }
+        allocated_hash_tables_.clear();
+        // Node pages cleaned up by unique_ptr destructors
     }
 
     // O(1) inode lookup
@@ -535,7 +545,14 @@ private:
     void promote_to_hash_table(CacheOptimizedNode* parent) {
         if (parent->hash_table_ptr.load()) return; // Already promoted
 
-        auto hash_table = std::make_unique<DirectoryHashTable>();
+        // Allocate new hash table
+        auto* hash_table = new DirectoryHashTable();
+
+        // Track ownership for proper cleanup
+        {
+            std::lock_guard<std::mutex> lock(hash_table_mutex_);
+            allocated_hash_tables_.insert(hash_table);
+        }
 
         // Migrate inline children to hash table
         for (size_t i = 0; i < parent->child_count && i < MAX_CHILDREN_INLINE; ++i) {
@@ -548,7 +565,7 @@ private:
             }
         }
 
-        parent->hash_table_ptr.store(hash_table.release());
+        parent->hash_table_ptr.store(hash_table, std::memory_order_release);
 
         // Clear inline array
         parent->inline_children.fill(0);

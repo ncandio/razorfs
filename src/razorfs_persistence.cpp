@@ -1,9 +1,11 @@
 #include "razorfs_persistence.hpp"
+#include "razorfs_errors.hpp"
 #include "linux_filesystem_narytree.cpp"
 #include <algorithm>
 #include <thread>
 #include <condition_variable>
 #include <cstring>
+#include <cstdlib>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <iostream>
@@ -72,25 +74,74 @@ bool Journal::truncate() {
 // StringTable implementation
 uint32_t StringTable::intern_string(const std::string& str) {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    // Validate string
+    if (str.empty()) {
+        throw StringTableException("Cannot intern empty string");
+    }
+
+    if (str.length() > MAX_STRING_LENGTH) {
+        throw StringTableException(
+            "String too long: " + std::to_string(str.length()) +
+            " bytes (max: " + std::to_string(MAX_STRING_LENGTH) + ")"
+        );
+    }
+
+    // Check if already interned
     auto it = string_to_offset_.find(str);
     if (it != string_to_offset_.end()) {
         return it->second;
     }
 
-    uint32_t offset = data_.size();
+    // Check if we'll exceed max size
+    if (data_.size() + str.length() + 1 > MAX_STRING_TABLE_SIZE) {
+        throw StringTableException(
+            "String table full (size: " + std::to_string(data_.size()) + ")"
+        );
+    }
+
+    uint32_t offset = static_cast<uint32_t>(data_.size());
     data_.insert(data_.end(), str.begin(), str.end());
     data_.push_back('\0');
     string_to_offset_[str] = offset;
     return offset;
 }
 
-std::string StringTable::get_string(unsigned int offset) const {
+std::string StringTable::get_string(uint32_t offset) const {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    // Validate offset
     if (offset >= data_.size()) {
-        return "";
+        throw StringTableException(
+            "Invalid string offset: " + std::to_string(offset) +
+            " (table size: " + std::to_string(data_.size()) + ")"
+        );
     }
+
+    // Find null terminator
     const char* start = data_.data() + offset;
-    return std::string(start);
+    const char* end = data_.data() + data_.size();
+    const char* null_pos = static_cast<const char*>(
+        std::memchr(start, '\0', end - start)
+    );
+
+    if (null_pos == nullptr) {
+        throw StringTableException(
+            "String at offset " + std::to_string(offset) +
+            " is not null-terminated"
+        );
+    }
+
+    // Validate string length
+    size_t length = null_pos - start;
+    if (length > MAX_STRING_LENGTH) {
+        throw StringTableException(
+            "String at offset " + std::to_string(offset) +
+            " exceeds maximum length: " + std::to_string(length)
+        );
+    }
+
+    return std::string(start, length);
 }
 
 const std::vector<char>& StringTable::get_data() const {
@@ -105,17 +156,63 @@ void StringTable::clear() {
 
 void StringTable::load_from_data(const char* data, size_t size) {
     std::lock_guard<std::mutex> lock(mutex_);
-    data_.clear();
-    string_to_offset_.clear();
-    data_.assign(data, data + size);
 
-    // Rebuild string-to-offset map
+    if (size == 0) {
+        data_.clear();
+        string_to_offset_.clear();
+        return;
+    }
+
+    // Validate size
+    if (size > MAX_STRING_TABLE_SIZE) {
+        throw StringTableException(
+            "String table too large: " + std::to_string(size) +
+            " bytes (max: " + std::to_string(MAX_STRING_TABLE_SIZE) + ")"
+        );
+    }
+
+    // Validate last byte is null terminator
+    if (data[size - 1] != '\0') {
+        throw CorruptionError("String table not null-terminated");
+    }
+
+    data_.assign(data, data + size);
+    string_to_offset_.clear();
+
+    // Rebuild string-to-offset map with validation
     uint32_t offset = 0;
     while (offset < size) {
         const char* str_start = data_.data() + offset;
-        std::string str(str_start);
-        string_to_offset_[str] = offset;
-        offset += str.length() + 1;
+        size_t remaining = size - offset;
+
+        // Find null terminator
+        const char* null_pos = static_cast<const char*>(
+            std::memchr(str_start, '\0', remaining)
+        );
+
+        if (null_pos == nullptr) {
+            throw CorruptionError(
+                "Corrupted string table at offset " + std::to_string(offset)
+            );
+        }
+
+        size_t str_len = null_pos - str_start;
+
+        // Validate string length
+        if (str_len > MAX_STRING_LENGTH) {
+            throw CorruptionError(
+                "String at offset " + std::to_string(offset) +
+                " exceeds max length: " + std::to_string(str_len)
+            );
+        }
+
+        // Only intern non-empty strings
+        if (str_len > 0) {
+            std::string str(str_start, str_len);
+            string_to_offset_[str] = offset;
+        }
+
+        offset += str_len + 1;
     }
 }
 

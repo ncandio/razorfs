@@ -1,0 +1,16 @@
+[2025-09-09 02:01:07] [INFO] Checking prerequisites...
+[2025-09-09 02:01:07] [SUCCESS] Prerequisites check completed
+[2025-09-09 02:01:07] [INFO] Building test framework...
+[2025-09-09 02:01:07] [SUCCESS] Test framework build configuration created
+[2025-09-09 02:01:07] [INFO] Running unit tests...
+gcc -Wall -Wextra -std=c11 -fsanitize=address -fno-omit-frame-pointer -O2 -DNDEBUG -I../.. -c ../unit/kernel/test_basic_ops.c -o kernel_test_basic_ops.o
+gcc -Wall -Wextra -std=c11 -fsanitize=address -fno-omit-frame-pointer -O2 -DNDEBUG -I../.. -c ../unit/kernel/test_framework.c -o kernel_test_framework.o
+../unit/kernel/test_framework.c: In function ‘test_sleep_ms’:
+../unit/kernel/test_framework.c:81:5: warning: implicit declaration of function ‘usleep’; did you mean ‘sleep’? [-Wimplicit-function-declaration]
+   81 |     usleep(milliseconds * 1000);
+      |     ^~~~~~
+      |     sleep
+[2025-09-09 02:01:08] [SUCCESS] Unit test framework compilation successful
+[2025-09-09 02:01:08] [INFO] Generating test report...
+[2025-09-09 02:01:08] [SUCCESS] Test report generated: /home/nico/WORK_ROOT/RAZOR_repo/tests/results/test_report_20250909_020108.html
+[2025-09-09 02:01:08] [SUCCESS] All tests completed successfully

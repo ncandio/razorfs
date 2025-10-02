@@ -89,12 +89,18 @@ private:
     std::vector<char> data_;
     std::unordered_map<std::string, uint32_t> string_to_offset_;
     mutable std::mutex mutex_;
+
+    // Constants for validation
+    static constexpr size_t MAX_STRING_LENGTH = 4096;  // 4KB max per string
+    static constexpr size_t MAX_STRING_TABLE_SIZE = 64 * 1024 * 1024;  // 64MB max total
+
 public:
     uint32_t intern_string(const std::string& str);
-    std::string get_string(unsigned int offset) const;
+    std::string get_string(uint32_t offset) const;
     const std::vector<char>& get_data() const;
     void clear();
     void load_from_data(const char* data, size_t size);
+    size_t size() const { return data_.size(); }
 };
 
 class CRC32 {

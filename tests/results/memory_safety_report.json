@@ -1,0 +1,27 @@
+{
+  "total_tests": 4,
+  "passed_tests": 3,
+  "failed_tests": 1,
+  "tests": [
+    {
+      "name": "Buffer Overflow Detection",
+      "passed": true,
+      "error": null
+    },
+    {
+      "name": "Memory Leak Detection",
+      "passed": false,
+      "error": null
+    },
+    {
+      "name": "NULL Pointer Safety",
+      "passed": true,
+      "error": null
+    },
+    {
+      "name": "Valgrind Integration",
+      "passed": true,
+      "error": null
+    }
+  ]
+}
