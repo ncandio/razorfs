@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 #include <atomic>
 #include <string>
@@ -28,8 +29,8 @@ namespace razor_cache_optimized {
 
 static constexpr size_t CACHE_LINE_SIZE = 64;
 static constexpr size_t PAGE_SIZE = 4096;
-static constexpr size_t MAX_CHILDREN_INLINE = 2;  // Reduced to fit in 64 bytes
-static constexpr size_t HASH_TABLE_SIZE = 64;
+static constexpr size_t MAX_CHILDREN_INLINE = 16;  // Increased for better performance
+static constexpr size_t HASH_TABLE_SIZE = 128;  // Increased hash table size
 
 /**
  * String Interning System for Cache Efficiency
@@ -118,7 +119,7 @@ struct DirectoryHashTable {
     }
 
     // O(1) average case hash lookup
-    uint32_t find_child(uint32_t name_hash, StringTable& string_table, const std::string& name) const {
+    uint32_t find_child(uint32_t name_hash, const StringTable& string_table, const std::string& name) const {
         uint32_t index = name_hash % HASH_TABLE_SIZE;
         uint32_t current = index;
 
@@ -247,8 +248,8 @@ struct alignas(CACHE_LINE_SIZE) CacheOptimizedNode {
     ~CacheOptimizedNode() = default;
 };
 
-// TODO: Optimize structure size to exactly 64 bytes
-static_assert(sizeof(CacheOptimizedNode) <= CACHE_LINE_SIZE * 2,
+// Node size increased to accommodate 16 inline children
+static_assert(sizeof(CacheOptimizedNode) <= CACHE_LINE_SIZE * 4,
               "CacheOptimizedNode should be optimized for cache alignment");
 
 /**
@@ -320,15 +321,20 @@ public:
         // Node pages cleaned up by unique_ptr destructors
     }
 
-    // O(1) inode lookup
-    CacheOptimizedNode* find_by_inode(uint64_t inode_number) {
-        std::shared_lock<std::shared_mutex> lock(tree_mutex_);
+    // O(1) inode lookup - internal unlocked version
+    CacheOptimizedNode* find_by_inode_unlocked(uint64_t inode_number) const {
         auto it = inode_map_.find(inode_number);
         return (it != inode_map_.end()) ? it->second : nullptr;
     }
 
-    // O(1) child lookup in directory
-    CacheOptimizedNode* find_child_optimized(CacheOptimizedNode* parent, const std::string& name) {
+    // O(1) inode lookup - public locked version
+    CacheOptimizedNode* find_by_inode(uint64_t inode_number) {
+        std::shared_lock<std::shared_mutex> lock(tree_mutex_);
+        return find_by_inode_unlocked(inode_number);
+    }
+
+    // O(1) child lookup - internal unlocked version
+    CacheOptimizedNode* find_child_optimized_unlocked(CacheOptimizedNode* parent, const std::string& name) const {
         if (!parent || parent->child_count == 0) {
             return nullptr;
         }
@@ -341,7 +347,7 @@ public:
                 uint32_t child_inode = parent->inline_children[i];
                 if (child_inode == 0) break;
 
-                CacheOptimizedNode* child = find_by_inode(child_inode);
+                CacheOptimizedNode* child = find_by_inode_unlocked(child_inode);
                 if (child && child->name_hash == name_hash) {
                     // Verify string match
                     const char* child_name = string_table_.get_string(child->name_offset);
@@ -358,15 +364,21 @@ public:
         if (hash_table) {
             uint64_t child_inode = hash_table->find_child(name_hash, string_table_, name);
             if (child_inode != 0) {
-                return find_by_inode(child_inode);
+                return find_by_inode_unlocked(child_inode);
             }
         }
 
         return nullptr;
     }
 
-    // O(depth) path lookup with O(1) per directory
-    CacheOptimizedNode* find_by_path(const std::string& path) {
+    // O(1) child lookup - public locked version
+    CacheOptimizedNode* find_child_optimized(CacheOptimizedNode* parent, const std::string& name) {
+        std::shared_lock<std::shared_mutex> lock(tree_mutex_);
+        return find_child_optimized_unlocked(parent, name);
+    }
+
+    // O(depth) path lookup - internal unlocked version
+    CacheOptimizedNode* find_by_path_unlocked(const std::string& path) const {
         if (path == "/" || path.empty()) {
             return root_node_;
         }
@@ -376,13 +388,19 @@ public:
 
         for (const std::string& component : components) {
             if (component.empty()) continue;
-            current = find_child_optimized(current, component);
+            current = find_child_optimized_unlocked(current, component);
             if (!current) {
                 return nullptr;
             }
         }
 
         return current;
+    }
+
+    // O(depth) path lookup - public locked version
+    CacheOptimizedNode* find_by_path(const std::string& path) {
+        std::shared_lock<std::shared_mutex> lock(tree_mutex_);
+        return find_by_path_unlocked(path);
     }
 
     // Create new node with cache optimization
@@ -407,11 +425,12 @@ public:
         return node;
     }
 
-    // Add child with automatic promotion to hash table
+    // Add child with automatic promotion to hash table (ext4-style: lock parent inode only)
     bool add_child(CacheOptimizedNode* parent, CacheOptimizedNode* child, const std::string& child_name) {
         if (!parent || !child) return false;
 
-        std::unique_lock<std::shared_mutex> lock(tree_mutex_);
+        // Ext4-style: Lock only the parent directory inode
+        std::unique_lock<std::shared_mutex> parent_lock(parent->node_mutex);
 
         child->parent_inode = parent->inode_number;
         uint64_t child_inode = child->inode_number;
@@ -424,12 +443,48 @@ public:
             return true;
         }
 
-        // Promote to hash table if needed
-        if (!parent->hash_table_ptr.load()) {
-            promote_to_hash_table(parent);
+        // Promote to hash table if needed (with double-check locking)
+        DirectoryHashTable* hash_table = parent->hash_table_ptr.load(std::memory_order_acquire);
+        if (!hash_table) {
+            // Only one thread should promote
+            DirectoryHashTable* expected = nullptr;
+            DirectoryHashTable* new_table = new DirectoryHashTable();
+
+            // Track ownership
+            {
+                std::lock_guard<std::mutex> lock(hash_table_mutex_);
+                allocated_hash_tables_.insert(new_table);
+            }
+
+            // Migrate inline children
+            for (size_t i = 0; i < parent->child_count && i < MAX_CHILDREN_INLINE; ++i) {
+                uint32_t child_inode = parent->inline_children[i];
+                if (child_inode == 0) break;
+
+                CacheOptimizedNode* child = find_by_inode_unlocked(child_inode);
+                if (child) {
+                    new_table->insert_child(child->name_hash, child->name_offset, child_inode);
+                }
+            }
+
+            // Atomic swap - only succeeds if still nullptr
+            if (parent->hash_table_ptr.compare_exchange_strong(expected, new_table,
+                                                               std::memory_order_release,
+                                                               std::memory_order_acquire)) {
+                // Success - we promoted
+                parent->inline_children.fill(0);
+                hash_table = new_table;
+            } else {
+                // Another thread promoted first - use theirs, delete ours
+                {
+                    std::lock_guard<std::mutex> lock(hash_table_mutex_);
+                    allocated_hash_tables_.erase(new_table);
+                }
+                delete new_table;
+                hash_table = expected;  // Use the winner's hash table
+            }
         }
 
-        DirectoryHashTable* hash_table = parent->hash_table_ptr.load();
         if (hash_table) {
             uint32_t name_offset = string_table_.intern_string(child_name);
             if (hash_table->insert_child(name_hash, name_offset, static_cast<uint32_t>(child_inode))) {
@@ -441,12 +496,13 @@ public:
         return false;
     }
 
-    // Get all children efficiently
+    // Get all children efficiently (ext4-style: lock parent inode only)
     std::vector<std::pair<std::string, uint64_t>> get_children(CacheOptimizedNode* parent) {
         std::vector<std::pair<std::string, uint64_t>> children;
         if (!parent) return children;
 
-        std::shared_lock<std::shared_mutex> lock(tree_mutex_);
+        // Ext4-style: Lock only the parent directory inode for reading
+        std::shared_lock<std::shared_mutex> parent_lock(parent->node_mutex);
 
         if (parent->child_count <= MAX_CHILDREN_INLINE) {
             // Read from inline array
@@ -571,7 +627,7 @@ private:
         parent->inline_children.fill(0);
     }
 
-    std::vector<std::string> split_path(const std::string& path) {
+    std::vector<std::string> split_path(const std::string& path) const {
         std::vector<std::string> components;
         if (path.empty() || path == "/") return components;
 
