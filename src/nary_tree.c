@@ -335,16 +335,132 @@ int nary_split_path(const char *path, char *parent_out, char *name_out) {
     return 0;
 }
 
+/* Breadth-first traversal helper */
+struct bfs_queue_entry {
+    uint16_t idx;
+    uint16_t new_idx;
+};
+
 void nary_rebalance(struct nary_tree *tree) {
-    /* TODO: Implement breadth-first rebuild for optimal cache locality
-     * For Phase 1, this is a placeholder.
-     * Full implementation will:
-     * 1. Traverse tree in breadth-first order
-     * 2. Rebuild node array in that order
-     * 3. Update all indices
-     * This ensures sequential access patterns match tree traversal.
-     */
-    (void)tree;  /* Unused for now */
+    if (!tree || tree->used <= 1) {
+        return;  /* Nothing to rebalance */
+    }
+
+    printf("🔄 Rebalancing tree (%u nodes)...\n", tree->used);
+
+    /* Allocate new node array for rebalanced tree */
+    struct nary_node *new_nodes = malloc(tree->capacity * sizeof(struct nary_node));
+    if (!new_nodes) {
+        fprintf(stderr, "⚠️  Rebalance failed: out of memory\n");
+        return;
+    }
+
+    /* Allocate mapping: old_idx -> new_idx */
+    uint16_t *index_map = malloc(tree->capacity * sizeof(uint16_t));
+    if (!index_map) {
+        free(new_nodes);
+        fprintf(stderr, "⚠️  Rebalance failed: out of memory\n");
+        return;
+    }
+
+    /* Initialize mapping */
+    for (uint32_t i = 0; i < tree->capacity; i++) {
+        index_map[i] = NARY_INVALID_IDX;
+    }
+
+    /* BFS queue for traversal */
+    struct bfs_queue_entry *queue = malloc(tree->used * sizeof(struct bfs_queue_entry));
+    if (!queue) {
+        free(index_map);
+        free(new_nodes);
+        fprintf(stderr, "⚠️  Rebalance failed: out of memory\n");
+        return;
+    }
+
+    uint32_t queue_head = 0;
+    uint32_t queue_tail = 0;
+    uint32_t new_used = 0;
+
+    /* Start BFS from root */
+    queue[queue_tail].idx = NARY_ROOT_IDX;
+    queue[queue_tail].new_idx = new_used++;
+    queue_tail++;
+
+    index_map[NARY_ROOT_IDX] = 0;
+
+    /* Breadth-first traversal and rebuild */
+    while (queue_head < queue_tail) {
+        uint16_t old_idx = queue[queue_head].idx;
+        uint16_t new_idx = queue[queue_head].new_idx;
+        queue_head++;
+
+        /* Copy node to new array */
+        struct nary_node *old_node = &tree->nodes[old_idx];
+        struct nary_node *new_node = &new_nodes[new_idx];
+
+        /* Copy node data */
+        new_node->inode = old_node->inode;
+        new_node->name_offset = old_node->name_offset;
+        new_node->mode = old_node->mode;
+        new_node->size = old_node->size;
+        new_node->mtime = old_node->mtime;
+        new_node->num_children = old_node->num_children;
+
+        /* Will update parent_idx and children after full traversal */
+        new_node->parent_idx = old_node->parent_idx;
+
+        /* Enqueue children in breadth-first order */
+        for (uint16_t i = 0; i < old_node->num_children; i++) {
+            uint16_t child_old_idx = old_node->children[i];
+            if (child_old_idx == NARY_INVALID_IDX) continue;
+
+            /* Assign new index for child */
+            uint16_t child_new_idx = new_used++;
+            index_map[child_old_idx] = child_new_idx;
+
+            /* Enqueue child */
+            queue[queue_tail].idx = child_old_idx;
+            queue[queue_tail].new_idx = child_new_idx;
+            queue_tail++;
+
+            /* Update children array with new index */
+            new_node->children[i] = child_new_idx;
+        }
+
+        /* Clear remaining children slots */
+        for (uint16_t i = old_node->num_children; i < NARY_BRANCHING_FACTOR; i++) {
+            new_node->children[i] = NARY_INVALID_IDX;
+        }
+    }
+
+    /* Second pass: update parent indices */
+    for (uint32_t i = 0; i < new_used; i++) {
+        struct nary_node *node = &new_nodes[i];
+        if (node->parent_idx != NARY_INVALID_IDX) {
+            uint16_t old_parent = node->parent_idx;
+            if (old_parent < tree->capacity) {
+                node->parent_idx = index_map[old_parent];
+            }
+        }
+    }
+
+    /* Swap arrays */
+    free(tree->nodes);
+    tree->nodes = new_nodes;
+
+    /* Update free list */
+    tree->free_count = 0;
+    for (uint32_t i = new_used; i < tree->capacity; i++) {
+        tree->free_list[tree->free_count++] = i;
+    }
+
+    free(index_map);
+    free(queue);
+
+    printf("✅ Rebalance complete: %u nodes in breadth-first order\n", new_used);
+
+    /* Reset operation counter */
+    tree->op_count = 0;
 }
 
 bool nary_needs_rebalance(const struct nary_tree *tree) {
