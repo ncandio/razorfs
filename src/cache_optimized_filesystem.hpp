@@ -641,7 +641,17 @@ private:
             }
 
             if (end > pos) {
-                components.push_back(path.substr(pos, end - pos));
+                std::string component = path.substr(pos, end - pos);
+
+                // SECURITY: Prevent path traversal attacks
+                if (component == "..") {
+                    throw std::runtime_error("Path traversal attack detected: '..' not allowed");
+                }
+
+                // Skip "." (current directory) - it's harmless but unnecessary
+                if (component != ".") {
+                    components.push_back(component);
+                }
             }
 
             pos = end + 1;
