@@ -2,10 +2,12 @@
 
 ![RAZORFS Logo](docs/images/razorfs-logo.jpg)
 
-> **⚠️ DISCLAIMER**: RAZORFS is an experimental filesystem developed as a demonstration of advanced Large Language Model (LLM) capabilities in software engineering. This project showcases how AI can be used to build complex, production-quality applications including filesystems, performance optimization, and comprehensive testing infrastructure.
+> **⚠️ EXPERIMENTAL STATUS**: RAZORFS is an experimental filesystem currently under active development and testing. This project is **NOT production-ready** and should not be used for critical data. The implementation contains known limitations and is being iteratively improved.
+>
+> **CURRENT TESTING PHASE**: The filesystem is undergoing comprehensive validation. Performance metrics shown are preliminary and based on controlled benchmark environments.
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![O(log n) Complexity](https://img.shields.io/badge/complexity-O(log%20n)-blue)]()
+[![Status](https://img.shields.io/badge/status-alpha-yellow)]()
 [![Compression](https://img.shields.io/badge/compression-zlib-orange)]()
 [![FUSE](https://img.shields.io/badge/FUSE-3.x-purple)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
@@ -22,21 +24,23 @@ RAZORFS is a high-performance FUSE-based filesystem featuring:
 
 ## 📈 Performance Achievements
 
-### O(log n) Scaling Validation
+### Path Lookup Performance
 
-Our extensive testing demonstrates true logarithmic complexity with performance closely tracking theoretical O(log n) bounds:
+Directory lookup performance scales with path depth. Each directory lookup uses O(1) hash table operations:
 
 ![O(log n) Scaling Validation](docs/images/ologn_scaling_validation.png)
 
-| Directory Size | Avg Lookup Time | Theoretical O(log n) | Performance Match |
-|----------------|-----------------|---------------------|-------------------|
-| 10 files       | 0.8ms          | 1.0ms              | **120% faster** ✅ |
-| 50 files       | 1.2ms          | 1.7ms              | **142% faster** ✅ |
-| 100 files      | 1.5ms          | 2.0ms              | **133% faster** ✅ |
-| 500 files      | 2.1ms          | 2.7ms              | **129% faster** ✅ |
-| 1000 files     | 2.5ms          | 3.0ms              | **120% faster** ✅ |
-| 5000 files     | 3.2ms          | 3.7ms              | **116% faster** ✅ |
-| 10000 files    | 3.8ms          | 4.0ms              | **105% faster** ✅ |
+| Directory Size | Avg Lookup Time | Consistency |
+|----------------|-----------------|-------------|
+| 10 files       | 0.8ms          | Baseline    |
+| 50 files       | 1.2ms          | +50% ✓     |
+| 100 files      | 1.5ms          | +88% ✓     |
+| 500 files      | 2.1ms          | +163% ✓    |
+| 1000 files     | 2.5ms          | +213% ✓    |
+| 5000 files     | 3.2ms          | +300% ✓    |
+| 10000 files    | 3.8ms          | +375% ✓    |
+
+**Note**: Lookup complexity is O(depth) where depth = path components. Each directory uses O(1) hash table lookup. Performance scales with directory size and depth, not total file count.
 
 ### Comprehensive Performance Profile
 
@@ -44,13 +48,14 @@ RAZORFS demonstrates superior performance across all key metrics compared to tra
 
 ![Comprehensive Performance Radar](docs/images/comprehensive_performance_radar.png)
 
-**Key Performance Indicators:**
-- **O(log n) Scaling**: 95/100 - Excellent logarithmic complexity
-- **Cache Efficiency**: 92/100 - Superior cache hit rates
-- **Memory Locality**: 92/100 - Optimal NUMA-aware design
-- **NUMA Performance**: 97/100 - Industry-leading multi-core efficiency
-- **Compression Ratio**: 85/100 - Effective space savings
-- **Throughput**: 88/100 - High sustained operation rates
+**Key Performance Indicators** (Preliminary benchmarks):
+- **Directory Lookup**: O(1) per directory via hash tables
+- **Cache Efficiency**: 92/100 - Superior cache hit rates in tests
+- **Memory Locality**: 92/100 - NUMA-aware design (testing in progress)
+- **Compression Ratio**: 85/100 - Effective space savings on test data
+- **Throughput**: 88/100 - Measured in controlled environments
+
+**⚠️ Note**: Performance metrics are from preliminary benchmarks and may not reflect real-world performance. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for current limitations.
 
 ### Compression Effectiveness
 
@@ -299,12 +304,40 @@ razorfs_unmount("/path/to/mount");
 - ✅ **Multi-threading**: Concurrent access support
 - ✅ **Error Handling**: Robust error recovery
 
-### Limitations
+### Known Limitations and Current Issues
 
+**⚠️ Critical Issues Being Addressed:**
+
+1. **Complexity Characteristics**
+   - File lookup is O(depth) where depth = number of path components (e.g., `/a/b/c` = 3 lookups)
+   - Each directory lookup is O(1) via hash table, but total complexity depends on path depth
+   - NOT true O(log n) relative to total files in filesystem - this is being corrected
+
+2. **Crash Safety**
+   - Journaling system is currently a stub implementation (razorfs_persistence.cpp:62-63)
+   - Current persistence uses simple file writes without atomic guarantees
+   - Power failure during writes can corrupt the filesystem
+   - **Status**: Under active development for production-grade crash recovery
+
+3. **I/O Efficiency**
+   - Current implementation uses block-based I/O (4KB blocks)
+   - Some code paths still read/write entire files
+   - **Status**: Optimization in progress for large file handling
+
+4. **Concurrency**
+   - Filesystem uses shared_mutex for read/write concurrency
+   - Some operations still use coarse-grained locking
+   - **Status**: Fine-grained locking being implemented
+
+5. **Data Integrity**
+   - Persistence reload mechanism has known issues with data reconstruction
+   - **Status**: Critical bug fix in progress
+
+**Other Limitations:**
 - **Experimental Status**: Not recommended for production data
 - **Linux Only**: Currently supports Linux FUSE 3.x
 - **Memory Requirements**: Requires sufficient RAM for tree structures
-- **Performance Tuning**: May require optimization for specific workloads
+- **Testing**: Performance metrics are preliminary and environment-dependent
 
 ## 🧪 Testing & Validation
 
@@ -423,16 +456,34 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🎯 Project Status
 
-**Current Version**: 2.0.0-experimental
-**Status**: Active Development
+**Current Version**: 0.9.0-alpha
+**Status**: Active Development & Testing
 **Last Updated**: October 2025
+
+### Current Development Priorities
+
+1. **🔴 Critical Fixes** (In Progress)
+   - Implement true atomic journaling for crash safety
+   - Fix data-loss bug in persistence reload
+   - Correct complexity documentation and claims
+   - Implement fine-grained locking for concurrency
+
+2. **🟡 Performance Optimizations** (Planned)
+   - Large file I/O optimization
+   - Memory usage tuning
+   - Cache efficiency improvements
+
+3. **🟢 Feature Enhancements** (Future)
+   - Extended POSIX compliance
+   - Advanced compression algorithms
+   - Windows native support
 
 ### Roadmap
 
-- 🔄 **v2.1**: Enhanced compression algorithms
-- 🔄 **v2.2**: Extended POSIX compliance
-- 🔄 **v2.3**: Windows native support
-- 🔄 **v3.0**: Production stability release
+- 🔄 **v1.0.0-beta**: Complete crash-safety implementation
+- 🔄 **v1.1**: I/O optimization and fine-grained locking
+- 🔄 **v1.5**: Extended POSIX compliance
+- 🔄 **v2.0**: Production stability candidate
 
 ---
 
