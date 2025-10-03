@@ -21,7 +21,7 @@ protected:
 
     void SetUp() override {
         memset(&tree, 0, sizeof(tree));
-        ASSERT_EQ(nary_tree_mt_init(&tree, 1024), 0);
+        ASSERT_EQ(nary_tree_mt_init(&tree), 0);
     }
 
     void TearDown() override {
@@ -49,7 +49,7 @@ TEST_F(NaryTreeTest, RootNodeExists) {
 
 TEST_F(NaryTreeTest, InsertSingleChild) {
     uint16_t child_idx = nary_insert_mt(&tree, NARY_ROOT_IDX, "test.txt",
-                                        S_IFREG | 0644, 0, 0);
+                                        S_IFREG | 0644);
 
     EXPECT_NE(child_idx, NARY_INVALID_IDX);
     EXPECT_LT(child_idx, tree.used);
@@ -61,11 +61,11 @@ TEST_F(NaryTreeTest, InsertSingleChild) {
 
 TEST_F(NaryTreeTest, InsertMultipleChildren) {
     uint16_t idx1 = nary_insert_mt(&tree, NARY_ROOT_IDX, "file1.txt",
-                                   S_IFREG | 0644, 0, 0);
+                                   S_IFREG | 0644);
     uint16_t idx2 = nary_insert_mt(&tree, NARY_ROOT_IDX, "file2.txt",
-                                   S_IFREG | 0644, 0, 0);
+                                   S_IFREG | 0644);
     uint16_t idx3 = nary_insert_mt(&tree, NARY_ROOT_IDX, "subdir",
-                                   S_IFDIR | 0755, 0, 0);
+                                   S_IFDIR | 0755);
 
     EXPECT_NE(idx1, NARY_INVALID_IDX);
     EXPECT_NE(idx2, NARY_INVALID_IDX);
@@ -78,7 +78,7 @@ TEST_F(NaryTreeTest, InsertMultipleChildren) {
 
 TEST_F(NaryTreeTest, FindChild) {
     uint16_t inserted = nary_insert_mt(&tree, NARY_ROOT_IDX, "findme.txt",
-                                       S_IFREG | 0644, 0, 0);
+                                       S_IFREG | 0644);
     ASSERT_NE(inserted, NARY_INVALID_IDX);
 
     uint16_t found = nary_find_child_mt(&tree, NARY_ROOT_IDX, "findme.txt");
@@ -92,7 +92,7 @@ TEST_F(NaryTreeTest, FindNonExistentChild) {
 
 TEST_F(NaryTreeTest, DeleteChild) {
     uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, "delete_me.txt",
-                                  S_IFREG | 0644, 0, 0);
+                                  S_IFREG | 0644);
     ASSERT_NE(idx, NARY_INVALID_IDX);
 
     EXPECT_EQ(nary_delete_mt(&tree, idx), 0);
@@ -104,11 +104,11 @@ TEST_F(NaryTreeTest, DeleteChild) {
 TEST_F(NaryTreeTest, DeleteNonEmptyDirectory) {
     // Create directory with child
     uint16_t dir_idx = nary_insert_mt(&tree, NARY_ROOT_IDX, "mydir",
-                                      S_IFDIR | 0755, 0, 0);
+                                      S_IFDIR | 0755);
     ASSERT_NE(dir_idx, NARY_INVALID_IDX);
 
     uint16_t file_idx = nary_insert_mt(&tree, dir_idx, "child.txt",
-                                       S_IFREG | 0644, 0, 0);
+                                       S_IFREG | 0644);
     ASSERT_NE(file_idx, NARY_INVALID_IDX);
 
     // Should fail with ENOTEMPTY
@@ -117,7 +117,7 @@ TEST_F(NaryTreeTest, DeleteNonEmptyDirectory) {
 
 TEST_F(NaryTreeTest, DeleteEmptyDirectory) {
     uint16_t dir_idx = nary_insert_mt(&tree, NARY_ROOT_IDX, "emptydir",
-                                      S_IFDIR | 0755, 0, 0);
+                                      S_IFDIR | 0755);
     ASSERT_NE(dir_idx, NARY_INVALID_IDX);
 
     EXPECT_EQ(nary_delete_mt(&tree, dir_idx), 0);
@@ -130,13 +130,13 @@ TEST_F(NaryTreeTest, DeleteEmptyDirectory) {
 TEST_F(NaryTreeTest, CreateNestedPath) {
     // Create /a/b/c
     uint16_t a = nary_insert_mt(&tree, NARY_ROOT_IDX, "a",
-                                S_IFDIR | 0755, 0, 0);
+                                S_IFDIR | 0755);
     ASSERT_NE(a, NARY_INVALID_IDX);
 
-    uint16_t b = nary_insert_mt(&tree, a, "b", S_IFDIR | 0755, 0, 0);
+    uint16_t b = nary_insert_mt(&tree, a, "b", S_IFDIR | 0755);
     ASSERT_NE(b, NARY_INVALID_IDX);
 
-    uint16_t c = nary_insert_mt(&tree, b, "c", S_IFDIR | 0755, 0, 0);
+    uint16_t c = nary_insert_mt(&tree, b, "c", S_IFDIR | 0755);
     ASSERT_NE(c, NARY_INVALID_IDX);
 
     // Verify hierarchy
@@ -151,12 +151,12 @@ TEST_F(NaryTreeTest, CreateNestedPath) {
 
 TEST_F(NaryTreeTest, LockRead) {
     EXPECT_EQ(nary_lock_read(&tree, NARY_ROOT_IDX), 0);
-    EXPECT_EQ(nary_unlock_read(&tree, NARY_ROOT_IDX), 0);
+    EXPECT_EQ(nary_unlock(&tree, NARY_ROOT_IDX), 0);
 }
 
 TEST_F(NaryTreeTest, LockWrite) {
     EXPECT_EQ(nary_lock_write(&tree, NARY_ROOT_IDX), 0);
-    EXPECT_EQ(nary_unlock_write(&tree, NARY_ROOT_IDX), 0);
+    EXPECT_EQ(nary_unlock(&tree, NARY_ROOT_IDX), 0);
 }
 
 TEST_F(NaryTreeTest, InvalidLockIndex) {
@@ -178,7 +178,7 @@ TEST_F(NaryTreeTest, ConcurrentReads) {
                 // Simulate read operation
                 volatile int dummy = tree.used;
                 (void)dummy;
-                nary_unlock_read(&tree, NARY_ROOT_IDX);
+                nary_unlock(&tree, NARY_ROOT_IDX);
                 success_count++;
             }
         }
@@ -207,7 +207,7 @@ TEST_F(NaryTreeTest, ConcurrentInserts) {
             snprintf(name, sizeof(name), "thread%d_file%d.txt", thread_id, i);
 
             uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, name,
-                                          S_IFREG | 0644, 0, 0);
+                                          S_IFREG | 0644);
             if (idx != NARY_INVALID_IDX) {
                 success_count++;
             }
@@ -242,7 +242,7 @@ TEST_F(NaryTreeTest, ConcurrentMixedOperations) {
     for (int i = 0; i < 10; i++) {
         char name[32];
         snprintf(name, sizeof(name), "initial_%d.txt", i);
-        nary_insert_mt(&tree, NARY_ROOT_IDX, name, S_IFREG | 0644, 0, 0);
+        nary_insert_mt(&tree, NARY_ROOT_IDX, name, S_IFREG | 0644);
     }
 
     std::atomic<int> read_count(0);
@@ -264,7 +264,7 @@ TEST_F(NaryTreeTest, ConcurrentMixedOperations) {
             char name[32];
             snprintf(name, sizeof(name), "new_%d_%d.txt", tid, i);
             uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, name,
-                                          S_IFREG | 0644, 0, 0);
+                                          S_IFREG | 0644);
             if (idx != NARY_INVALID_IDX) {
                 write_count++;
             }
@@ -292,11 +292,11 @@ TEST_F(NaryTreeTest, ConcurrentMixedOperations) {
 TEST_F(NaryTreeTest, InvalidParameters) {
     // Insert with null tree
     EXPECT_EQ(nary_insert_mt(nullptr, NARY_ROOT_IDX, "test.txt",
-                             S_IFREG | 0644, 0, 0), NARY_INVALID_IDX);
+                             S_IFREG | 0644), NARY_INVALID_IDX);
 
     // Insert with null name
     EXPECT_EQ(nary_insert_mt(&tree, NARY_ROOT_IDX, nullptr,
-                             S_IFREG | 0644, 0, 0), NARY_INVALID_IDX);
+                             S_IFREG | 0644), NARY_INVALID_IDX);
 
     // Find with null tree
     EXPECT_EQ(nary_find_child_mt(nullptr, NARY_ROOT_IDX, "test.txt"),
@@ -317,7 +317,7 @@ TEST_F(NaryTreeTest, CapacityLimit) {
         snprintf(name, sizeof(name), "file_%d.txt", i);
 
         uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, name,
-                                      S_IFREG | 0644, 0, 0);
+                                      S_IFREG | 0644);
         if (idx != NARY_INVALID_IDX) {
             inserted++;
         } else {
@@ -341,7 +341,7 @@ TEST_F(NaryTreeTest, DeepNesting) {
         snprintf(name, sizeof(name), "level_%d", depth);
 
         uint16_t child = nary_insert_mt(&tree, parent, name,
-                                        S_IFDIR | 0755, 0, 0);
+                                        S_IFDIR | 0755);
         ASSERT_NE(child, NARY_INVALID_IDX) << "Failed at depth " << depth;
         parent = child;
     }
@@ -359,7 +359,7 @@ TEST_F(NaryTreeTest, ManyChildren) {
         snprintf(name, sizeof(name), "child_%d.txt", i);
 
         uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, name,
-                                      S_IFREG | 0644, 0, 0);
+                                      S_IFREG | 0644);
         EXPECT_NE(idx, NARY_INVALID_IDX) << "Failed at child " << i;
     }
 
@@ -369,7 +369,7 @@ TEST_F(NaryTreeTest, ManyChildren) {
 
     // Try to insert one more - should fail (children array full)
     uint16_t overflow = nary_insert_mt(&tree, NARY_ROOT_IDX, "overflow.txt",
-                                       S_IFREG | 0644, 0, 0);
+                                       S_IFREG | 0644);
     EXPECT_EQ(overflow, NARY_INVALID_IDX);
 }
 

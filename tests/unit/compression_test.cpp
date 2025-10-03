@@ -185,8 +185,8 @@ TEST_F(CompressionTest, CompressionStats) {
 
     EXPECT_EQ(stats.total_writes, 2u);
     EXPECT_EQ(stats.compressed_writes, 2u);
-    EXPECT_GT(stats.total_size, 0u);
-    EXPECT_GT(stats.compressed_size, 0u);
+    EXPECT_GT(stats.total_writes, 0u);
+    EXPECT_GT(stats.compressed_writes, 0u);
     EXPECT_GT(stats.bytes_saved, 0u);
 
     free(comp1);

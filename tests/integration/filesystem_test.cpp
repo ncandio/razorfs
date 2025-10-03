@@ -22,15 +22,18 @@ protected:
         shm_unlink("/razorfs_nodes");
         shm_unlink("/razorfs_strings");
 
-        tree = shm_create_or_attach(2048);
+        tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
         ASSERT_NE(tree, nullptr);
+        ASSERT_EQ(shm_tree_init(tree), 0);
     }
 
     void TearDown() override {
         if (tree) {
-            shm_detach(tree);
+            shm_tree_detach(tree);
+            free(tree);
         }
-        shm_cleanup();
+        shm_unlink("/razorfs_nodes");
+        shm_unlink("/razorfs_strings");
     }
 };
 
@@ -45,15 +48,15 @@ TEST_F(FilesystemIntegrationTest, CreateDirectoryTree) {
     ASSERT_NE(home, NARY_INVALID_IDX);
 
     uint16_t user = nary_insert_mt(tree, home, "user",
-                                   S_IFDIR | 0755, 1000, 1000);
+                                   S_IFDIR | 0755);
     ASSERT_NE(user, NARY_INVALID_IDX);
 
     uint16_t docs = nary_insert_mt(tree, user, "documents",
-                                   S_IFDIR | 0755, 1000, 1000);
+                                   S_IFDIR | 0755);
     ASSERT_NE(docs, NARY_INVALID_IDX);
 
     uint16_t pics = nary_insert_mt(tree, user, "pictures",
-                                   S_IFDIR | 0755, 1000, 1000);
+                                   S_IFDIR | 0755);
     ASSERT_NE(pics, NARY_INVALID_IDX);
 
     // Verify structure
@@ -100,35 +103,37 @@ TEST_F(FilesystemIntegrationTest, CreateAndDeleteFiles) {
 TEST_F(FilesystemIntegrationTest, PersistenceWorkflow) {
     // Create complex structure
     uint16_t projects = nary_insert_mt(tree, NARY_ROOT_IDX, "projects",
-                                       S_IFDIR | 0755, 1000, 1000);
+                                       S_IFDIR | 0755);
     ASSERT_NE(projects, NARY_INVALID_IDX);
 
     uint16_t proj1 = nary_insert_mt(tree, projects, "project1",
-                                    S_IFDIR | 0755, 1000, 1000);
+                                    S_IFDIR | 0755);
     uint16_t proj2 = nary_insert_mt(tree, projects, "project2",
-                                    S_IFDIR | 0755, 1000, 1000);
+                                    S_IFDIR | 0755);
 
     ASSERT_NE(proj1, NARY_INVALID_IDX);
     ASSERT_NE(proj2, NARY_INVALID_IDX);
 
     // Add files to projects
     uint16_t readme1 = nary_insert_mt(tree, proj1, "README.md",
-                                      S_IFREG | 0644, 1000, 1000);
+                                      S_IFREG | 0644);
     uint16_t code1 = nary_insert_mt(tree, proj1, "main.c",
-                                    S_IFREG | 0644, 1000, 1000);
+                                    S_IFREG | 0644);
     uint16_t readme2 = nary_insert_mt(tree, proj2, "README.md",
-                                      S_IFREG | 0644, 1000, 1000);
+                                      S_IFREG | 0644);
 
     ASSERT_NE(readme1, NARY_INVALID_IDX);
     ASSERT_NE(code1, NARY_INVALID_IDX);
     ASSERT_NE(readme2, NARY_INVALID_IDX);
 
     // Simulate unmount
-    ASSERT_EQ(shm_detach(tree), 0);
+    shm_tree_detach(tree);
+    free(tree);
 
     // Simulate remount
-    tree = shm_create_or_attach(2048);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     // Verify entire structure persisted
     uint16_t found_projects = nary_find_child_mt(tree, NARY_ROOT_IDX, "projects");
@@ -187,12 +192,12 @@ TEST_F(FilesystemIntegrationTest, SimulateUserWorkflow) {
     ASSERT_NE(home, NARY_INVALID_IDX);
 
     uint16_t alice = nary_insert_mt(tree, home, "alice",
-                                    S_IFDIR | 0755, 1001, 1001);
+                                    S_IFDIR | 0755);
     ASSERT_NE(alice, NARY_INVALID_IDX);
 
     // Alice creates documents
     uint16_t docs = nary_insert_mt(tree, alice, "documents",
-                                   S_IFDIR | 0755, 1001, 1001);
+                                   S_IFDIR | 0755);
     ASSERT_NE(docs, NARY_INVALID_IDX);
 
     // Alice writes some files
@@ -201,19 +206,21 @@ TEST_F(FilesystemIntegrationTest, SimulateUserWorkflow) {
         snprintf(filename, sizeof(filename), "document_%d.txt", i);
 
         uint16_t file = nary_insert_mt(tree, docs, filename,
-                                       S_IFREG | 0644, 1001, 1001);
+                                       S_IFREG | 0644);
         EXPECT_NE(file, NARY_INVALID_IDX);
     }
 
     // Alice creates a backup directory
     uint16_t backup = nary_insert_mt(tree, alice, "backup",
-                                     S_IFDIR | 0700, 1001, 1001);
+                                     S_IFDIR | 0700);
     ASSERT_NE(backup, NARY_INVALID_IDX);
 
     // System reboot (unmount/remount)
-    ASSERT_EQ(shm_detach(tree), 0);
-    tree = shm_create_or_attach(2048);
+    shm_tree_detach(tree);
+    free(tree);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     // Verify Alice's files are still there
     uint16_t found_home = nary_find_child_mt(tree, NARY_ROOT_IDX, "home");
@@ -282,9 +289,11 @@ TEST_F(FilesystemIntegrationTest, MultipleUsersScenario) {
     }
 
     // Persist and reload
-    ASSERT_EQ(shm_detach(tree), 0);
-    tree = shm_create_or_attach(2048);
+    shm_tree_detach(tree);
+    free(tree);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     // Verify all users and their files
     uint16_t found_home = nary_find_child_mt(tree, NARY_ROOT_IDX, "home");

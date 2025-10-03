@@ -28,10 +28,12 @@ protected:
 
     void TearDown() override {
         if (tree) {
-            shm_detach(tree);
+            shm_tree_detach(tree);
+            free(tree);
             tree = nullptr;
         }
-        shm_cleanup();
+        shm_unlink("/razorfs_nodes");
+        shm_unlink("/razorfs_strings");
     }
 };
 
@@ -40,35 +42,41 @@ protected:
 // ============================================================================
 
 TEST_F(ShmPersistTest, CreateNewTree) {
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
 
-    EXPECT_EQ(tree->capacity, 1024u);
+    ASSERT_EQ(shm_tree_init(tree), 0);
+
+    EXPECT_GT(tree->capacity, 0u);
     EXPECT_EQ(tree->used, 1u);  // Root node
     EXPECT_NE(tree->nodes, nullptr);
 }
 
 TEST_F(ShmPersistTest, CreateAndDetach) {
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
 
+    ASSERT_EQ(shm_tree_init(tree), 0);
+
     uint16_t idx = nary_insert_mt(tree, NARY_ROOT_IDX, "test.txt",
-                                  S_IFREG | 0644, 0, 0);
+                                  S_IFREG | 0644);
     EXPECT_NE(idx, NARY_INVALID_IDX);
 
-    EXPECT_EQ(shm_detach(tree), 0);
+    shm_tree_detach(tree);
+    free(tree);
     tree = nullptr;
 }
 
 TEST_F(ShmPersistTest, CreateDetachReattach) {
     // Create and populate
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     uint16_t file1 = nary_insert_mt(tree, NARY_ROOT_IDX, "persistent1.txt",
-                                    S_IFREG | 0644, 0, 0);
+                                    S_IFREG | 0644);
     uint16_t file2 = nary_insert_mt(tree, NARY_ROOT_IDX, "persistent2.txt",
-                                    S_IFREG | 0644, 0, 0);
+                                    S_IFREG | 0644);
 
     ASSERT_NE(file1, NARY_INVALID_IDX);
     ASSERT_NE(file2, NARY_INVALID_IDX);
@@ -76,12 +84,14 @@ TEST_F(ShmPersistTest, CreateDetachReattach) {
     uint32_t saved_used = tree->used;
 
     // Detach (simulating unmount)
-    ASSERT_EQ(shm_detach(tree), 0);
+    shm_tree_detach(tree);
+    free(tree);
     tree = nullptr;
 
     // Reattach (simulating remount)
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     // Verify tree state persisted
     EXPECT_EQ(tree->used, saved_used);
@@ -96,8 +106,9 @@ TEST_F(ShmPersistTest, CreateDetachReattach) {
 
 TEST_F(ShmPersistTest, StringTablePersistence) {
     // Create and populate
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     const char* test_names[] = {
         "important_file.txt",
@@ -109,17 +120,19 @@ TEST_F(ShmPersistTest, StringTablePersistence) {
     uint16_t indices[4];
     for (int i = 0; i < 4; i++) {
         indices[i] = nary_insert_mt(tree, NARY_ROOT_IDX, test_names[i],
-                                    S_IFREG | 0644, 0, 0);
+                                    S_IFREG | 0644);
         ASSERT_NE(indices[i], NARY_INVALID_IDX);
     }
 
     // Detach
-    ASSERT_EQ(shm_detach(tree), 0);
+    shm_tree_detach(tree);
+    free(tree);
     tree = nullptr;
 
     // Reattach
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     // Verify all filenames persisted correctly
     for (int i = 0; i < 4; i++) {
@@ -130,25 +143,28 @@ TEST_F(ShmPersistTest, StringTablePersistence) {
 
 TEST_F(ShmPersistTest, DirectoryHierarchyPersistence) {
     // Create nested structure
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     uint16_t dir1 = nary_insert_mt(tree, NARY_ROOT_IDX, "documents",
-                                   S_IFDIR | 0755, 0, 0);
+                                   S_IFDIR | 0755);
     ASSERT_NE(dir1, NARY_INVALID_IDX);
 
     uint16_t dir2 = nary_insert_mt(tree, dir1, "work",
-                                   S_IFDIR | 0755, 0, 0);
+                                   S_IFDIR | 0755);
     ASSERT_NE(dir2, NARY_INVALID_IDX);
 
     uint16_t file1 = nary_insert_mt(tree, dir2, "report.pdf",
-                                    S_IFREG | 0644, 0, 0);
+                                    S_IFREG | 0644);
     ASSERT_NE(file1, NARY_INVALID_IDX);
 
     // Detach and reattach
-    ASSERT_EQ(shm_detach(tree), 0);
-    tree = shm_create_or_attach(1024);
+    shm_tree_detach(tree);
+    free(tree);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     // Verify hierarchy
     uint16_t found_dir1 = nary_find_child_mt(tree, NARY_ROOT_IDX, "documents");
@@ -166,12 +182,12 @@ TEST_F(ShmPersistTest, DirectoryHierarchyPersistence) {
 // ============================================================================
 
 TEST_F(ShmPersistTest, FileMetadataPersistence) {
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     mode_t mode = S_IFREG | 0600;
-    uint16_t idx = nary_insert_mt(tree, NARY_ROOT_IDX, "secret.txt",
-                                  mode, 1000, 1000);
+    uint16_t idx = nary_insert_mt(tree, NARY_ROOT_IDX, "secret.txt", mode);
     ASSERT_NE(idx, NARY_INVALID_IDX);
 
     struct nary_node_mt *node = &tree->nodes[idx];
@@ -179,9 +195,11 @@ TEST_F(ShmPersistTest, FileMetadataPersistence) {
     node->node.mtime = 1234567890;
 
     // Detach and reattach
-    ASSERT_EQ(shm_detach(tree), 0);
-    tree = shm_create_or_attach(1024);
+    shm_tree_detach(tree);
+    free(tree);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     // Verify metadata
     uint16_t found = nary_find_child_mt(tree, NARY_ROOT_IDX, "secret.txt");
@@ -198,20 +216,24 @@ TEST_F(ShmPersistTest, FileMetadataPersistence) {
 // ============================================================================
 
 TEST_F(ShmPersistTest, Cleanup) {
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
-    nary_insert_mt(tree, NARY_ROOT_IDX, "temp.txt", S_IFREG | 0644, 0, 0);
+    nary_insert_mt(tree, NARY_ROOT_IDX, "temp.txt", S_IFREG | 0644);
 
-    ASSERT_EQ(shm_detach(tree), 0);
+    shm_tree_detach(tree);
+    free(tree);
     tree = nullptr;
 
     // Clean up
-    EXPECT_EQ(shm_cleanup(), 0);
+    shm_unlink("/razorfs_nodes");
+    shm_unlink("/razorfs_strings");
 
     // Try to reattach - should create fresh tree
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     // Should be empty (just root)
     EXPECT_EQ(tree->used, 1u);
@@ -225,17 +247,21 @@ TEST_F(ShmPersistTest, Cleanup) {
 // ============================================================================
 
 TEST_F(ShmPersistTest, InvalidDetach) {
-    EXPECT_NE(shm_detach(nullptr), 0);
+    // Detaching nullptr should not crash
+    shm_tree_detach(nullptr);
 }
 
 TEST_F(ShmPersistTest, DoubleDetach) {
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
-    EXPECT_EQ(shm_detach(tree), 0);
+    shm_tree_detach(tree);
 
-    // Second detach with stale pointer should not crash
-    // (implementation may vary, but shouldn't crash)
+    // Second detach should not crash (implementation handles gracefully)
+    shm_tree_detach(tree);
+    free(tree);
+    tree = nullptr;
 }
 
 // ============================================================================
@@ -246,8 +272,9 @@ TEST_F(ShmPersistTest, ManyFilesAcrossRemounts) {
     const int BATCH_SIZE = 50;
     const int NUM_REMOUNTS = 5;
 
-    tree = shm_create_or_attach(1024);
+    tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
+    ASSERT_EQ(shm_tree_init(tree), 0);
 
     std::vector<std::string> all_files;
 
@@ -258,16 +285,18 @@ TEST_F(ShmPersistTest, ManyFilesAcrossRemounts) {
             snprintf(name, sizeof(name), "remount%d_file%d.txt", remount, i);
 
             uint16_t idx = nary_insert_mt(tree, NARY_ROOT_IDX, name,
-                                          S_IFREG | 0644, 0, 0);
+                                          S_IFREG | 0644);
             if (idx != NARY_INVALID_IDX) {
                 all_files.push_back(name);
             }
         }
 
         // Remount
-        ASSERT_EQ(shm_detach(tree), 0);
-        tree = shm_create_or_attach(1024);
+        shm_tree_detach(tree);
+        free(tree);
+        tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
         ASSERT_NE(tree, nullptr);
+        ASSERT_EQ(shm_tree_init(tree), 0);
 
         // Verify all files from all previous remounts
         for (const auto& filename : all_files) {

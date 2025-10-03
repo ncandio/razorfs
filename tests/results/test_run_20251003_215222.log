@@ -1,0 +1,867 @@
+[0;34m[21:52:22][0m Test run started
+[0;34m[21:52:22][0m Results will be saved to: tests/results/test_run_20251003_215222.log
+[0;34m[21:52:22][0m Checking dependencies...
+[0;32m✓[0m All dependencies found
+[0;34m[21:52:22][0m Building test suite...
+-- The C compiler identification is GNU 12.2.0
+-- The CXX compiler identification is GNU 12.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Python3: /usr/local/bin/python3 (found version "3.15.0") found components: Interpreter 
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found PkgConfig: /usr/bin/pkg-config (found version "1.8.1") 
+-- Checking for module 'fuse3'
+--   Found fuse3, version 3.14.0
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.2.13") 
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/nico/WORK_ROOT/RAZOR_repo/build_tests
+make[1]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[2]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[  4%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c.o[0m
+[ 12%] [32mBuilding CXX object _deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o[0m
+[ 12%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/string_table.c.o[0m
+[ 16%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/nary_tree_mt.c.o[0m
+[ 20%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/compression.c.o[0m
+[ 25%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/numa_support.c.o[0m
+/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c: In function ‘shm_tree_init’:
+/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c:41:9: warning: unused variable ‘numa_nodes’ [-Wunused-variable]
+   41 |     int numa_nodes = numa_init();
+      |         ^~~~~~~~~~
+[ 29%] [32m[1mLinking C static library librazorfs_lib.a[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 29%] Built target razorfs_lib
+[ 33%] [32m[1mLinking CXX static library ../../../lib/libgtest.a[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 33%] Built target gtest
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 41%] [32mBuilding CXX object _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o[0m
+[ 41%] [32mBuilding CXX object _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.o[0m
+[ 45%] [32m[1mLinking CXX static library ../../../lib/libgtest_main.a[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 45%] Built target gtest_main
+[ 50%] [32m[1mLinking CXX static library ../../../lib/libgmock.a[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 50%] Built target gmock
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 58%] [32mBuilding CXX object CMakeFiles/string_table_test.dir/unit/string_table_test.cpp.o[0m
+[ 58%] [32mBuilding CXX object CMakeFiles/nary_tree_test.dir/unit/nary_tree_test.cpp.o[0m
+[ 62%] [32mBuilding CXX object CMakeFiles/compression_test.dir/unit/compression_test.cpp.o[0m
+[ 66%] [32mBuilding CXX object CMakeFiles/integration_test.dir/integration/filesystem_test.cpp.o[0m
+[ 70%] [32mBuilding CXX object CMakeFiles/shm_persist_test.dir/unit/shm_persist_test.cpp.o[0m
+[ 75%] [32mBuilding CXX object _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.o[0m
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree.h:16,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:11,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:14:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_node.h:54:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   54 | _Static_assert(sizeof(struct nary_node) == 64,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:44:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   44 | _Static_assert(sizeof(struct nary_node_mt) == 128,
+      |               ^
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree.h:16,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:11,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:10:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_node.h:54:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   54 | _Static_assert(sizeof(struct nary_node) == 64,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:44:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   44 | _Static_assert(sizeof(struct nary_node_mt) == 128,
+      |               ^
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googletest/include/gtest/gtest.h:72,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:6:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest::SetUp()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:24:36: error: too many arguments to function ‘int nary_tree_mt_init(nary_tree_mt*)’
+   24 |         ASSERT_EQ(nary_tree_mt_init(&tree, 1024), 0);
+      |                   ~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:92:5: note: declared here
+   92 | int nary_tree_mt_init(struct nary_tree_mt *tree);
+      |     ^~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_InsertSingleChild_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:51:40: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   51 |     uint16_t child_idx = nary_insert_mt(&tree, NARY_ROOT_IDX, "test.txt",
+      |                          ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   52 |                                         S_IFREG | 0644, 0, 0);
+      |                                         ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest::SetUp()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:22:9: error: ‘shm_unlink’ was not declared in this scope; did you mean ‘unlink’?
+   22 |         shm_unlink("/razorfs_nodes");
+      |         ^~~~~~~~~~
+      |         unlink
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_InsertMultipleChildren_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:63:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   63 |     uint16_t idx1 = nary_insert_mt(&tree, NARY_ROOT_IDX, "file1.txt",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   64 |                                    S_IFREG | 0644, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:65:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   65 |     uint16_t idx2 = nary_insert_mt(&tree, NARY_ROOT_IDX, "file2.txt",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   66 |                                    S_IFREG | 0644, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:67:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   67 |     uint16_t idx3 = nary_insert_mt(&tree, NARY_ROOT_IDX, "subdir",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   68 |                                    S_IFDIR | 0755, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_FindChild_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:80:39: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   80 |     uint16_t inserted = nary_insert_mt(&tree, NARY_ROOT_IDX, "findme.txt",
+      |                         ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   81 |                                        S_IFREG | 0644, 0, 0);
+      |                                        ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_DeleteChild_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:94:34: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   94 |     uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, "delete_me.txt",
+      |                    ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   95 |                                   S_IFREG | 0644, 0, 0);
+      |                                   ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:25:16: error: ‘shm_create_or_attach’ was not declared in this scope
+   25 |         tree = shm_create_or_attach(2048);
+      |                ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_DeleteNonEmptyDirectory_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:106:38: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  106 |     uint16_t dir_idx = nary_insert_mt(&tree, NARY_ROOT_IDX, "mydir",
+      |                        ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  107 |                                       S_IFDIR | 0755, 0, 0);
+      |                                       ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:110:39: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  110 |     uint16_t file_idx = nary_insert_mt(&tree, dir_idx, "child.txt",
+      |                         ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  111 |                                        S_IFREG | 0644, 0, 0);
+      |                                        ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_DeleteEmptyDirectory_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:119:38: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  119 |     uint16_t dir_idx = nary_insert_mt(&tree, NARY_ROOT_IDX, "emptydir",
+      |                        ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  120 |                                       S_IFDIR | 0755, 0, 0);
+      |                                       ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_CreateNestedPath_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:132:32: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  132 |     uint16_t a = nary_insert_mt(&tree, NARY_ROOT_IDX, "a",
+      |                  ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  133 |                                 S_IFDIR | 0755, 0, 0);
+      |                                 ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:136:32: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  136 |     uint16_t b = nary_insert_mt(&tree, a, "b", S_IFDIR | 0755, 0, 0);
+      |                  ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:139:32: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  139 |     uint16_t c = nary_insert_mt(&tree, b, "c", S_IFDIR | 0755, 0, 0);
+      |                  ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest::TearDown()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:31:13: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+   31 |             shm_detach(tree);
+      |             ^~~~~~~~~~
+      |             shm_tree_detach
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_LockRead_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:154:15: error: ‘nary_unlock_read’ was not declared in this scope; did you mean ‘nary_lock_read’?
+  154 |     EXPECT_EQ(nary_unlock_read(&tree, NARY_ROOT_IDX), 0);
+      |               ^~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:33:9: error: ‘shm_cleanup’ was not declared in this scope
+   33 |         shm_cleanup();
+      |         ^~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest_CreateDirectoryTree_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:43:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   43 |     uint16_t home = nary_insert_mt(tree, NARY_ROOT_IDX, "home",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   44 |                                    S_IFDIR | 0755, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:47:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   47 |     uint16_t user = nary_insert_mt(tree, home, "user",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+   48 |                                    S_IFDIR | 0755, 1000, 1000);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:51:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   51 |     uint16_t docs = nary_insert_mt(tree, user, "documents",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+   52 |                                    S_IFDIR | 0755, 1000, 1000);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:55:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   55 |     uint16_t pics = nary_insert_mt(tree, user, "pictures",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+   56 |                                    S_IFDIR | 0755, 1000, 1000);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest_CreateAndDeleteFiles_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:68:34: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   68 |     uint16_t dir = nary_insert_mt(tree, NARY_ROOT_IDX, "testdir",
+      |                    ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                   S_IFDIR | 0755, 0, 0);
+      |                                   ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:73:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   73 |     uint16_t file1 = nary_insert_mt(tree, dir, "file1.txt",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+   74 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:75:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   75 |     uint16_t file2 = nary_insert_mt(tree, dir, "file2.txt",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+   76 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:77:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   77 |     uint16_t file3 = nary_insert_mt(tree, dir, "file3.txt",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+   78 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_LockWrite_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:159:15: error: ‘nary_unlock_write’ was not declared in this scope; did you mean ‘nary_lock_write’?
+  159 |     EXPECT_EQ(nary_unlock_write(&tree, NARY_ROOT_IDX), 0);
+      |               ^~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest_PersistenceWorkflow_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:102:39: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  102 |     uint16_t projects = nary_insert_mt(tree, NARY_ROOT_IDX, "projects",
+      |                         ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  103 |                                        S_IFDIR | 0755, 1000, 1000);
+      |                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:106:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  106 |     uint16_t proj1 = nary_insert_mt(tree, projects, "project1",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  107 |                                     S_IFDIR | 0755, 1000, 1000);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:108:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  108 |     uint16_t proj2 = nary_insert_mt(tree, projects, "project2",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  109 |                                     S_IFDIR | 0755, 1000, 1000);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:115:38: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  115 |     uint16_t readme1 = nary_insert_mt(tree, proj1, "README.md",
+      |                        ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+  116 |                                       S_IFREG | 0644, 1000, 1000);
+      |                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:117:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  117 |     uint16_t code1 = nary_insert_mt(tree, proj1, "main.c",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+  118 |                                     S_IFREG | 0644, 1000, 1000);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:119:38: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  119 |     uint16_t readme2 = nary_insert_mt(tree, proj2, "README.md",
+      |                        ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+  120 |                                       S_IFREG | 0644, 1000, 1000);
+      |                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googletest/include/gtest/gtest.h:72,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:6:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:127:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  127 |     ASSERT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In lambda function:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:181:17: error: ‘nary_unlock_read’ was not declared in this scope; did you mean ‘nary_lock_read’?
+  181 |                 nary_unlock_read(&tree, NARY_ROOT_IDX);
+      |                 ^~~~~~~~~~~~~~~~
+      |                 nary_lock_read
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:130:12: error: ‘shm_create_or_attach’ was not declared in this scope
+  130 |     tree = shm_create_or_attach(2048);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest_SimulateUserWorkflow_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:185:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  185 |     uint16_t home = nary_insert_mt(tree, NARY_ROOT_IDX, "home",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |                                    S_IFDIR | 0755, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:189:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  189 |     uint16_t alice = nary_insert_mt(tree, home, "alice",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+  190 |                                     S_IFDIR | 0755, 1001, 1001);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:194:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  194 |     uint16_t docs = nary_insert_mt(tree, alice, "documents",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+  195 |                                    S_IFDIR | 0755, 1001, 1001);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:203:39: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  203 |         uint16_t file = nary_insert_mt(tree, docs, filename,
+      |                         ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+  204 |                                        S_IFREG | 0644, 1001, 1001);
+      |                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:209:37: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  209 |     uint16_t backup = nary_insert_mt(tree, alice, "backup",
+      |                       ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+  210 |                                      S_IFDIR | 0700, 1001, 1001);
+      |                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In lambda function:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:209:42: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  209 |             uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, name,
+      |                            ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  210 |                                           S_IFREG | 0644, 0, 0);
+      |                                           ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_ConcurrentMixedOperations_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:245:23: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  245 |         nary_insert_mt(&tree, NARY_ROOT_IDX, name, S_IFREG | 0644, 0, 0);
+      |         ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:214:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  214 |     ASSERT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In lambda function:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:266:42: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  266 |             uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, name,
+      |                            ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  267 |                                           S_IFREG | 0644, 0, 0);
+      |                                           ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_InvalidParameters_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:294:29: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  294 |     EXPECT_EQ(nary_insert_mt(nullptr, NARY_ROOT_IDX, "test.txt",
+      |               ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  295 |                              S_IFREG | 0644, 0, 0), NARY_INVALID_IDX);
+      |                              ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:298:29: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  298 |     EXPECT_EQ(nary_insert_mt(&tree, NARY_ROOT_IDX, nullptr,
+      |               ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  299 |                              S_IFREG | 0644, 0, 0), NARY_INVALID_IDX);
+      |                              ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_CapacityLimit_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:319:38: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  319 |         uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, name,
+      |                        ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  320 |                                       S_IFREG | 0644, 0, 0);
+      |                                       ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_DeepNesting_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:343:40: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  343 |         uint16_t child = nary_insert_mt(&tree, parent, name,
+      |                          ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+  344 |                                         S_IFDIR | 0755, 0, 0);
+      |                                         ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:215:12: error: ‘shm_create_or_attach’ was not declared in this scope
+  215 |     tree = shm_create_or_attach(2048);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp: In member function ‘virtual void NaryTreeTest_ManyChildren_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:361:38: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  361 |         uint16_t idx = nary_insert_mt(&tree, NARY_ROOT_IDX, name,
+      |                        ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  362 |                                       S_IFREG | 0644, 0, 0);
+      |                                       ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:371:39: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  371 |     uint16_t overflow = nary_insert_mt(&tree, NARY_ROOT_IDX, "overflow.txt",
+      |                         ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  372 |                                        S_IFREG | 0644, 0, 0);
+      |                                        ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableTest_InternSingleString_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:66:42: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+   66 |     uint32_t offset = string_table_intern(&st, "hello", 5);
+      |                       ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:14:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest_MultipleUsersScenario_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:261:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  261 |     uint16_t home = nary_insert_mt(tree, NARY_ROOT_IDX, "home",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  262 |                                    S_IFDIR | 0755, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableTest_InternDeduplication_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:77:43: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+   77 |     uint32_t offset1 = string_table_intern(&st, "test", 4);
+      |                        ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:78:43: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+   78 |     uint32_t offset2 = string_table_intern(&st, "test", 4);
+      |                        ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:269:38: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  269 |         user_dirs[i] = nary_insert_mt(tree, home, users[i],
+      |                        ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+  270 |                                       S_IFDIR | 0755, 1000 + i, 1000 + i);
+      |                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree.h:16,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:11,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/shm_persist.h:14,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:14:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_node.h:54:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   54 | _Static_assert(sizeof(struct nary_node) == 64,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:44:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   44 | _Static_assert(sizeof(struct nary_node_mt) == 128,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:278:43: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  278 |             uint16_t file = nary_insert_mt(tree, user_dirs[i], filename,
+      |                             ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  279 |                                            S_IFREG | 0644, 1000 + i, 1000 + i);
+      |                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableTest_InternMultipleStrings_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:86:40: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+   86 |     uint32_t off1 = string_table_intern(&st, "file1.txt", 9);
+      |                     ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:87:40: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+   87 |     uint32_t off2 = string_table_intern(&st, "file2.txt", 9);
+      |                     ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:88:40: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+   88 |     uint32_t off3 = string_table_intern(&st, "file1.txt", 9);
+      |                     ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableTest_InternEmptyString_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:100:42: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  100 |     uint32_t offset = string_table_intern(&st, "", 0);
+      |                       ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableTest_InternLongString_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:115:42: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  115 |     uint32_t offset = string_table_intern(&st, long_str, 255);
+      |                       ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:285:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  285 |     ASSERT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableTest_GetStats_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:126:24: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  126 |     string_table_intern(&st, "file1.txt", 9);
+      |     ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest::TearDown()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:31:13: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+   31 |             shm_detach(tree);
+      |             ^~~~~~~~~~
+      |             shm_tree_detach
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:127:24: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  127 |     string_table_intern(&st, "file2.txt", 9);
+      |     ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:128:24: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  128 |     string_table_intern(&st, "file1.txt", 9);  // Duplicate
+      |     ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableShmTest_InternInShmMode_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:153:42: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  153 |     uint32_t offset = string_table_intern(&st, "shm_test", 8);
+      |                       ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableShmTest_ShmPersistence_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:165:40: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  165 |     uint32_t off1 = string_table_intern(&st, "persistent1", 11);
+      |                     ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:166:40: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  166 |     uint32_t off2 = string_table_intern(&st, "persistent2", 11);
+      |                     ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:34:9: error: ‘shm_cleanup’ was not declared in this scope
+   34 |         shm_cleanup();
+      |         ^~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:286:12: error: ‘shm_create_or_attach’ was not declared in this scope
+  286 |     tree = shm_create_or_attach(2048);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableShmTest_ShmNoRealloc_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:197:42: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  197 |     uint32_t offset = string_table_intern(&st, str, 99);
+      |                       ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googletest/include/gtest/gtest.h:72,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:6:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableTest_InvalidParameters_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:212:34: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  212 |     EXPECT_EQ(string_table_intern(nullptr, "test", 4), UINT32_MAX);
+      |               ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:216:34: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  216 |     EXPECT_EQ(string_table_intern(&st, nullptr, 4), UINT32_MAX);
+      |               ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableTest_ManyStrings_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:247:41: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  247 |         offsets[i] = string_table_intern(&st, name, strlen(name));
+      |                      ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_CreateNewTree_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:43:12: error: ‘shm_create_or_attach’ was not declared in this scope
+   43 |     tree = shm_create_or_attach(1024);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableTest_ManyDuplicates_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:265:48: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  265 |     uint32_t first_offset = string_table_intern(&st, "duplicate", 9);
+      |                             ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:270:46: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  270 |         uint32_t offset = string_table_intern(&st, "duplicate", 9);
+      |                           ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp: In member function ‘virtual void StringTableShmTest_OverflowProtection_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:294:42: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  294 |     uint32_t offset = string_table_intern(&st, large_str, 127);
+      |                       ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/string_table_test.cpp:300:48: error: too many arguments to function ‘uint32_t string_table_intern(string_table*, const char*)’
+  300 |     uint32_t small_offset = string_table_intern(&st, "ok", 2);
+      |                             ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/string_table.h:62:10: note: declared here
+   62 | uint32_t string_table_intern(struct string_table *st, const char *str);
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_CreateAndDetach_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:52:12: error: ‘shm_create_or_attach’ was not declared in this scope
+   52 |     tree = shm_create_or_attach(1024);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:55:34: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   55 |     uint16_t idx = nary_insert_mt(tree, NARY_ROOT_IDX, "test.txt",
+      |                    ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   56 |                                   S_IFREG | 0644, 0, 0);
+      |                                   ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googletest/include/gtest/gtest.h:72,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:6:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:59:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+   59 |     EXPECT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_CreateDetachReattach_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:65:12: error: ‘shm_create_or_attach’ was not declared in this scope
+   65 |     tree = shm_create_or_attach(1024);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:68:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   68 |     uint16_t file1 = nary_insert_mt(tree, NARY_ROOT_IDX, "persistent1.txt",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:70:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   70 |     uint16_t file2 = nary_insert_mt(tree, NARY_ROOT_IDX, "persistent2.txt",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   71 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:79:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+   79 |     ASSERT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googletest/include/gtest/gtest.h:72,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/compression_test.cpp:6:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/compression_test.cpp: In member function ‘virtual void CompressionTest_CompressionStats_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/compression_test.cpp:188:21: error: ‘struct compression_stats’ has no member named ‘total_size’; did you mean ‘total_writes’?
+  188 |     EXPECT_GT(stats.total_size, 0u);
+      |                     ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/compression_test.cpp:189:21: error: ‘struct compression_stats’ has no member named ‘compressed_size’; did you mean ‘compressed_writes’?
+  189 |     EXPECT_GT(stats.compressed_size, 0u);
+      |                     ^~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_StringTablePersistence_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:99:12: error: ‘shm_create_or_attach’ was not declared in this scope
+   99 |     tree = shm_create_or_attach(1024);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:111:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  111 |         indices[i] = nary_insert_mt(tree, NARY_ROOT_IDX, test_names[i],
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  112 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:117:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  117 |     ASSERT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_DirectoryHierarchyPersistence_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:133:12: error: ‘shm_create_or_attach’ was not declared in this scope
+  133 |     tree = shm_create_or_attach(1024);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:136:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  136 |     uint16_t dir1 = nary_insert_mt(tree, NARY_ROOT_IDX, "documents",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  137 |                                    S_IFDIR | 0755, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:140:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  140 |     uint16_t dir2 = nary_insert_mt(tree, dir1, "work",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+  141 |                                    S_IFDIR | 0755, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:144:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  144 |     uint16_t file1 = nary_insert_mt(tree, dir2, "report.pdf",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+  145 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:149:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  149 |     ASSERT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_FileMetadataPersistence_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:169:12: error: ‘shm_create_or_attach’ was not declared in this scope
+  169 |     tree = shm_create_or_attach(1024);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:173:34: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  173 |     uint16_t idx = nary_insert_mt(tree, NARY_ROOT_IDX, "secret.txt",
+      |                    ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  174 |                                   mode, 1000, 1000);
+      |                                   ~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:182:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  182 |     ASSERT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_Cleanup_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:201:12: error: ‘shm_create_or_attach’ was not declared in this scope
+  201 |     tree = shm_create_or_attach(1024);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:204:19: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  204 |     nary_insert_mt(tree, NARY_ROOT_IDX, "temp.txt", S_IFREG | 0644, 0, 0);
+      |     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:206:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  206 |     ASSERT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:210:15: error: ‘shm_cleanup’ was not declared in this scope
+  210 |     EXPECT_EQ(shm_cleanup(), 0);
+      |               ^~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_InvalidDetach_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:228:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  228 |     EXPECT_NE(shm_detach(nullptr), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_DoubleDetach_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:232:12: error: ‘shm_create_or_attach’ was not declared in this scope
+  232 |     tree = shm_create_or_attach(1024);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:235:15: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  235 |     EXPECT_EQ(shm_detach(tree), 0);
+      |               ^~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp: In member function ‘virtual void ShmPersistTest_ManyFilesAcrossRemounts_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:249:12: error: ‘shm_create_or_attach’ was not declared in this scope
+  249 |     tree = shm_create_or_attach(1024);
+      |            ^~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:260:42: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  260 |             uint16_t idx = nary_insert_mt(tree, NARY_ROOT_IDX, name,
+      |                            ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~
+  261 |                                           S_IFREG | 0644, 0, 0);
+      |                                           ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:268:19: error: ‘shm_detach’ was not declared in this scope; did you mean ‘shm_tree_detach’?
+  268 |         ASSERT_EQ(shm_detach(tree), 0);
+      |                   ^~~~~~~~~~
+[ 79%] [32m[1mLinking CXX static library ../../../lib/libgmock_main.a[0m
+make[3]: *** [CMakeFiles/integration_test.dir/build.make:76: CMakeFiles/integration_test.dir/integration/filesystem_test.cpp.o] Error 1
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[2]: *** [CMakeFiles/Makefile2:291: CMakeFiles/integration_test.dir/all] Error 2
+make[2]: *** Waiting for unfinished jobs....
+make[3]: *** [CMakeFiles/string_table_test.dir/build.make:76: CMakeFiles/string_table_test.dir/unit/string_table_test.cpp.o] Error 1
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[2]: *** [CMakeFiles/Makefile2:175: CMakeFiles/string_table_test.dir/all] Error 2
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 79%] Built target gmock_main
+make[3]: *** [CMakeFiles/compression_test.dir/build.make:76: CMakeFiles/compression_test.dir/unit/compression_test.cpp.o] Error 1
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[2]: *** [CMakeFiles/Makefile2:262: CMakeFiles/compression_test.dir/all] Error 2
+make[3]: *** [CMakeFiles/nary_tree_test.dir/build.make:76: CMakeFiles/nary_tree_test.dir/unit/nary_tree_test.cpp.o] Error 1
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[2]: *** [CMakeFiles/Makefile2:204: CMakeFiles/nary_tree_test.dir/all] Error 2
+make[3]: *** [CMakeFiles/shm_persist_test.dir/build.make:76: CMakeFiles/shm_persist_test.dir/unit/shm_persist_test.cpp.o] Error 1
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[2]: *** [CMakeFiles/Makefile2:233: CMakeFiles/shm_persist_test.dir/all] Error 2
+make[2]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[1]: *** [Makefile:146: all] Error 2
+make[1]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'

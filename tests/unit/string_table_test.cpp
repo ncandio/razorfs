@@ -63,7 +63,7 @@ TEST_F(StringTableTest, InitializationHeapMode) {
 TEST_F(StringTableTest, InternSingleString) {
     ASSERT_EQ(string_table_init(&st), 0);
 
-    uint32_t offset = string_table_intern(&st, "hello", 5);
+    uint32_t offset = string_table_intern(&st, "hello");
     EXPECT_NE(offset, UINT32_MAX);
 
     const char* result = string_table_get(&st, offset);
@@ -74,8 +74,8 @@ TEST_F(StringTableTest, InternSingleString) {
 TEST_F(StringTableTest, InternDeduplication) {
     ASSERT_EQ(string_table_init(&st), 0);
 
-    uint32_t offset1 = string_table_intern(&st, "test", 4);
-    uint32_t offset2 = string_table_intern(&st, "test", 4);
+    uint32_t offset1 = string_table_intern(&st, "test");
+    uint32_t offset2 = string_table_intern(&st, "test");
 
     EXPECT_EQ(offset1, offset2) << "Same string should return same offset";
 }
@@ -83,9 +83,9 @@ TEST_F(StringTableTest, InternDeduplication) {
 TEST_F(StringTableTest, InternMultipleStrings) {
     ASSERT_EQ(string_table_init(&st), 0);
 
-    uint32_t off1 = string_table_intern(&st, "file1.txt", 9);
-    uint32_t off2 = string_table_intern(&st, "file2.txt", 9);
-    uint32_t off3 = string_table_intern(&st, "file1.txt", 9);
+    uint32_t off1 = string_table_intern(&st, "file1.txt");
+    uint32_t off2 = string_table_intern(&st, "file2.txt");
+    uint32_t off3 = string_table_intern(&st, "file1.txt");
 
     EXPECT_NE(off1, off2) << "Different strings should have different offsets";
     EXPECT_EQ(off1, off3) << "Same string should deduplicate";
@@ -97,7 +97,7 @@ TEST_F(StringTableTest, InternMultipleStrings) {
 TEST_F(StringTableTest, InternEmptyString) {
     ASSERT_EQ(string_table_init(&st), 0);
 
-    uint32_t offset = string_table_intern(&st, "", 0);
+    uint32_t offset = string_table_intern(&st, "");
     EXPECT_NE(offset, UINT32_MAX);
 
     const char* result = string_table_get(&st, offset);
@@ -112,7 +112,7 @@ TEST_F(StringTableTest, InternLongString) {
     memset(long_str, 'A', 255);
     long_str[255] = '\0';
 
-    uint32_t offset = string_table_intern(&st, long_str, 255);
+    uint32_t offset = string_table_intern(&st, long_str);
     EXPECT_NE(offset, UINT32_MAX);
 
     const char* result = string_table_get(&st, offset);
@@ -123,9 +123,9 @@ TEST_F(StringTableTest, InternLongString) {
 TEST_F(StringTableTest, GetStats) {
     ASSERT_EQ(string_table_init(&st), 0);
 
-    string_table_intern(&st, "file1.txt", 9);
-    string_table_intern(&st, "file2.txt", 9);
-    string_table_intern(&st, "file1.txt", 9);  // Duplicate
+    string_table_intern(&st, "file1.txt");
+    string_table_intern(&st, "file2.txt");
+    string_table_intern(&st, "file1.txt");  // Duplicate
 
     uint32_t total, used;
     string_table_stats(&st, &total, &used);
@@ -150,7 +150,7 @@ TEST_F(StringTableShmTest, InitializationShmMode) {
 TEST_F(StringTableShmTest, InternInShmMode) {
     ASSERT_EQ(string_table_init_shm(&st, shm_buffer, shm_size, 0), 0);
 
-    uint32_t offset = string_table_intern(&st, "shm_test", 8);
+    uint32_t offset = string_table_intern(&st, "shm_test");
     EXPECT_NE(offset, UINT32_MAX);
 
     const char* result = string_table_get(&st, offset);
@@ -162,8 +162,8 @@ TEST_F(StringTableShmTest, ShmPersistence) {
     // Create and populate
     ASSERT_EQ(string_table_init_shm(&st, shm_buffer, shm_size, 0), 0);
 
-    uint32_t off1 = string_table_intern(&st, "persistent1", 11);
-    uint32_t off2 = string_table_intern(&st, "persistent2", 11);
+    uint32_t off1 = string_table_intern(&st, "persistent1");
+    uint32_t off2 = string_table_intern(&st, "persistent2");
 
     EXPECT_NE(off1, UINT32_MAX);
     EXPECT_NE(off2, UINT32_MAX);
@@ -194,7 +194,7 @@ TEST_F(StringTableShmTest, ShmNoRealloc) {
     memset(str, 'X', 99);
     str[99] = '\0';
 
-    uint32_t offset = string_table_intern(&st, str, 99);
+    uint32_t offset = string_table_intern(&st, str);
 
     // Should fail or return UINT32_MAX when full (no realloc in shm mode)
     EXPECT_TRUE(offset == UINT32_MAX || st.used <= st.capacity);
@@ -209,11 +209,11 @@ TEST_F(StringTableTest, InvalidParameters) {
     EXPECT_EQ(string_table_init(nullptr), -1);
 
     // Intern with null table
-    EXPECT_EQ(string_table_intern(nullptr, "test", 4), UINT32_MAX);
+    EXPECT_EQ(string_table_intern(nullptr, "test"), UINT32_MAX);
 
     // Intern with null string
     ASSERT_EQ(string_table_init(&st), 0);
-    EXPECT_EQ(string_table_intern(&st, nullptr, 4), UINT32_MAX);
+    EXPECT_EQ(string_table_intern(&st, nullptr), UINT32_MAX);
 
     // Get with null table
     EXPECT_EQ(string_table_get(nullptr, 0), nullptr);
@@ -244,7 +244,7 @@ TEST_F(StringTableTest, ManyStrings) {
     for (int i = 0; i < NUM_STRINGS; i++) {
         char name[32];
         snprintf(name, sizeof(name), "file_%d.txt", i);
-        offsets[i] = string_table_intern(&st, name, strlen(name));
+        offsets[i] = string_table_intern(&st, name);
         ASSERT_NE(offsets[i], UINT32_MAX) << "Failed at iteration " << i;
     }
 
@@ -262,12 +262,12 @@ TEST_F(StringTableTest, ManyDuplicates) {
     ASSERT_EQ(string_table_init(&st), 0);
 
     const int NUM_ITERATIONS = 100;
-    uint32_t first_offset = string_table_intern(&st, "duplicate", 9);
+    uint32_t first_offset = string_table_intern(&st, "duplicate");
     ASSERT_NE(first_offset, UINT32_MAX);
 
     // Intern same string many times
     for (int i = 0; i < NUM_ITERATIONS; i++) {
-        uint32_t offset = string_table_intern(&st, "duplicate", 9);
+        uint32_t offset = string_table_intern(&st, "duplicate");
         EXPECT_EQ(offset, first_offset) << "Deduplication failed at iteration " << i;
     }
 }
@@ -291,13 +291,13 @@ TEST_F(StringTableShmTest, OverflowProtection) {
     memset(large_str, 'Z', 127);
     large_str[127] = '\0';
 
-    uint32_t offset = string_table_intern(&st, large_str, 127);
+    uint32_t offset = string_table_intern(&st, large_str);
 
     // Should fail gracefully without corruption
     EXPECT_EQ(offset, UINT32_MAX);
 
     // Table should still be usable
-    uint32_t small_offset = string_table_intern(&st, "ok", 2);
+    uint32_t small_offset = string_table_intern(&st, "ok");
     EXPECT_NE(small_offset, UINT32_MAX);
 }
 

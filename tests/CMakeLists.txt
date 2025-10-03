@@ -87,6 +87,13 @@ target_link_libraries(compression_test
     GTest::gmock
 )
 
+add_executable(architecture_test unit/architecture_test.cpp)
+target_link_libraries(architecture_test
+    razorfs_lib
+    GTest::gtest_main
+    GTest::gmock
+)
+
 # Integration Tests
 add_executable(integration_test integration/filesystem_test.cpp)
 target_link_libraries(integration_test
@@ -101,4 +108,5 @@ gtest_discover_tests(string_table_test)
 gtest_discover_tests(nary_tree_test)
 gtest_discover_tests(shm_persist_test)
 gtest_discover_tests(compression_test)
+gtest_discover_tests(architecture_test)
 gtest_discover_tests(integration_test)

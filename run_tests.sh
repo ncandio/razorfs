@@ -178,6 +178,7 @@ if [ "$RUN_UNIT" = true ]; then
         "nary_tree_test"
         "shm_persist_test"
         "compression_test"
+        "architecture_test"
     )
 
     UNIT_FAILED=0

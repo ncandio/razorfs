@@ -1,0 +1,259 @@
+[0;34m[22:11:28][0m Test run started
+[0;34m[22:11:28][0m Results will be saved to: tests/results/test_run_20251003_221128.log
+[0;34m[22:11:28][0m Checking dependencies...
+[0;32m✓[0m All dependencies found
+[0;34m[22:11:28][0m Building test suite...
+-- The C compiler identification is GNU 12.2.0
+-- The CXX compiler identification is GNU 12.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Python3: /usr/local/bin/python3 (found version "3.15.0") found components: Interpreter 
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found PkgConfig: /usr/bin/pkg-config (found version "1.8.1") 
+-- Checking for module 'fuse3'
+--   Found fuse3, version 3.14.0
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.2.13") 
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/nico/WORK_ROOT/RAZOR_repo/build_tests
+[  3%] Building C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/compression.c.o
+[  7%] Building C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/nary_tree_mt.c.o
+[ 11%] Building C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/string_table.c.o
+[ 15%] Building CXX object _deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o
+[ 19%] Building C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c.o
+[ 23%] Building C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/numa_support.c.o
+/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c: In function ‘shm_tree_init’:
+/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c:41:9: warning: unused variable ‘numa_nodes’ [-Wunused-variable]
+   41 |     int numa_nodes = numa_init();
+      |         ^~~~~~~~~~
+[ 26%] Linking C static library librazorfs_lib.a
+[ 26%] Built target razorfs_lib
+[ 30%] Linking CXX static library ../../../lib/libgtest.a
+[ 30%] Built target gtest
+[ 38%] Building CXX object _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o
+[ 38%] Building CXX object _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.o
+[ 42%] Linking CXX static library ../../../lib/libgtest_main.a
+[ 42%] Built target gtest_main
+[ 46%] Linking CXX static library ../../../lib/libgmock.a
+[ 46%] Built target gmock
+[ 50%] Building CXX object CMakeFiles/integration_test.dir/integration/filesystem_test.cpp.o
+[ 57%] Building CXX object CMakeFiles/string_table_test.dir/unit/string_table_test.cpp.o
+[ 57%] Building CXX object CMakeFiles/architecture_test.dir/unit/architecture_test.cpp.o
+[ 61%] Building CXX object CMakeFiles/nary_tree_test.dir/unit/nary_tree_test.cpp.o
+[ 65%] Building CXX object CMakeFiles/compression_test.dir/unit/compression_test.cpp.o
+[ 69%] Building CXX object CMakeFiles/shm_persist_test.dir/unit/shm_persist_test.cpp.o
+[ 73%] Building CXX object _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.o
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree.h:16,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:11,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:10:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_node.h:54:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   54 | _Static_assert(sizeof(struct nary_node) == 64,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:44:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   44 | _Static_assert(sizeof(struct nary_node_mt) == 128,
+      |               ^
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree.h:16,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:11,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/shm_persist.h:14,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/shm_persist_test.cpp:14:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_node.h:54:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   54 | _Static_assert(sizeof(struct nary_node) == 64,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:44:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   44 | _Static_assert(sizeof(struct nary_node_mt) == 128,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest::SetUp()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:22:9: error: ‘shm_unlink’ was not declared in this scope; did you mean ‘unlink’?
+   22 |         shm_unlink("/razorfs_nodes");
+      |         ^~~~~~~~~~
+      |         unlink
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree.h:16,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:11,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:14:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_node.h:54:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   54 | _Static_assert(sizeof(struct nary_node) == 64,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:44:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   44 | _Static_assert(sizeof(struct nary_node_mt) == 128,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest::TearDown()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:35:9: error: ‘shm_unlink’ was not declared in this scope; did you mean ‘unlink’?
+   35 |         shm_unlink("/razorfs_nodes");
+      |         ^~~~~~~~~~
+      |         unlink
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest_CreateDirectoryTree_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:46:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   46 |     uint16_t home = nary_insert_mt(tree, NARY_ROOT_IDX, "home",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   47 |                                    S_IFDIR | 0755, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest_CreateAndDeleteFiles_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:71:34: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   71 |     uint16_t dir = nary_insert_mt(tree, NARY_ROOT_IDX, "testdir",
+      |                    ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   72 |                                   S_IFDIR | 0755, 0, 0);
+      |                                   ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:76:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   76 |     uint16_t file1 = nary_insert_mt(tree, dir, "file1.txt",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+   77 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:78:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   78 |     uint16_t file2 = nary_insert_mt(tree, dir, "file2.txt",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+   79 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:80:36: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+   80 |     uint16_t file3 = nary_insert_mt(tree, dir, "file3.txt",
+      |                      ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+   81 |                                     S_IFREG | 0644, 0, 0);
+      |                                     ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree.h:16,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:11,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:18:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_node.h:54:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   54 | _Static_assert(sizeof(struct nary_node) == 64,
+      |               ^
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:44:15: error: expected constructor, destructor, or type conversion before ‘(’ token
+   44 | _Static_assert(sizeof(struct nary_node_mt) == 128,
+      |               ^
+In file included from /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googletest/include/gtest/gtest.h:72,
+                 from /home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:10:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp: In member function ‘virtual void NaryArchitectureTest::SetUp()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:33:36: error: too many arguments to function ‘int nary_tree_mt_init(nary_tree_mt*)’
+   33 |         ASSERT_EQ(nary_tree_mt_init(&tree, 2048), 0);
+      |                   ~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:92:5: note: declared here
+   92 | int nary_tree_mt_init(struct nary_tree_mt *tree);
+      |     ^~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest_SimulateUserWorkflow_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:190:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  190 |     uint16_t home = nary_insert_mt(tree, NARY_ROOT_IDX, "home",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  191 |                                    S_IFDIR | 0755, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp: In member function ‘virtual void FilesystemIntegrationTest_MultipleUsersScenario_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:268:35: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  268 |     uint16_t home = nary_insert_mt(tree, NARY_ROOT_IDX, "home",
+      |                     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  269 |                                    S_IFDIR | 0755, 0, 0);
+      |                                    ~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:276:38: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  276 |         user_dirs[i] = nary_insert_mt(tree, home, users[i],
+      |                        ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+  277 |                                       S_IFDIR | 0755, 1000 + i, 1000 + i);
+      |                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/integration/filesystem_test.cpp:285:43: error: too many arguments to function ‘uint16_t nary_insert_mt(nary_tree_mt*, uint16_t, const char*, uint16_t)’
+  285 |             uint16_t file = nary_insert_mt(tree, user_dirs[i], filename,
+      |                             ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  286 |                                            S_IFREG | 0644, 1000 + i, 1000 + i);
+      |                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:116:10: note: declared here
+  116 | uint16_t nary_insert_mt(struct nary_tree_mt *tree,
+      |          ^~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp: In member function ‘virtual void NaryArchitectureTest_SixteenWayBranchingFactor_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:43:15: error: ‘NARY_CHILDREN_MAX’ was not declared in this scope
+   43 |     EXPECT_EQ(NARY_CHILDREN_MAX, 16)
+      |               ^~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp: In member function ‘virtual void LockingArchitectureTest::SetUp()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:237:36: error: too many arguments to function ‘int nary_tree_mt_init(nary_tree_mt*)’
+  237 |         ASSERT_EQ(nary_tree_mt_init(&tree, 1024), 0);
+      |                   ~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:92:5: note: declared here
+   92 | int nary_tree_mt_init(struct nary_tree_mt *tree);
+      |     ^~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp: In member function ‘virtual void LockingArchitectureTest_DeadlockPrevention_ParentBeforeChild_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:284:15: error: ‘nary_unlock_write’ was not declared in this scope; did you mean ‘nary_lock_write’?
+  284 |     EXPECT_EQ(nary_unlock_write(&tree, file), 0);
+      |               ^~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:285:15: error: ‘nary_unlock_write’ was not declared in this scope; did you mean ‘nary_lock_write’?
+  285 |     EXPECT_EQ(nary_unlock_write(&tree, dir), 0);
+      |               ^~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp: In member function ‘virtual void LockingArchitectureTest_ReaderWriterLockFunctionality_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:296:15: error: ‘nary_unlock_read’ was not declared in this scope; did you mean ‘nary_lock_read’?
+  296 |     EXPECT_EQ(nary_unlock_read(&tree, idx), 0);
+      |               ^~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:297:15: error: ‘nary_unlock_read’ was not declared in this scope; did you mean ‘nary_lock_read’?
+  297 |     EXPECT_EQ(nary_unlock_read(&tree, idx), 0);
+      |               ^~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:301:15: error: ‘nary_unlock_write’ was not declared in this scope; did you mean ‘nary_lock_write’?
+  301 |     EXPECT_EQ(nary_unlock_write(&tree, idx), 0);
+      |               ^~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp: In lambda function:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:319:17: error: ‘nary_unlock_write’ was not declared in this scope; did you mean ‘nary_lock_write’?
+  319 |                 nary_unlock_write(&tree, file1);
+      |                 ^~~~~~~~~~~~~~~~~
+      |                 nary_lock_write
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp: In lambda function:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:329:17: error: ‘nary_unlock_write’ was not declared in this scope; did you mean ‘nary_lock_write’?
+  329 |                 nary_unlock_write(&tree, file2);
+      |                 ^~~~~~~~~~~~~~~~~
+      |                 nary_lock_write
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp: In lambda function:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:361:21: error: ‘nary_unlock_write’ was not declared in this scope; did you mean ‘nary_lock_write’?
+  361 |                     nary_unlock_write(&tree, idx);
+      |                     ^~~~~~~~~~~~~~~~~
+      |                     nary_lock_write
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp: In member function ‘virtual void NaryArchitectureTest_InsertPerformanceScaling_Test::TestBody()’:
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/architecture_test.cpp:396:26: error: too many arguments to function ‘int nary_tree_mt_init(nary_tree_mt*)’
+  396 |         nary_tree_mt_init(&test_tree, size + 100);
+      |         ~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+/home/nico/WORK_ROOT/RAZOR_repo/tests/../src/nary_tree_mt.h:92:5: note: declared here
+   92 | int nary_tree_mt_init(struct nary_tree_mt *tree);
+      |     ^~~~~~~~~~~~~~~~~
+make[2]: *** [CMakeFiles/shm_persist_test.dir/build.make:76: CMakeFiles/shm_persist_test.dir/unit/shm_persist_test.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:235: CMakeFiles/shm_persist_test.dir/all] Error 2
+make[1]: *** Waiting for unfinished jobs....
+make[2]: *** [CMakeFiles/integration_test.dir/build.make:76: CMakeFiles/integration_test.dir/integration/filesystem_test.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:322: CMakeFiles/integration_test.dir/all] Error 2
+[ 76%] Linking CXX static library ../../../lib/libgmock_main.a
+[ 76%] Built target gmock_main
+make[2]: *** [CMakeFiles/nary_tree_test.dir/build.make:76: CMakeFiles/nary_tree_test.dir/unit/nary_tree_test.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:206: CMakeFiles/nary_tree_test.dir/all] Error 2
+make[2]: *** [CMakeFiles/architecture_test.dir/build.make:76: CMakeFiles/architecture_test.dir/unit/architecture_test.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:293: CMakeFiles/architecture_test.dir/all] Error 2
+[ 80%] Linking CXX executable string_table_test
+[ 84%] Linking CXX executable compression_test
+/usr/bin/ld: cannot find -lnuma: No such file or directory
+collect2: error: ld returned 1 exit status
+make[2]: *** [CMakeFiles/string_table_test.dir/build.make:102: string_table_test] Error 1
+make[1]: *** [CMakeFiles/Makefile2:177: CMakeFiles/string_table_test.dir/all] Error 2
+/usr/bin/ld: cannot find -lnuma: No such file or directory
+collect2: error: ld returned 1 exit status
+make[2]: *** [CMakeFiles/compression_test.dir/build.make:102: compression_test] Error 1
+make[1]: *** [CMakeFiles/Makefile2:264: CMakeFiles/compression_test.dir/all] Error 2
+make: *** [Makefile:146: all] Error 2
