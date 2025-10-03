@@ -38,6 +38,10 @@ pkg_check_modules(FUSE3 REQUIRED fuse3)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
 
+# Check if NUMA is available
+find_library(NUMA_LIB numa)
+find_path(NUMA_INCLUDE_DIR numa.h)
+
 # RAZORFS source files (compiled as C)
 set(RAZORFS_SOURCES
     ../src/string_table.c
@@ -49,13 +53,21 @@ set(RAZORFS_SOURCES
 
 # Create library from RAZORFS sources
 add_library(razorfs_lib STATIC ${RAZORFS_SOURCES})
-target_link_libraries(razorfs_lib
+
+# Set target properties to ignore numa if not found
+set(RAZORFS_LIB_TARGETS 
     ${FUSE3_LIBRARIES}
     ZLIB::ZLIB
     Threads::Threads
-    numa
     rt
 )
+
+if(NUMA_LIB)
+    list(APPEND RAZORFS_LIB_TARGETS ${NUMA_LIB})
+    target_include_directories(razorfs_lib PRIVATE ${NUMA_INCLUDE_DIR})
+endif()
+
+target_link_libraries(razorfs_lib ${RAZORFS_LIB_TARGETS})
 target_include_directories(razorfs_lib PUBLIC ${FUSE3_INCLUDE_DIRS})
 
 # Unit Tests

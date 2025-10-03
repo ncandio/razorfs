@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <sys/mman.h>
 
 extern "C" {
 #include "nary_tree_mt.h"
@@ -44,7 +45,7 @@ protected:
 TEST_F(FilesystemIntegrationTest, CreateDirectoryTree) {
     // Create typical directory structure: /home/user/documents
     uint16_t home = nary_insert_mt(tree, NARY_ROOT_IDX, "home",
-                                   S_IFDIR | 0755, 0, 0);
+                                   S_IFDIR | 0755);
     ASSERT_NE(home, NARY_INVALID_IDX);
 
     uint16_t user = nary_insert_mt(tree, home, "user",
@@ -69,16 +70,16 @@ TEST_F(FilesystemIntegrationTest, CreateDirectoryTree) {
 TEST_F(FilesystemIntegrationTest, CreateAndDeleteFiles) {
     // Create directory
     uint16_t dir = nary_insert_mt(tree, NARY_ROOT_IDX, "testdir",
-                                  S_IFDIR | 0755, 0, 0);
+                                  S_IFDIR | 0755);
     ASSERT_NE(dir, NARY_INVALID_IDX);
 
     // Create files
     uint16_t file1 = nary_insert_mt(tree, dir, "file1.txt",
-                                    S_IFREG | 0644, 0, 0);
+                                    S_IFREG | 0644);
     uint16_t file2 = nary_insert_mt(tree, dir, "file2.txt",
-                                    S_IFREG | 0644, 0, 0);
+                                    S_IFREG | 0644);
     uint16_t file3 = nary_insert_mt(tree, dir, "file3.txt",
-                                    S_IFREG | 0644, 0, 0);
+                                    S_IFREG | 0644);
 
     ASSERT_NE(file1, NARY_INVALID_IDX);
     ASSERT_NE(file2, NARY_INVALID_IDX);
@@ -188,7 +189,7 @@ TEST_F(FilesystemIntegrationTest, CompressionIntegration) {
 TEST_F(FilesystemIntegrationTest, SimulateUserWorkflow) {
     // User creates home directory
     uint16_t home = nary_insert_mt(tree, NARY_ROOT_IDX, "home",
-                                   S_IFDIR | 0755, 0, 0);
+                                   S_IFDIR | 0755);
     ASSERT_NE(home, NARY_INVALID_IDX);
 
     uint16_t alice = nary_insert_mt(tree, home, "alice",
@@ -266,7 +267,7 @@ TEST_F(FilesystemIntegrationTest, SimulateUserWorkflow) {
 TEST_F(FilesystemIntegrationTest, MultipleUsersScenario) {
     // Create home directories for multiple users
     uint16_t home = nary_insert_mt(tree, NARY_ROOT_IDX, "home",
-                                   S_IFDIR | 0755, 0, 0);
+                                   S_IFDIR | 0755);
     ASSERT_NE(home, NARY_INVALID_IDX);
 
     const char* users[] = {"alice", "bob", "charlie"};
@@ -274,7 +275,7 @@ TEST_F(FilesystemIntegrationTest, MultipleUsersScenario) {
 
     for (int i = 0; i < 3; i++) {
         user_dirs[i] = nary_insert_mt(tree, home, users[i],
-                                      S_IFDIR | 0755, 1000 + i, 1000 + i);
+                                      S_IFDIR | 0755);
         ASSERT_NE(user_dirs[i], NARY_INVALID_IDX);
 
         // Each user creates files
@@ -283,7 +284,7 @@ TEST_F(FilesystemIntegrationTest, MultipleUsersScenario) {
             snprintf(filename, sizeof(filename), "%s_file_%d.txt", users[i], j);
 
             uint16_t file = nary_insert_mt(tree, user_dirs[i], filename,
-                                           S_IFREG | 0644, 1000 + i, 1000 + i);
+                                           S_IFREG | 0644);
             EXPECT_NE(file, NARY_INVALID_IDX);
         }
     }

@@ -76,7 +76,7 @@ uint32_t string_table_intern(struct string_table *st, const char *str) {
     if (!st || !str) return UINT32_MAX;
     
     size_t len = strlen(str);
-    if (len == 0 || len > MAX_FILENAME_LENGTH) {
+    if (len > MAX_FILENAME_LENGTH) {
         return UINT32_MAX;
     }
 

@@ -41,8 +41,13 @@ struct __attribute__((aligned(128))) nary_node_mt {
 };
 
 /* Static assertion to verify size */
-_Static_assert(sizeof(struct nary_node_mt) == 128,
-               "nary_node_mt must be exactly 128 bytes (2 cache lines)");
+#ifdef __cplusplus
+    static_assert(sizeof(struct nary_node_mt) == 128,
+                  "nary_node_mt must be exactly 128 bytes (2 cache lines)");
+#else
+    _Static_assert(sizeof(struct nary_node_mt) == 128,
+                   "nary_node_mt must be exactly 128 bytes (2 cache lines)");
+#endif
 
 /**
  * Multithreaded Tree Structure

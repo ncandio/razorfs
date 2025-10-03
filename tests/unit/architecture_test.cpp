@@ -39,8 +39,8 @@ protected:
 };
 
 TEST_F(NaryArchitectureTest, SixteenWayBranchingFactor) {
-    // Verify NARY_CHILDREN_MAX is 16
-    EXPECT_EQ(NARY_CHILDREN_MAX, 16)
+    // Verify NARY_BRANCHING_FACTOR is 16
+    EXPECT_EQ(NARY_BRANCHING_FACTOR, 16)
         << "Tree should have 16-way branching factor";
 
     // Create directory and fill with 16 children
@@ -393,7 +393,7 @@ TEST_F(NaryArchitectureTest, InsertPerformanceScaling) {
 
     for (int size : sizes) {
         struct nary_tree_mt test_tree;
-        nary_tree_mt_init(&test_tree, size + 100);
+        nary_tree_mt_init(&test_tree);
 
         auto start = std::chrono::high_resolution_clock::now();
 

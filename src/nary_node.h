@@ -51,8 +51,13 @@ struct __attribute__((aligned(CACHE_LINE_SIZE))) nary_node {
 };
 
 /* Compile-time size verification */
-_Static_assert(sizeof(struct nary_node) == 64,
-               "nary_node MUST be exactly 64 bytes for cache alignment");
+#ifdef __cplusplus
+    static_assert(sizeof(struct nary_node) == 64,
+                  "nary_node MUST be exactly 64 bytes for cache alignment");
+#else
+    _Static_assert(sizeof(struct nary_node) == 64,
+                   "nary_node MUST be exactly 64 bytes for cache alignment");
+#endif
 
 /* Special index values */
 #define NARY_INVALID_IDX 0xFFFF     /* Invalid/null index */
