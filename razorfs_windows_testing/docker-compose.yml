@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # FUSE implementation only (safe, works on Windows)
+  razorfs-fuse:
+    build:
+      context: ..
+      dockerfile: razorfs_windows_testing/Dockerfile
+      target: runtime
+    container_name: razorfs-fuse
+    volumes:
+      - ../:/razorfs:rw
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    command: ["test-fuse"]
+    
+  # Development environment
+  razorfs-dev:
+    build:
+      context: ..
+      dockerfile: razorfs_windows_testing/Dockerfile
+      target: runtime
+    container_name: razorfs-dev
+    volumes:
+      - ../:/razorfs:rw
+    working_dir: /razorfs
+    command: ["shell"]
+    tty: true
+    stdin_open: true

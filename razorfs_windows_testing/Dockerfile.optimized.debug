@@ -1,0 +1,81 @@
+# Optimized RazorFS Testing Dockerfile - Debug Version
+# Tests the new O(log n) performance improvements
+
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+ENV DOCKER_ENV=true
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    libfuse3-dev \
+    fuse3 \
+    e2fsprogs \
+    btrfs-progs \
+    reiserfsprogs \
+    python3 \
+    python3-pip \
+    python3-matplotlib \
+    python3-pandas \
+    python3-seaborn \
+    time \
+    procps \
+    util-linux \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure FUSE
+RUN echo 'user_allow_other' >> /etc/fuse.conf
+
+# Create directories
+RUN mkdir -p /results /mnt/ext4_test /mnt/btrfs_test /mnt/reiserfs_test /tmp/razor_mount
+
+# Set working directory
+WORKDIR /razor_repo
+
+# Copy the entire repository
+COPY . /razor_repo/
+
+# Debug: Check what was copied
+RUN echo "=== DEBUG: Checking root directory ===" && \
+    ls -la /razor_repo/ && \
+    echo "=== DEBUG: Checking src directory ===" && \
+    ls -la /razor_repo/src/ || echo "src directory does not exist" && \
+    echo "=== DEBUG: Checking tools directory ===" && \
+    ls -la /razor_repo/tools/ || echo "tools directory does not exist"
+
+# Install Python dependencies
+RUN pip3 install pandas matplotlib seaborn
+
+# Build optimized RazorFS
+RUN echo "=== DEBUG: Starting build process ===" && \
+    cd /razor_repo && \
+    echo "Current directory:" && \
+    pwd && \
+    echo "Directory contents:" && \
+    ls -la && \
+    echo "=== DEBUG: Checking source files ===" && \
+    echo "src directory contents:" && \
+    ls -la src/ && \
+    echo "tools directory contents:" && \
+    ls -la tools/ && \
+    echo "=== DEBUG: Checking specific files ===" && \
+    ls -la src/razor_core.c && \
+    ls -la tools/razorfsck_main.c && \
+    echo "=== DEBUG: Attempting to build ===" && \
+    echo "Building core library..." && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_core.c -o src/razor_core.o && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_write.c -o src/razor_write.o && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_transaction_log.c -o src/razor_transaction_log.o && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_permissions.c -o src/razor_permissions.o && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_sync.c -o src/razor_sync.o && \
+    ar rcs librazer.a src/razor_core.o src/razor_write.o src/razor_transaction_log.o src/razor_permissions.o src/razor_sync.o && \
+    echo "Building tools..." && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -I. -Isrc -Itools tools/razorfsck_main.c tools/razorfsck.c tools/razorfsck_repair.c -L. -lrazer -o razorfsck && \
+    echo "Core library and tools built successfully"
+
+# Set entrypoint
+ENTRYPOINT ["/razor_repo/razorfs_windows_testing/optimized_filesystem_comparison.sh"]

@@ -1,0 +1,45 @@
+# Simplified RazorFS Testing Dockerfile
+# Tests the core RazorFS components
+
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+ENV DOCKER_ENV=true
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /razor_repo
+
+# Copy only the necessary files
+COPY src/ /razor_repo/src/
+COPY tools/ /razor_repo/tools/
+
+# Debug: Check what was copied
+RUN echo "=== Checking src directory ===" && \
+    ls -la src/ && \
+    echo "=== Checking tools directory ===" && \
+    ls -la tools/
+
+# Build core library
+RUN echo "Building core library..." && \
+    cd /razor_repo && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_core.c -o src/razor_core.o && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_write.c -o src/razor_write.o && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_transaction_log.c -o src/razor_transaction_log.o && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_permissions.c -o src/razor_permissions.o && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -c src/razor_sync.c -o src/razor_sync.o && \
+    ar rcs librazer.a src/razor_core.o src/razor_write.o src/razor_transaction_log.o src/razor_permissions.o src/razor_sync.o && \
+    echo "Core library built successfully"
+
+# Build tools
+RUN echo "Building tools..." && \
+    cd /razor_repo && \
+    gcc -Wall -Wextra -g -O2 -fPIC -pthread -I. -Isrc -Itools tools/razorfsck_main.c tools/razorfsck.c tools/razorfsck_repair.c -L. -lrazer -o razorfsck && \
+    echo "Tools built successfully"

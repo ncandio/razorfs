@@ -1,0 +1,7 @@
+# Test Dockerfile
+FROM ubuntu:22.04
+
+# Test the problematic section
+RUN echo "Test" && \
+    echo "Building with optimized flags for Docker..." && \
+    timeout 1 echo "Test command"

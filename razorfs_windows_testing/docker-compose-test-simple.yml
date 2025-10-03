@@ -1,0 +1,8 @@
+version: '3.8'
+
+services:
+  razorfs-test-simple:
+    build:
+      context: ..
+      dockerfile: razorfs_windows_testing/Dockerfile.test.simple
+    container_name: razorfs-test-simple

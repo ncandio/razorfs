@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Stress testing version with benchmarking tools
+  razorfs-stress:
+    build:
+      context: ..
+      dockerfile: razorfs_windows_testing/Dockerfile.stress
+      target: stress-runtime
+    container_name: razorfs-stress-container
+    volumes:
+      - ../:/razorfs:rw
+      - stress-results:/results
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    working_dir: /razorfs
+    command: ["shell"]
+    tty: true
+    stdin_open: true
+
+volumes:
+  stress-results:
+    name: razorfs-stress-results

@@ -18,6 +18,17 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <linux/limits.h>
+#include <time.h>
+
+/* Ensure we have S_IFDIR and S_IFREG */
+#ifndef S_IFDIR
+#define S_IFDIR  0040000
+#endif
+#ifndef S_IFREG
+#define S_IFREG  0100000
+#endif
 
 #include "../src/nary_tree.h"
 
@@ -152,9 +163,9 @@ static int razorfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int razorfs_mkdir(const char *path, mode_t mode) {
     char parent_path[PATH_MAX];
-    char name[MAX_FILENAME_LENGTH];
+    char name[256];  /* Use fixed size since MAX_FILENAME_LENGTH might not be defined */
 
-    if (nary_split_path(path, parent_path, name) != 0) {
+    if (nary_split_path((char*)path, parent_path, name) != 0) {
         return -EINVAL;
     }
 
@@ -195,9 +206,9 @@ static int razorfs_create(const char *path, mode_t mode, struct fuse_file_info *
     (void) fi;
 
     char parent_path[PATH_MAX];
-    char name[MAX_FILENAME_LENGTH];
+    char name[256];  /* Use fixed size */
 
-    if (nary_split_path(path, parent_path, name) != 0) {
+    if (nary_split_path((char*)path, parent_path, name) != 0) {
         return -EINVAL;
     }
 

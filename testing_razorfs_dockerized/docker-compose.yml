@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # FUSE implementation testing (safe, no special privileges needed)
+  razorfs-fuse:
+    build:
+      context: ..
+      dockerfile: testing_razorfs_dockerized/Dockerfile
+      target: runtime
+    container_name: razorfs-fuse
+    volumes:
+      - ../:/razorfs:rw
+      - /tmp/razorfs-docker-test:/tmp/razor_test_mount:rw
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    command: ["test-fuse"]
+    
+  # Kernel module testing (requires privileged mode)
+  razorfs-kernel:
+    build:
+      context: ..
+      dockerfile: testing_razorfs_dockerized/Dockerfile
+      target: runtime
+    container_name: razorfs-kernel
+    privileged: true
+    volumes:
+      - ../:/razorfs:rw
+      - /lib/modules:/lib/modules:ro
+      - /usr/src:/usr/src:ro
+      - /proc:/proc:rw
+      - /sys:/sys:rw
+    command: ["test-kernel"]
+
+  # Development environment
+  razorfs-dev:
+    build:
+      context: ..
+      dockerfile: testing_razorfs_dockerized/Dockerfile
+      target: runtime
+    container_name: razorfs-dev
+    volumes:
+      - ../:/razorfs:rw
+    working_dir: /razorfs
+    command: ["shell"]
+    tty: true
+    stdin_open: true
+
+  # Build only service
+  razorfs-builder:
+    build:
+      context: ..
+      dockerfile: testing_razorfs_dockerized/Dockerfile
+      target: base
+    container_name: razorfs-builder
+    volumes:
+      - ../:/razorfs:rw
+    working_dir: /razorfs
+    command: |
+      bash -c "
+        echo '=== Building FUSE implementation ===' &&
+        cd fuse && make clean && make &&
+        echo '=== Building kernel module ===' &&
+        cd ../kernel && make clean && make &&
+        echo '=== Build completed ==='
+      "

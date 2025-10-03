@@ -1,0 +1,44 @@
+=== RAZOR Filesystem Fast Compression Analysis ===
+Generated: 2025-09-06 12:30:00
+Test Duration: ~3-5 minutes
+Resource Usage: Minimal (small file sizes)
+
+FILESYSTEMS TESTED:
+1. RAZOR     - Real measurements (FUSE)
+2. EXT4      - Simulated (traditional, fast)
+3. BTRFS     - Simulated (LZO compression)
+4. ZFS       - Simulated (LZ4 compression, high memory)
+5. ReiserFS  - Simulated (tail packing)
+6. XFS       - Simulated (high performance)
+
+TEST FILES: 1MB, 10MB, 40MB
+
+COMPRESSION SUMMARY:
+Filesystem | Avg Compression | Memory Usage | Performance
+-----------|-----------------|--------------|------------
+RAZOR      |          15.1% |         18MB |      58MB/s
+EXT4       |           2.0% |         22MB |     107MB/s
+BTRFS      |          35.0% |         55MB |      58MB/s
+ZFS        |          40.0% |        113MB |      79MB/s
+REISERFS   |          20.0% |         35MB |      69MB/s
+XFS        |           4.0% |         30MB |     117MB/s
+
+KEY FINDINGS:
+- ZFS provides best compression (40% space savings) but uses most memory (113MB avg)
+- BTRFS offers good compression (35%) with moderate memory usage (55MB)
+- RAZOR achieves 15.1% compression with low memory usage (18MB)
+- XFS is fastest (117MB/s) but minimal compression (4%)
+- EXT4 provides baseline performance with minimal compression
+
+TRADE-OFFS:
+- High compression filesystems (ZFS, BTRFS) sacrifice speed and memory
+- Fast filesystems (XFS, EXT4) provide minimal compression
+- RAZOR balances compression efficiency with reasonable memory usage
+
+RESULTS FILES:
+- fast_compression_results.csv: Disk usage, memory, compression
+- fast_performance_results.csv: Read/write speeds
+- fast_analysis_summary.txt: This summary
+
+NOTE: Results except RAZOR are simulated for speed
+Run on native Linux for real filesystem comparison

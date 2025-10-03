@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  razorfs-optimized-test:
+    build:
+      context: ..
+      dockerfile: razorfs_windows_testing/Dockerfile.optimized
+    container_name: razorfs-optimized-test
+    privileged: true
+    volumes:
+      - type: bind
+        source: ./results
+        target: /results
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+    command: /bin/bash -c "cd /razor_repo/razorfs_windows_testing && ./optimized_filesystem_comparison.sh"

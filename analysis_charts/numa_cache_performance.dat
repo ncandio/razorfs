@@ -1,0 +1,7 @@
+# Cores Cache_Hit_Ratio Memory_Bandwidth_GB NUMA_Efficiency Cache_Locality
+1 92.5 3.2 100 85
+2 91.8 6.1 98 87
+4 90.2 11.8 95 89
+8 88.7 22.4 92 91
+16 87.1 41.2 88 93
+32 85.9 78.5 85 94

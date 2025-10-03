@@ -1,0 +1,43 @@
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libfuse3-dev \
+    fuse3 \
+    python3 \
+    python3-pip \
+    bc \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages for graphs
+RUN pip3 install matplotlib pandas numpy
+
+WORKDIR /razorfs
+COPY . .
+
+# Build FUSE
+RUN cd fuse && make clean && make
+
+# Copy binary
+RUN cp fuse/razorfs_fuse /usr/local/bin/
+
+# Create mount points
+RUN mkdir -p /mnt/razorfs_test /results
+
+# Simple test script
+RUN echo '#!/bin/bash\n\
+echo "=== RAZORFS Simple Test ==="\n\
+mkdir -p /mnt/razorfs_test\n\
+/usr/local/bin/razorfs_fuse /mnt/razorfs_test &\n\
+sleep 2\n\
+echo "Testing write performance..."\n\
+time for i in {1..100}; do echo "test$i" > /mnt/razorfs_test/file$i.txt; done\n\
+echo "Testing read performance..."\n\
+time for i in {1..100}; do cat /mnt/razorfs_test/file$i.txt > /dev/null; done\n\
+echo "Files created: $(ls /mnt/razorfs_test/ | wc -l)"\n\
+echo "Test complete!"\n' > /test.sh && chmod +x /test.sh
+
+CMD ["/bin/bash"]

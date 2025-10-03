@@ -1,242 +1,100 @@
-# RazorFS Unified Build System
-# Handles user-space components, kernel module, tests, and tools
+# RAZORFS - Unified Makefile for Phase 5 Simplification
+# Single Makefile to build entire project with FUSE3 and C
 
-# Build configuration
 CC = gcc
-CFLAGS = -Wall -Wextra -g -O2 -fPIC -pthread
-# Use docker flags if in docker environment, otherwise use AddressSanitizer
-ifeq ($(DOCKER_ENV),true)
-CFLAGS_SAFE = $(CFLAGS)
-LDFLAGS = 
-else
-CFLAGS_SAFE = $(CFLAGS) -fsanitize=address
-LDFLAGS = -fsanitize=address
+CFLAGS = -std=c11 -O2 -g -Wall -Wextra -pthread
+CFLAGS += $(shell pkg-config fuse3 --cflags)
+LIBS = $(shell pkg-config fuse3 --libs) -lpthread -lz
+
+# Check if libnuma is available
+HAS_NUMA := $(shell pkg-config libnuma --exists 2>/dev/null && echo YES || echo NO)
+ifeq ($(HAS_NUMA),YES)
+    CFLAGS += $(shell pkg-config libnuma --cflags)
+    LIBS += $(shell pkg-config libnuma --libs)
 endif
 
-# Directories
-SRCDIR = src
-TOOLSDIR = tools
-KERNELDIR = kernel
-TESTDIR = tests
-SCRIPTDIR = scripts
+# Source files to keep (as per Phase 5 requirements)
+SOURCES = src/nary_tree.c \
+          src/string_table.c \
+          src/numa_alloc.c \
+          src/nary_tree_mt.c \
+          fuse/razorfs_posix.c
 
-# Source files
-CORE_SOURCES = $(SRCDIR)/razor_core.c $(SRCDIR)/razor_write.c $(SRCDIR)/razor_transaction_log.c $(SRCDIR)/razor_permissions.c $(SRCDIR)/razor_sync.c
-CORE_OBJECTS = $(CORE_SOURCES:.c=.o)
+OBJECTS = $(SOURCES:.c=.o)
 
-# Tool sources
-TOOL_SOURCES = $(TOOLSDIR)/razorfsck_main.c $(TOOLSDIR)/razorfsck.c $(TOOLSDIR)/razorfsck_repair.c
-FUSE_SOURCES = fuse/razorfs_fuse.cpp
+# Test files to keep
+TEST_SOURCES = tests/test_nary_tree.c \
+               tests/test_mt.c \
+               tests/test_posix.c
 
-# Test sources
-TEST_SOURCES = $(wildcard $(TESTDIR)/integration/test_*.c)
-TESTS = $(TEST_SOURCES:.c=)
+TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
 
-# Default target - build user-space components
-all: userspace
+# Main build target
+all: razorfs
 
-# Help target - show available commands
-help:
-	@echo "RazorFS Build System - Available Targets:"
-	@echo ""
-	@echo "Main Targets:"
-	@echo "  all           - Build user-space components (default)"
-	@echo "  userspace     - Build core library and tools"
-	@echo "  kernel        - Build kernel module"
-	@echo "  tools         - Build razorfsck and utilities"
-	@echo "  fuse          - Build FUSE implementation"
-	@echo ""
-	@echo "Testing Targets:"
-	@echo "  test          - Run all tests"
-	@echo "  test-unit     - Run unit tests"
-	@echo "  test-integration - Run integration tests"
-	@echo "  test-stress   - Run stress tests"
-	@echo "  test-memory   - Run memory safety tests"
-	@echo ""
-	@echo "Installation Targets:"
-	@echo "  install       - Install user-space components"
-	@echo "  install-kernel - Install kernel module (requires DKMS)"
-	@echo "  uninstall     - Remove installed components"
-	@echo ""
-	@echo "Utility Targets:"
-	@echo "  clean         - Clean all build artifacts"
-	@echo "  distclean     - Deep clean including generated files"
-	@echo "  info          - Show build environment information"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make userspace     # Build library and tools"
-	@echo "  make test          # Run all tests"
-	@echo "  make kernel        # Build kernel module"
-	@echo "  make install       # Install user components"
+# Build the main filesystem
+razorfs: $(OBJECTS)
+	@echo "🔨 Building RAZORFS (FUSE3/C11)"
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	@echo "✅ Built: $@"
+	if [ "$(HAS_NUMA)" = "YES" ]; then \
+		echo "   NUMA support: ENABLED"; \
+	else \
+		echo "   NUMA support: DISABLED (libnuma not found)"; \
+	fi
 
-# User-space components
-userspace: librazer.a tools
+# Build test executables
+tests: test_nary_tree test_mt test_posix
 
-# Docker-optimized user-space components (without AddressSanitizer for faster builds)
-userspace-docker: CFLAGS_SAFE = $(CFLAGS_DOCKER)
-userspace-docker: LDFLAGS = $(LDFLAGS_DOCKER)
-userspace-docker: librazer.a tools
+test_nary_tree: src/nary_tree.o src/string_table.o tests/test_nary_tree.o
+	@echo "🧪 Building n-ary tree test"
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-# Core library
-librazer.a: $(CORE_OBJECTS)
-	ar rcs $@ $^
-	@echo "✓ Core library built: $@"
+test_mt: src/nary_tree.o src/string_table.o src/nary_tree_mt.o tests/test_mt.o
+	@echo "🧪 Building multithreading test"
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-# Individual object files
+test_posix: src/nary_tree.o src/string_table.o src/nary_tree_mt.o fuse/razorfs_posix.o tests/test_posix.o
+	@echo "🧪 Building POSIX compliance test"
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+# Compile individual source files
 %.o: %.c
-	$(CC) $(CFLAGS_SAFE) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# Tools
-tools: librazer.a
-	@echo "Building tools..."
-	$(CC) $(CFLAGS_SAFE) $(TOOL_SOURCES) -L. -lrazer $(LDFLAGS) -o razorfsck
-	@echo "✓ Tools built: razorfsck"
+# Run all tests
+test: all tests
+	@echo "🚀 Running all RAZORFS tests..."
+	./test_nary_tree
+	./test_mt
+	./test_posix
+	@echo "✅ All tests completed"
 
-# FUSE implementation
-fuse:
-	@if [ -f "$(FUSE_SOURCES)" ]; then \
-		echo "Building FUSE implementation..."; \
-		g++ $(CFLAGS) $(FUSE_SOURCES) -lfuse -o razorfs_fuse; \
-		echo "✓ FUSE implementation built"; \
-	else \
-		echo "⚠️  FUSE sources not found - skipping"; \
-	fi
+# Run specific tests
+test-nary: test_nary_tree
+	./test_nary_tree
 
-# Kernel module
-kernel:
-	@echo "Building kernel module..."
-	$(MAKE) -C $(KERNELDIR)
-	@echo "✓ Kernel module built: $(KERNELDIR)/razorfs.ko"
+test-mt: test_mt
+	./test_mt
 
-# Test targets
-test: test-unit test-integration
+test-posix: test_posix
+	./test_posix
 
-test-unit: librazer.a
-	@echo "Running unit tests..."
-	@if [ -d "$(TESTDIR)/unit" ]; then \
-		$(MAKE) -C $(TESTDIR)/unit; \
-		echo "✓ Unit tests completed"; \
-	else \
-		echo "⚠️  No unit tests found - skipping"; \
-	fi
-
-test-integration: librazer.a $(TESTS)
-	@echo "Running integration tests..."
-	@passed=0; total=0; \
-	for test in $(TESTS); do \
-		if [ -f "$$test" ]; then \
-			total=$$((total + 1)); \
-			echo "Running $$test..."; \
-			if timeout 30s $$test > /tmp/test_output.log 2>&1; then \
-				echo "✓ PASSED: $$(basename $$test)"; \
-				passed=$$((passed + 1)); \
-			else \
-				echo "✗ FAILED: $$(basename $$test)"; \
-			fi; \
-		fi; \
-	done; \
-	echo "Integration tests: $$passed/$$total passed"
-
-test-stress: librazer.a
-	@echo "Running stress tests..."
-	@if [ -d "$(TESTDIR)/stress" ]; then \
-		$(MAKE) -C $(TESTDIR)/stress; \
-		echo "✓ Stress tests completed"; \
-	else \
-		echo "⚠️  No stress tests found - skipping"; \
-	fi
-
-test-memory: librazer.a
-	@echo "Running memory safety tests with AddressSanitizer..."
-	@if [ -f "$(TESTDIR)/integration/test_simple_transaction" ]; then \
-		ASAN_OPTIONS=detect_leaks=1:abort_on_error=1 $(TESTDIR)/integration/test_simple_transaction; \
-		echo "✓ Memory safety tests passed"; \
-	else \
-		echo "⚠️  Memory safety test not found"; \
-	fi
-
-# Build individual tests
-$(TESTDIR)/integration/test_%: $(TESTDIR)/integration/test_%.c librazer.a
-	$(CC) $(CFLAGS_SAFE) $< -L. -lrazer $(LDFLAGS) -o $@
-
-# Installation targets
-install: userspace
-	@echo "Installing RazorFS user-space components..."
-	sudo mkdir -p /usr/local/bin /usr/local/lib /usr/local/include
-	sudo cp librazer.a /usr/local/lib/
-	sudo cp razorfsck /usr/local/bin/
-	sudo cp $(SRCDIR)/razor_core.h /usr/local/include/
-	@if [ -f "razorfs_fuse" ]; then \
-		sudo cp razorfs_fuse /usr/local/bin/; \
-	fi
-	@echo "✓ User-space components installed"
-
-install-kernel: kernel
-	@echo "Installing kernel module via DKMS..."
-	@if command -v dkms >/dev/null 2>&1; then \
-		echo "DKMS found - installing kernel module"; \
-		sudo dkms add .; \
-		sudo dkms build razorfs/2.1.0; \
-		sudo dkms install razorfs/2.1.0; \
-		echo "✓ Kernel module installed via DKMS"; \
-	else \
-		echo "⚠️  DKMS not found - manual installation:"; \
-		echo "    sudo make -C $(KERNELDIR) install"; \
-		echo "    sudo depmod"; \
-	fi
-
-uninstall:
-	@echo "Removing RazorFS components..."
-	sudo rm -f /usr/local/bin/razorfsck /usr/local/bin/razorfs_fuse
-	sudo rm -f /usr/local/lib/librazer.a
-	sudo rm -f /usr/local/include/razor_core.h
-	@if command -v dkms >/dev/null 2>&1; then \
-		sudo dkms remove razorfs/2.1.0 --all 2>/dev/null || true; \
-	fi
-	@echo "✓ Components removed"
-
-# Utility targets
+# Clean build artifacts
 clean:
-	@echo "Cleaning build artifacts..."
-	rm -f $(CORE_OBJECTS) librazer.a razorfsck razorfs_fuse
-	rm -f $(TESTS)
-	$(MAKE) -C $(KERNELDIR) clean
-	rm -rf /tmp/test_razorfs_*
-	@echo "✓ Build artifacts cleaned"
+	rm -f $(OBJECTS) $(TEST_OBJECTS) razorfs test_nary_tree test_mt test_posix
+	@echo "🧹 Cleaned build artifacts"
 
-distclean: clean
-	@echo "Deep cleaning..."
-	find . -name "*.o" -delete
-	find . -name "*.ko" -delete
-	find . -name "*.mod*" -delete
-	find . -name ".*.cmd" -delete
-	find . -name "Module.symvers" -delete
-	find . -name "modules.order" -delete
-	rm -f /tmp/test_output*.log
-	@echo "✓ Deep clean completed"
+# Install target
+install: razorfs
+	install -m 755 razorfs /usr/local/bin/
 
-info:
-	@echo "RazorFS Build Environment Information:"
-	@echo ""
-	@echo "Compiler: $(CC) $(shell $(CC) --version | head -1)"
-	@echo "Build flags: $(CFLAGS)"
-	@echo "Safety flags: $(CFLAGS_SAFE)"
-	@echo ""
-	@echo "Kernel version: $(shell uname -r)"
-	@echo "Kernel build directory: /lib/modules/$(shell uname -r)/build"
-	@echo ""
-	@echo "Source directories:"
-	@echo "  Core sources: $(SRCDIR)/"
-	@echo "  Tools: $(TOOLSDIR)/"
-	@echo "  Kernel: $(KERNELDIR)/"
-	@echo "  Tests: $(TESTDIR)/"
-	@echo ""
-	@echo "Available components:"
-	@if [ -d "$(SRCDIR)" ]; then echo "  ✓ Core library sources"; else echo "  ✗ Core library sources"; fi
-	@if [ -d "$(TOOLSDIR)" ]; then echo "  ✓ Tool sources"; else echo "  ✗ Tool sources"; fi
-	@if [ -f "$(KERNELDIR)/razorfs.c" ]; then echo "  ✓ Kernel module source"; else echo "  ✗ Kernel module source"; fi
-	@if [ -d "$(TESTDIR)" ]; then echo "  ✓ Test suite"; else echo "  ✗ Test suite"; fi
-	@if [ -f "fuse/razorfs_fuse.cpp" ]; then echo "  ✓ FUSE implementation"; else echo "  ✗ FUSE implementation"; fi
+# Memory leak detection
+valgrind: all
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./razorfs --help 2>&1 | head -20
 
-# Phony targets
-.PHONY: all help userspace tools fuse kernel test test-unit test-integration test-stress test-memory install install-kernel uninstall clean distclean info
+# Code coverage (requires gcov/lcov)
+coverage:
+	@echo "Coverage analysis requires gcov/lcov - not implemented yet"
+
+.PHONY: all clean test install valgrind coverage tests test-nary test-mt test-posix

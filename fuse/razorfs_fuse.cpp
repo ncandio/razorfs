@@ -40,221 +40,72 @@ constexpr size_t MIN_COMPRESSION_SIZE = 128;
 constexpr int COMPRESSION_LEVEL = 6;
 constexpr double MIN_COMPRESSION_RATIO = 0.9;  // Only compress if we save 10%+
 
-class EnhancedCompressionEngine {
-public:
-    struct CompressionResult {
-        std::string data;
-        bool compressed;
-        size_t original_size;
-        double ratio;
-    };
-
-    static CompressionResult compress_block(const std::string& data) {
-        CompressionResult result;
-        result.original_size = data.size();
-        result.compressed = false;
-        result.ratio = 1.0;
-
-        if (data.size() < MIN_COMPRESSION_SIZE) {
-            result.data = data;
-            return result;
-        }
-
-        try {
-            uLongf compressed_size = compressBound(data.size());
-            std::string compressed_data(compressed_size, '\0');
-
-            int zlib_result = compress2(
-                reinterpret_cast<Bytef*>(&compressed_data[0]), &compressed_size,
-                reinterpret_cast<const Bytef*>(data.c_str()), data.size(),
-                COMPRESSION_LEVEL
-            );
-
-            if (zlib_result == Z_OK) {
-                compressed_data.resize(compressed_size);
-                result.ratio = static_cast<double>(result.original_size) / compressed_size;
-
-                if (compressed_size < data.size() * MIN_COMPRESSION_RATIO) {
-                    result.data = std::move(compressed_data);
-                    result.compressed = true;
-                    return result;
-                }
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Compression error: " << e.what() << std::endl;
-        }
-
-        result.data = data;
-        return result;
-    }
-
-    static std::string decompress_block(const std::string& data, size_t original_size) {
-        if (original_size == 0) return data;
-
-        try {
-            std::string decompressed_data(original_size, '\0');
-            uLongf decompressed_size = original_size;
-
-            int result = uncompress(
-                reinterpret_cast<Bytef*>(&decompressed_data[0]), &decompressed_size,
-                reinterpret_cast<const Bytef*>(data.c_str()), data.size()
-            );
-
-            if (result == Z_OK && decompressed_size == original_size) {
-                return decompressed_data;
-            }
-
-            std::cerr << "Decompression failed with error: " << result << std::endl;
-        } catch (const std::exception& e) {
-            std::cerr << "Decompression error: " << e.what() << std::endl;
-        }
-
-        return data;
-    }
-};
-
 class BlockManager {
 private:
-    struct Block {
-        std::string data;
-        bool compressed;
-        size_t original_size;
-        std::chrono::steady_clock::time_point last_access;
-        bool dirty;
-    };
-
-    std::unordered_map<uint64_t, std::vector<Block>> file_blocks_;
-    mutable std::shared_mutex blocks_mutex_;
+    // Simplified, efficient storage: map inode directly to its full data.
+    std::unordered_map<uint64_t, std::vector<char>> file_data_;
+    mutable std::shared_mutex data_mutex_;
 
     // Performance counters
     std::atomic<uint64_t> total_reads_;
     std::atomic<uint64_t> total_writes_;
-    std::atomic<uint64_t> compression_savings_;
 
 public:
-    BlockManager() : total_reads_(0), total_writes_(0), compression_savings_(0) {}
+    BlockManager() : total_reads_(0), total_writes_(0) {}
 
     int read_blocks(uint64_t inode, char* buf, size_t size, off_t offset) {
-        std::shared_lock<std::shared_mutex> lock(blocks_mutex_);
         total_reads_.fetch_add(1);
+        std::shared_lock<std::shared_mutex> lock(data_mutex_);
 
-        auto it = file_blocks_.find(inode);
-        if (it == file_blocks_.end()) {
-            return 0;  // File not found
+        auto it = file_data_.find(inode);
+        if (it == file_data_.end()) {
+            return 0; // File not found
         }
 
-        const auto& blocks = it->second;
-        size_t bytes_copied = 0;
-        size_t block_start = offset / BLOCK_SIZE;
-        size_t block_offset = offset % BLOCK_SIZE;
-
-        for (size_t block_idx = block_start; block_idx < blocks.size() && bytes_copied < size; ++block_idx) {
-            const Block& block = blocks[block_idx];
-
-            // Decompress block if needed
-            std::string block_data = block.compressed ?
-                EnhancedCompressionEngine::decompress_block(block.data, block.original_size) :
-                block.data;
-
-            size_t available_in_block = block_data.size() - block_offset;
-            size_t to_copy = std::min(size - bytes_copied, available_in_block);
-
-            if (to_copy > 0) {
-                memcpy(buf + bytes_copied, block_data.c_str() + block_offset, to_copy);
-                bytes_copied += to_copy;
-            }
-
-            block_offset = 0;  // Only first block has offset
+        const auto& data = it->second;
+        if (static_cast<size_t>(offset) >= data.size()) {
+            return 0; // Read past end of file
         }
 
-        return static_cast<int>(bytes_copied);
+        size_t bytes_to_copy = std::min(size, data.size() - static_cast<size_t>(offset));
+        memcpy(buf, data.data() + offset, bytes_to_copy);
+        return static_cast<int>(bytes_to_copy);
     }
 
     int write_blocks(uint64_t inode, const char* buf, size_t size, off_t offset) {
-        std::unique_lock<std::shared_mutex> lock(blocks_mutex_);
         total_writes_.fetch_add(1);
+        std::unique_lock<std::shared_mutex> lock(data_mutex_);
 
-        auto& blocks = file_blocks_[inode];
-        size_t bytes_written = 0;
-        size_t block_start = offset / BLOCK_SIZE;
-        size_t block_offset = offset % BLOCK_SIZE;
+        auto& data = file_data_[inode];
+        size_t new_size = offset + size;
 
-        // Ensure we have enough blocks
-        size_t required_blocks = (offset + size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-        if (blocks.size() < required_blocks) {
-            blocks.resize(required_blocks);
+        if (new_size > data.size()) {
+            data.resize(new_size);
         }
 
-        for (size_t block_idx = block_start; block_idx < blocks.size() && bytes_written < size; ++block_idx) {
-            Block& block = blocks[block_idx];
-
-            // Decompress block if it exists and is compressed
-            std::string block_data;
-            if (!block.data.empty()) {
-                block_data = block.compressed ?
-                    EnhancedCompressionEngine::decompress_block(block.data, block.original_size) :
-                    block.data;
-            }
-
-            // Ensure block is large enough
-            size_t needed_size = std::max(block_data.size(), block_offset + (size - bytes_written));
-            if (block_data.size() < needed_size) {
-                block_data.resize(needed_size, '\0');
-            }
-
-            size_t to_write = std::min(size - bytes_written, BLOCK_SIZE - block_offset);
-            memcpy(&block_data[block_offset], buf + bytes_written, to_write);
-            bytes_written += to_write;
-
-            // Compress the modified block
-            auto compression_result = EnhancedCompressionEngine::compress_block(block_data);
-            block.data = std::move(compression_result.data);
-            block.compressed = compression_result.compressed;
-            block.original_size = compression_result.original_size;
-            block.last_access = std::chrono::steady_clock::now();
-            block.dirty = true;
-
-            if (block.compressed) {
-                compression_savings_.fetch_add(block.original_size - block.data.size());
-            }
-
-            block_offset = 0;  // Only first block has offset
-        }
-
-        return static_cast<int>(bytes_written);
+        memcpy(data.data() + offset, buf, size);
+        return static_cast<int>(size);
     }
 
     size_t get_file_size(uint64_t inode) const {
-        std::shared_lock<std::shared_mutex> lock(blocks_mutex_);
-        auto it = file_blocks_.find(inode);
-        if (it == file_blocks_.end()) return 0;
-
-        const auto& blocks = it->second;
-        if (blocks.empty()) return 0;
-
-        size_t total_size = 0;
-        for (size_t i = 0; i < blocks.size(); ++i) {
-            if (i == blocks.size() - 1) {
-                // Last block might be partial
-                total_size += blocks[i].original_size;
-            } else {
-                total_size += BLOCK_SIZE;
-            }
+        std::shared_lock<std::shared_mutex> lock(data_mutex_);
+        auto it = file_data_.find(inode);
+        if (it != file_data_.end()) {
+            return it->second.size();
         }
-        return total_size;
+        return 0;
     }
 
     void remove_file(uint64_t inode) {
-        std::unique_lock<std::shared_mutex> lock(blocks_mutex_);
-        file_blocks_.erase(inode);
+        std::unique_lock<std::shared_mutex> lock(data_mutex_);
+        file_data_.erase(inode);
     }
 
     void print_stats() const {
         std::cout << "\n📊 Block Manager Statistics:" << std::endl;
         std::cout << "   📖 Total reads: " << total_reads_.load() << std::endl;
         std::cout << "   ✏️  Total writes: " << total_writes_.load() << std::endl;
-        std::cout << "   💾 Compression savings: " << compression_savings_.load() << " bytes" << std::endl;
-        std::cout << "   📁 Active files: " << file_blocks_.size() << std::endl;
+        std::cout << "   📁 Active files: " << file_data_.size() << std::endl;
     }
 };
 
@@ -497,6 +348,9 @@ public:
             auto* node = razor_tree_.find_by_path(path);
             if (!node || !S_ISREG(node->mode)) return -ENOENT;
 
+            // Shared lock for read (allows concurrent reads)
+            std::shared_lock<std::shared_mutex> lock(node->node_mutex);
+
             return block_manager_->read_blocks(node->inode_number, buf, size, offset);
         } catch (const std::exception& e) {
             std::cerr << "read error: " << e.what() << std::endl;
@@ -512,9 +366,17 @@ public:
             auto* node = razor_tree_.find_by_path(path);
             if (!node || !S_ISREG(node->mode)) return -ENOENT;
 
+            // Lock the node before modifying it
+            std::unique_lock<std::shared_mutex> lock(node->node_mutex);
+
             int result = block_manager_->write_blocks(node->inode_number, buf, size, offset);
             if (result > 0) {
                 node->timestamp = time(nullptr);
+                // Update size if write extended the file
+                off_t new_size = offset + result;
+                if (new_size > static_cast<off_t>(node->size_or_blocks)) {
+                    node->size_or_blocks = new_size;
+                }
             }
             return result;
         } catch (const std::exception& e) {
@@ -540,8 +402,15 @@ public:
             // Remove from block manager
             block_manager_->remove_file(inode_to_remove);
 
-            // Remove from tree (simplified - just mark as removed for now)
-            // Full implementation would require remove_child() in tree
+            // Remove from parent's children list
+            if (!razor_tree_.remove_child(parent_node, child_name)) {
+                return -EIO;
+            }
+
+            // Free the node
+            if (!razor_tree_.free_node(inode_to_remove)) {
+                return -EIO;
+            }
 
             return 0;
         } catch (const std::exception& e) {
@@ -565,7 +434,18 @@ public:
             auto children = razor_tree_.get_children(child_node);
             if (!children.empty()) return -ENOTEMPTY;
 
-            // TODO: Implement tree node removal
+            uint64_t inode_to_remove = child_node->inode_number;
+
+            // Remove from parent's children list
+            if (!razor_tree_.remove_child(parent_node, child_name)) {
+                return -EIO;
+            }
+
+            // Free the node
+            if (!razor_tree_.free_node(inode_to_remove)) {
+                return -EIO;
+            }
+
             return 0;
         } catch (const std::exception& e) {
             std::cerr << "rmdir error: " << e.what() << std::endl;

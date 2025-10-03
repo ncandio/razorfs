@@ -1,0 +1,37 @@
+# Simple RazorFS Build Dockerfile
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install minimal dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /razor_repo
+
+# Copy source files
+COPY src/ /razor_repo/src/
+COPY tools/ /razor_repo/tools/
+
+# Build RazorFS core
+RUN echo "=== Building RazorFS Core ===" && \
+    echo "Available source files:" && \
+    ls -la src/*.c && \
+    echo "Available tool files:" && \
+    ls -la tools/*.c && \
+    echo "Building core library..." && \
+    gcc -c src/razor_core.c -o src/razor_core.o && \
+    gcc -c src/razor_write.c -o src/razor_write.o && \
+    gcc -c src/razor_transaction_log.c -o src/razor_transaction_log.o && \
+    gcc -c src/razor_permissions.c -o src/razor_permissions.o && \
+    gcc -c src/razor_sync.c -o src/razor_sync.o && \
+    ar rcs librazer.a src/*.o && \
+    echo "Building razorfsck tool..." && \
+    gcc -Isrc -Itools tools/razorfsck_main.c tools/razorfsck.c tools/razorfsck_repair.c -L. -lrazer -o razorfsck && \
+    echo "Build complete!"
+
+CMD ["bash", "-c", "echo 'RazorFS build successful! Files:' && ls -la librazer.a razorfsck"]

@@ -1,0 +1,4 @@
+Filesystem,Operation,Files,Time_ms,Throughput_ops_per_sec
+ext4,CREATE,1000,475,2105.26
+ext4,READ,1000,443,2257.33
+ext4,DELETE,1000,468,2136.75

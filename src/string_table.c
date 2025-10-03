@@ -1,14 +1,30 @@
 /**
- * String Table Implementation - String Interning for RAZORFS
+ * String Table Implementation - RAZORFS Phase 5
  *
- * Simple contiguous buffer design for cache efficiency.
+ * C implementation of string interning for filesystem nodes.
+ * Eliminates dynamic string allocations that fragment cache.
+ * All filenames stored in contiguous buffer, nodes store offsets only.
  */
 
 #include "string_table.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
+/* Configuration */
+#define STRING_TABLE_INITIAL_SIZE (64 * 1024)      /* 64KB initial */
+#define STRING_TABLE_MAX_SIZE (16 * 1024 * 1024)   /* 16MB maximum */
+#define MAX_FILENAME_LENGTH 255                     /* POSIX limit */
+
+/* Static assertions */
+_Static_assert(sizeof(struct string_table) == 16,
+               "string_table must be exactly 16 bytes");
+
+/**
+ * Initialize string table
+ * Returns 0 on success, -1 on failure
+ */
 int string_table_init(struct string_table *st) {
     if (!st) return -1;
 
@@ -23,11 +39,17 @@ int string_table_init(struct string_table *st) {
     return 0;
 }
 
+/**
+ * Intern a string - store and return offset
+ * If string already exists, returns existing offset.
+ *
+ * Returns: offset on success, UINT32_MAX on error
+ */
 uint32_t string_table_intern(struct string_table *st, const char *str) {
     if (!st || !str) return UINT32_MAX;
-
+    
     size_t len = strlen(str);
-    if (len > MAX_FILENAME_LENGTH) {
+    if (len == 0 || len > MAX_FILENAME_LENGTH) {
         return UINT32_MAX;
     }
 
@@ -68,6 +90,10 @@ uint32_t string_table_intern(struct string_table *st, const char *str) {
     return new_offset;
 }
 
+/**
+ * Get string by offset
+ * Returns: pointer to string, or NULL if invalid offset
+ */
 const char *string_table_get(const struct string_table *st, uint32_t offset) {
     if (!st || offset >= st->used) {
         return NULL;
@@ -75,6 +101,9 @@ const char *string_table_get(const struct string_table *st, uint32_t offset) {
     return st->data + offset;
 }
 
+/**
+ * Free string table resources
+ */
 void string_table_destroy(struct string_table *st) {
     if (!st) return;
 
@@ -87,6 +116,9 @@ void string_table_destroy(struct string_table *st) {
     st->used = 0;
 }
 
+/**
+ * Get statistics
+ */
 void string_table_stats(const struct string_table *st,
                         uint32_t *total_size,
                         uint32_t *used_size) {

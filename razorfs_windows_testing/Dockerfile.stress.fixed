@@ -1,0 +1,105 @@
+# RAZOR Filesystem Docker - With Stress Testing Tools
+FROM ubuntu:22.04 as base
+
+# Set timezone and avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install system dependencies and testing tools
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libfuse3-dev \
+    fuse3 \
+    git \
+    python3 \
+    python3-pip \
+    python3-matplotlib \
+    python3-numpy \
+    python3-pandas \
+    fio \
+    iozone3 \
+    bonnie++ \
+    btrfs-progs \
+    reiserfsprogs \
+    xfsprogs \
+    squashfs-tools \
+    time \
+    stress-ng \
+    htop \
+    sysstat \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /razorfs
+COPY ../ .
+
+# Build FUSE implementation
+FROM base as fuse-builder
+# Skip FUSE build - assuming pre-built binary will be provided
+RUN echo "Skipping FUSE build - using pre-built binary"
+# RUN cd fuse && make check-deps && make clean && make
+
+# Runtime environment with testing tools
+FROM ubuntu:22.04 as stress-runtime
+
+# Set timezone and avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install packages in groups to identify which ones are problematic
+RUN apt-get update && apt-get install -y \
+    libfuse3-3 \
+    fuse3 \
+    util-linux \
+    python3 \
+    python3-pip \
+    fio \
+    btrfs-progs \
+    reiserfsprogs \
+    xfsprogs \
+    squashfs-tools \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install packages that might have different names
+RUN apt-get update && apt-get install -y \
+    python3-matplotlib \
+    python3-numpy \
+    python3-pandas \
+    iozone3 \
+    bonnie++ \
+    sysstat \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install optional packages that might not be available
+RUN apt-get update && apt-get install -y \
+    time \
+    stress-ng \
+    htop \
+    bc \
+    || echo "Warning: Some optional packages could not be installed"
+
+RUN mkdir -p /mnt/razorfs_test /tmp/razor_test_mount /results
+
+# Copy built FUSE binary and stress testing scripts
+RUN echo "Skipping FUSE binary copy"
+COPY . /razorfs
+
+# Make our new scripts executable
+RUN chmod +x /razorfs/razorfs_windows_testing/real_filesystem_comparison.sh \
+    /razorfs/razorfs_windows_testing/crash_recovery_test.sh \
+    /razorfs/razorfs_windows_testing/combined_filesystem_test.sh \
+    /razorfs/razorfs_windows_testing/simple_filesystem_test.sh \
+    /razorfs/razorfs_windows_testing/generate_real_filesystem_graphs.py
+
+WORKDIR /razorfs
+
+# Install Python packages for graphing
+RUN pip3 install matplotlib seaborn pandas numpy
+
+# Copy entrypoint script
+COPY ./razorfs_windows_testing/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["shell"]

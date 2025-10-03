@@ -1,0 +1,132 @@
+FROM ubuntu:22.04
+
+# Install all dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libfuse3-dev \
+    fuse3 \
+    python3 \
+    python3-pip \
+    bc \
+    git \
+    util-linux \
+    time \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages for graph generation
+RUN pip3 install matplotlib pandas numpy seaborn
+
+WORKDIR /razorfs
+COPY . .
+
+# Build FUSE filesystem
+RUN cd fuse && make clean && make
+
+# Install FUSE binary
+RUN cp fuse/razorfs_fuse /usr/local/bin/ && chmod +x /usr/local/bin/razorfs_fuse
+
+# Create directories
+RUN mkdir -p /mnt/razorfs_test /results
+
+# Create performance test script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "=== RAZORFS Performance Test ==="\n\
+\n\
+# Setup mount\n\
+mkdir -p /mnt/razorfs_test\n\
+/usr/local/bin/razorfs_fuse /mnt/razorfs_test &\n\
+FUSE_PID=$!\n\
+sleep 3\n\
+\n\
+# Check if mounted\n\
+if ! mountpoint -q /mnt/razorfs_test; then\n\
+    echo "Failed to mount RAZORFS"\n\
+    exit 1\n\
+fi\n\
+echo "RAZORFS mounted successfully (PID: $FUSE_PID)"\n\
+\n\
+# Performance tests\n\
+echo "=== Write Performance Test ==="\n\
+echo "Scale,Files,Time_ms,Files_per_sec" > /results/performance.csv\n\
+\n\
+for scale in 10 100 1000; do\n\
+    echo "Testing with $scale files..."\n\
+    start_time=$(date +%s%3N)\n\
+    for ((i=1; i<=scale; i++)); do\n\
+        echo "content$i" > /mnt/razorfs_test/test_${scale}_${i}.txt\n\
+    done\n\
+    end_time=$(date +%s%3N)\n\
+    elapsed=$((end_time - start_time))\n\
+    files_per_sec=$((scale * 1000 / elapsed))\n\
+    echo "$scale,$scale,$elapsed,$files_per_sec" >> /results/performance.csv\n\
+    echo "  $scale files: ${elapsed}ms (${files_per_sec} files/sec)"\n\
+done\n\
+\n\
+echo "Performance test complete!"\n\
+echo "Results saved to /results/performance.csv"\n\
+echo "Total files created: $(ls /mnt/razorfs_test/ | wc -l)"\n' > /performance_test.sh && chmod +x /performance_test.sh
+
+# Create graph generation script
+RUN echo '#!/usr/bin/env python3\n\
+import pandas as pd\n\
+import matplotlib.pyplot as plt\n\
+import sys\n\
+import os\n\
+\n\
+print("=== Generating Performance Graphs ===")\n\
+\n\
+# Read performance data\n\
+csv_file = "/results/performance.csv"\n\
+if not os.path.exists(csv_file):\n\
+    print(f"No performance data found at {csv_file}")\n\
+    sys.exit(1)\n\
+\n\
+df = pd.read_csv(csv_file)\n\
+print(f"Loaded {len(df)} data points")\n\
+\n\
+# Create performance graph\n\
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))\n\
+\n\
+# Write time vs scale\n\
+ax1.plot(df["Files"], df["Time_ms"], "bo-", linewidth=2, markersize=8)\n\
+ax1.set_xlabel("Number of Files")\n\
+ax1.set_ylabel("Write Time (ms)")\n\
+ax1.set_title("RAZORFS Write Performance")\n\
+ax1.grid(True, alpha=0.3)\n\
+ax1.set_xscale("log")\n\
+\n\
+# Throughput vs scale\n\
+ax2.plot(df["Files"], df["Files_per_sec"], "ro-", linewidth=2, markersize=8)\n\
+ax2.set_xlabel("Number of Files")\n\
+ax2.set_ylabel("Throughput (files/sec)")\n\
+ax2.set_title("RAZORFS Write Throughput")\n\
+ax2.grid(True, alpha=0.3)\n\
+ax2.set_xscale("log")\n\
+\n\
+plt.tight_layout()\n\
+plt.savefig("/results/razorfs_performance.png", dpi=300, bbox_inches="tight")\n\
+print("✓ Generated /results/razorfs_performance.png")\n\
+\n\
+# Show complexity analysis\n\
+print("\\n=== Complexity Analysis ===")\n\
+if len(df) >= 2:\n\
+    first_row = df.iloc[0]\n\
+    last_row = df.iloc[-1]\n\
+    time_ratio = last_row["Time_ms"] / first_row["Time_ms"]\n\
+    scale_ratio = last_row["Files"] / first_row["Files"]\n\
+    \n\
+    print(f"Scale increased by: {scale_ratio:.1f}x")\n\
+    print(f"Time increased by: {time_ratio:.1f}x")\n\
+    \n\
+    if time_ratio < scale_ratio:\n\
+        print("✓ Sub-linear complexity detected - Good performance!")\n\
+    else:\n\
+        print("⚠ Linear or worse complexity")\n\
+\n\
+print("Graph generation complete!")\n' > /generate_graphs.py && chmod +x /generate_graphs.py
+
+# Set entrypoint
+ENTRYPOINT ["/bin/bash"]
+CMD ["/performance_test.sh"]

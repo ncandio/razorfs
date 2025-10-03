@@ -1,0 +1,71 @@
+# Optimized RazorFS Testing Dockerfile - Corrected Version v4 (Explicit Paths)
+# Tests the new O(log n) performance improvements
+
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+ENV DOCKER_ENV=true
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    libfuse3-dev \
+    fuse3 \
+    e2fsprogs \
+    btrfs-progs \
+    reiserfsprogs \
+    python3 \
+    python3-pip \
+    python3-matplotlib \
+    python3-pandas \
+    python3-seaborn \
+    time \
+    procps \
+    util-linux \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure FUSE
+RUN echo 'user_allow_other' >> /etc/fuse.conf
+
+# Create directories
+RUN mkdir -p /results /mnt/ext4_test /mnt/btrfs_test /mnt/reiserfs_test /tmp/razor_mount
+
+# Set working directory
+WORKDIR /razor_repo
+
+# Copy the entire repository
+COPY . /razor_repo/
+
+# Debug: Check what was copied
+RUN echo "=== Checking repository structure ===" && \
+    pwd && \
+    ls -la && \
+    echo "=== Verifying Makefile exists ===" && \
+    if [ -f "Makefile" ]; then echo "Makefile found"; else echo "ERROR: Makefile NOT found"; exit 1; fi && \
+    echo "=== Checking src directory ===" && \
+    ls -la src/ && \
+    echo "=== Checking tools directory ===" && \
+    ls -la tools/ && \
+    echo "=== Checking fuse directory ===" && \
+    ls -la fuse/
+
+# Install Python dependencies
+RUN pip3 install pandas matplotlib seaborn
+
+# Build optimized RazorFS using explicit paths
+RUN echo "Building RazorFS core library..." && \
+    make -f /razor_repo/Makefile -C /razor_repo clean && \
+    make -f /razor_repo/Makefile -C /razor_repo userspace && \
+    echo "Building FUSE implementation..." && \
+    make -C /razor_repo/fuse clean && \
+    make -C /razor_repo/fuse all && \
+    echo "RazorFS built successfully" && \
+    echo "Build verification:" && \
+    ls -la /razor_repo/librazer.a /razor_repo/razorfsck /razor_repo/fuse/razorfs_fuse
+
+# Set entrypoint
+ENTRYPOINT ["/razor_repo/razorfs_windows_testing/optimized_filesystem_comparison.sh"]

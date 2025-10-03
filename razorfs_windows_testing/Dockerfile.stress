@@ -1,0 +1,96 @@
+# RAZOR Filesystem Docker - With Stress Testing Tools (Fixed)
+FROM ubuntu:22.04 as base
+
+# Set timezone and avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install system dependencies and testing tools
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libfuse3-dev \
+    fuse3 \
+    git \
+    python3 \
+    python3-pip \
+    fio \
+    btrfs-progs \
+    reiserfsprogs \
+    xfsprogs \
+    squashfs-tools \
+    sysstat \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages with compatible versions  
+RUN pip3 install "numpy<2.0" "pandas<2.1" "matplotlib>=3.5.0" "seaborn>=0.11.0"
+
+WORKDIR /razorfs
+COPY ../ .
+
+# Build FUSE implementation
+FROM base as fuse-builder
+# Skip FUSE build - assuming pre-built binary will be provided
+RUN echo "Skipping FUSE build - using pre-built binary"
+
+# Runtime environment with testing tools
+FROM ubuntu:22.04 as stress-runtime
+
+# Set timezone and avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install essential packages first
+RUN apt-get update && apt-get install -y \
+    libfuse3-3 \
+    fuse3 \
+    util-linux \
+    python3 \
+    python3-pip \
+    fio \
+    btrfs-progs \
+    reiserfsprogs \
+    xfsprogs \
+    squashfs-tools \
+    sysstat \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages with compatible versions
+RUN pip3 install "numpy<2.0" "pandas<2.1" "matplotlib>=3.5.0" "seaborn>=0.11.0"
+
+# Try to install additional packages, but don't fail if they're not available
+RUN apt-get update && apt-get install -y \
+    python3-matplotlib \
+    python3-numpy \
+    python3-pandas \
+    iozone3 \
+    bonnie++ \
+    time \
+    bc \
+    || echo "Some optional packages not available, continuing..."
+
+RUN mkdir -p /mnt/razorfs_test /tmp/razor_test_mount /results
+
+# Copy built FUSE binary and stress testing scripts
+COPY . /razorfs
+# Copy FUSE binary from parent directory explicitly
+COPY ../fuse/razorfs_fuse /usr/local/bin/razorfs_fuse
+# Set permissions on FUSE binary
+RUN chmod +x /usr/local/bin/razorfs_fuse && ls -la /usr/local/bin/razorfs_fuse
+
+# Make our new scripts executable
+RUN find /razorfs/razorfs_windows_testing -name "*.sh" -exec chmod +x {} \;
+RUN find /razorfs/razorfs_windows_testing -name "*.py" -exec chmod +x {} \;
+
+WORKDIR /razorfs
+
+# Ensure Python packages are properly installed
+RUN pip3 install --force-reinstall "numpy<2.0" "pandas<2.1" "matplotlib>=3.5.0" "seaborn>=0.11.0"
+
+# Copy entrypoint script
+COPY ./razorfs_windows_testing/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["shell"]

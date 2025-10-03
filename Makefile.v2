@@ -1,0 +1,133 @@
+# RAZOR V2 Optimized Build System
+# Next Generation Implementation with Proven Improvements
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -march=native -mtune=native
+CACHE_OPTIMIZE_FLAGS = -falign-functions=64 -falign-loops=64 -falign-labels=64 -falign-jumps=64
+MEMORY_FLAGS = -fno-omit-frame-pointer -fstack-protector-strong
+DEBUG_FLAGS = -g3 -DDEBUG_V2_STATS
+
+# Enable all optimizations
+CXXFLAGS += $(CACHE_OPTIMIZE_FLAGS) $(MEMORY_FLAGS)
+
+# Include directories
+INCLUDES = -I. -Isrc
+
+# Test targets
+TEST_PERFORMANCE = test_razor_v2_performance
+TEST_SOURCES = test_razor_v2_performance.cpp
+
+# Build targets
+all: $(TEST_PERFORMANCE)
+
+$(TEST_PERFORMANCE): $(TEST_SOURCES)
+	@echo "🔧 Building RAZOR V2 Performance Test..."
+	@echo "   🎯 Optimization: -O3 with cache alignment"
+	@echo "   📏 Target: 64-byte nodes (1 cache line)"
+	@echo "   🧠 Features: String interning + Compact hash tables"
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $(TEST_PERFORMANCE) $(TEST_SOURCES)
+	@echo "✅ Build complete: $(TEST_PERFORMANCE)"
+
+# Performance optimized build
+performance: CXXFLAGS += -DNDEBUG -flto -fuse-linker-plugin
+performance: $(TEST_PERFORMANCE)
+	@echo "⚡ Performance build complete with LTO"
+
+# Debug build with detailed statistics
+debug: CXXFLAGS += $(DEBUG_FLAGS) -O1
+debug: $(TEST_PERFORMANCE)
+	@echo "🐛 Debug build complete with V2 statistics"
+
+# Run performance tests
+test: $(TEST_PERFORMANCE)
+	@echo "🧪 Running RAZOR V2 Performance Tests..."
+	@echo ""
+	./$(TEST_PERFORMANCE)
+
+# Quick verification test
+verify: $(TEST_PERFORMANCE)
+	@echo "🔍 Quick Verification Test..."
+	@echo "Testing node size and basic functionality:"
+	@./$(TEST_PERFORMANCE) | head -20
+
+# Memory analysis
+analyze-memory: $(TEST_PERFORMANCE)
+	@echo "🔍 Memory Analysis:"
+	@echo "Running with Valgrind massif for memory profiling..."
+	valgrind --tool=massif --stacks=yes ./$(TEST_PERFORMANCE) || echo "Install valgrind for memory analysis"
+
+# Cache analysis
+analyze-cache: $(TEST_PERFORMANCE)
+	@echo "🔍 Cache Analysis:"
+	@echo "Running with Valgrind cachegrind for cache profiling..."
+	valgrind --tool=cachegrind ./$(TEST_PERFORMANCE) || echo "Install valgrind for cache analysis"
+
+# Performance profiling
+profile: $(TEST_PERFORMANCE)
+	@echo "📊 Performance Profiling:"
+	@echo "Running with perf for detailed performance analysis..."
+	perf stat -e cache-references,cache-misses,instructions,cycles ./$(TEST_PERFORMANCE) || echo "Install perf for profiling"
+
+# Generate comparison graphs
+graphs: test
+	@echo "📈 Generating Performance Graphs..."
+	@if [ -f /tmp/razor_v2_benchmark_results.csv ]; then \
+		python3 -c "import pandas as pd; import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt; \
+		df = pd.read_csv('/tmp/razor_v2_benchmark_results.csv'); \
+		v2_data = df[df['Implementation'] == 'RAZOR_V2']; \
+		v1_data = df[df['Implementation'] == 'RAZOR_V1']; \
+		fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10)); \
+		ax1.plot(v2_data['File_Count'], v2_data['Creation_Time_ms'], 'g-o', label='V2', linewidth=2); \
+		ax1.plot(v1_data['File_Count'], v1_data['Creation_Time_ms'], 'r--s', label='V1', linewidth=2); \
+		ax1.set_xlabel('File Count'); ax1.set_ylabel('Creation Time (ms)'); ax1.set_title('File Creation Performance'); ax1.legend(); ax1.grid(True, alpha=0.3); \
+		ax2.plot(v2_data['File_Count'], v2_data['Avg_Lookup_ns'], 'g-o', label='V2', linewidth=2); \
+		ax2.plot(v1_data['File_Count'], v1_data['Avg_Lookup_ns'], 'r--s', label='V1', linewidth=2); \
+		ax2.set_xlabel('File Count'); ax2.set_ylabel('Lookup Time (ns)'); ax2.set_title('Lookup Performance'); ax2.legend(); ax2.grid(True, alpha=0.3); \
+		ax3.plot(v2_data['File_Count'], v2_data['Memory_KB'], 'g-o', label='V2', linewidth=2); \
+		ax3.plot(v1_data['File_Count'], v1_data['Memory_KB'], 'r--s', label='V1', linewidth=2); \
+		ax3.set_xlabel('File Count'); ax3.set_ylabel('Memory Usage (KB)'); ax3.set_title('Memory Efficiency'); ax3.legend(); ax3.grid(True, alpha=0.3); \
+		speedup = v1_data['Avg_Lookup_ns'].values / v2_data['Avg_Lookup_ns'].values; \
+		ax4.plot(v2_data['File_Count'], speedup, 'b-o', linewidth=3, label='V2 Speedup'); \
+		ax4.axhline(y=1, color='k', linestyle='--', alpha=0.5, label='Equal Performance'); \
+		ax4.set_xlabel('File Count'); ax4.set_ylabel('Speedup Factor'); ax4.set_title('V2 vs V1 Performance Ratio'); ax4.legend(); ax4.grid(True, alpha=0.3); \
+		plt.tight_layout(); plt.savefig('/tmp/razor_v2_performance_graphs.png', dpi=300, bbox_inches='tight'); \
+		print('📊 Graphs saved to: /tmp/razor_v2_performance_graphs.png')" || echo "Install python3, pandas, matplotlib for graphs"; \
+	else \
+		echo "❌ No results file found. Run 'make test' first."; \
+	fi
+
+# Clean build artifacts
+clean:
+	rm -f $(TEST_PERFORMANCE)
+	rm -f *.gcda *.gcno  # Remove PGO files
+	rm -f callgrind.out.* cachegrind.out.* massif.out.*  # Remove profiling files
+	@echo "🧹 Cleaned build artifacts"
+
+# Show optimization summary
+summary:
+	@echo "🎯 RAZOR V2 Optimization Summary:"
+	@echo ""
+	@echo "✅ IMPLEMENTED IMPROVEMENTS:"
+	@echo "   • True 64-byte cache-aligned nodes (1 cache line)"
+	@echo "   • String interning system for memory efficiency"
+	@echo "   • Compact hash tables (16 bytes per entry)"
+	@echo "   • Removed atomic overhead and unnecessary locks"
+	@echo "   • Honest O(log n + k) complexity documentation"
+	@echo ""
+	@echo "🎯 PERFORMANCE TARGETS:"
+	@echo "   • 75% less memory than EXT4"
+	@echo "   • 70% faster small file operations"
+	@echo "   • 2x better cache efficiency"
+	@echo "   • 7x faster lookups than RAZOR v1"
+	@echo ""
+	@echo "📊 BUILD COMMANDS:"
+	@echo "   make all      - Standard optimized build"
+	@echo "   make test     - Run performance benchmark"
+	@echo "   make graphs   - Generate performance graphs"
+	@echo "   make profile  - Run with perf profiling"
+	@echo "   make verify   - Quick functionality check"
+
+.PHONY: all performance debug test verify analyze-memory analyze-cache profile graphs clean summary
+
+# Default help
+help: summary

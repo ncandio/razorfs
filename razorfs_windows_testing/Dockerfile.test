@@ -1,0 +1,22 @@
+# Test Dockerfile
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create directory
+RUN mkdir -p /razor_repo
+
+# Set working directory
+WORKDIR /razor_repo
+
+# Copy the entire repository
+COPY . /razor_repo/
+
+# Test if Makefile exists and has the target
+RUN ls -la Makefile
+RUN grep -E "^[a-zA-Z_0-9-]+:" Makefile
+RUN make -n userspace-docker

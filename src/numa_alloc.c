@@ -1,189 +1,143 @@
 /**
- * NUMA-Aware Memory Allocation Implementation
+ * NUMA Allocation Implementation - RAZORFS Phase 5
  *
- * Falls back gracefully to standard malloc if NUMA not available.
+ * NUMA-aware allocation with graceful fallback to standard malloc.
+ * Uses libnuma for NUMA allocation when available.
  */
 
-#define _GNU_SOURCE
 #include "numa_alloc.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include <sched.h>
+#include <errno.h>
 
-/* Try to include NUMA headers, but handle absence gracefully */
-#ifdef HAVE_NUMA
+#ifdef HAS_NUMA
 #include <numa.h>
 #include <numaif.h>
-#else
-/* Define stubs if NUMA not available */
-#define numa_available() (-1)
-#define numa_node_of_cpu(cpu) (0)
-#define numa_alloc_onnode(size, node) malloc(size)
-#define numa_free(ptr, size) free(ptr)
 #endif
 
-/* Global state */
-static bool g_numa_available = false;
-static struct numa_stats g_stats = {0};
-
+/**
+ * Initialize NUMA subsystem
+ * Returns 0 on success, -1 if NUMA not available
+ */
 int numa_alloc_init(void) {
-#ifdef HAVE_NUMA
-    if (numa_available() >= 0) {
-        g_numa_available = true;
-        g_stats.current_node = numa_node_of_cpu(sched_getcpu());
-        printf("🔧 NUMA subsystem initialized (node %d)\n", g_stats.current_node);
-        return 0;
+#ifdef HAS_NUMA
+    if (numa_available() == -1) {
+        return -1;  /* NUMA not available */
     }
-#endif
-
-    printf("⚠️  NUMA not available, using standard allocation\n");
-    g_numa_available = false;
-    return -1;
-}
-
-bool numa_is_available(void) {
-    return g_numa_available;
-}
-
-int numa_get_current_cpu(void) {
-    return sched_getcpu();
-}
-
-int numa_get_node_of_cpu(int cpu) {
-#ifdef HAVE_NUMA
-    if (g_numa_available) {
-        return numa_node_of_cpu(cpu);
-    }
+    return 0;  /* NUMA available */
 #else
-    (void)cpu;
+    return -1;  /* NUMA support not compiled in */
 #endif
-    return 0;
 }
 
+/**
+ * Check if NUMA is available on this system
+ */
+int numa_is_available(void) {
+#ifdef HAS_NUMA
+    return numa_available() == 0;
+#else
+    return 0;  /* NUMA not available */
+#endif
+}
+
+/**
+ * Allocate memory on local NUMA node
+ * Falls back to regular malloc if NUMA unavailable
+ *
+ * @param size  Number of bytes to allocate
+ * @return      Pointer to allocated memory, or NULL on failure
+ */
 void *numa_alloc_local(size_t size) {
-    if (!g_numa_available) {
-        g_stats.local_allocs++;
-        g_stats.total_bytes += size;
-        return malloc(size);
-    }
-
-#ifdef HAVE_NUMA
-    int cpu = sched_getcpu();
-    int node = numa_node_of_cpu(cpu);
-
-    void *ptr = numa_alloc_onnode(size, node);
-
-    if (ptr) {
-        g_stats.local_allocs++;
-        g_stats.total_bytes += size;
-        g_stats.current_node = node;
-    }
-
-    return ptr;
-#else
-    g_stats.local_allocs++;
-    g_stats.total_bytes += size;
-    return malloc(size);
-#endif
-}
-
-void *razorfs_numa_alloc_onnode(size_t size, int node) {
-    if (!g_numa_available) {
-        (void)node;
-        return malloc(size);
-    }
-
-#ifdef HAVE_NUMA
-    void *ptr = numa_alloc_onnode(size, node);
-
-    if (ptr) {
+#ifdef HAS_NUMA
+    if (numa_is_available()) {
         int cpu = sched_getcpu();
-        int current_node = numa_node_of_cpu(cpu);
-
-        if (current_node == node) {
-            g_stats.local_allocs++;
-        } else {
-            g_stats.remote_allocs++;
-        }
-
-        g_stats.total_bytes += size;
+        int node = numa_node_of_cpu(cpu);
+        size_t aligned_size = (size + 4095) & ~4095;  /* Page-align */
+        void *mem = numa_alloc_onnode(aligned_size, node);
+        return mem;
     }
-
-    return ptr;
-#else
-    (void)node;
-    return malloc(size);
 #endif
+
+    /* Fallback to standard malloc */
+    return malloc(size);
 }
 
+/**
+ * Allocate memory on specific NUMA node
+ *
+ * @param size  Number of bytes to allocate
+ * @param node  NUMA node number
+ * @return      Pointer to allocated memory, or NULL on failure
+ */
+void *numa_alloc_onnode(size_t size, int node) {
+#ifdef HAS_NUMA
+    if (numa_is_available()) {
+        size_t aligned_size = (size + 4095) & ~4095;  /* Page-align */
+        void *mem = numa_alloc_onnode(aligned_size, node);
+        return mem;
+    }
+#endif
+
+    /* Fallback to standard malloc */
+    return malloc(size);
+}
+
+/**
+ * Free NUMA-allocated memory
+ */
 void numa_free_memory(void *ptr, size_t size) {
     if (!ptr) return;
 
-#ifdef HAVE_NUMA
-    if (g_numa_available) {
-        numa_free(ptr, size);
+#ifdef HAS_NUMA
+    if (numa_is_available()) {
+        size_t aligned_size = (size + 4095) & ~4095;  /* Page-align */
+        numa_free(ptr, aligned_size);
         return;
     }
-#else
-    (void)size;
 #endif
 
+    /* Fallback to standard free */
     free(ptr);
 }
 
-int numa_set_cpu_affinity(int cpu) {
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(cpu, &cpuset);
-
-    int result = sched_setaffinity(0, sizeof(cpuset), &cpuset);
-
-    if (result == 0) {
-        printf("✅ CPU affinity set to CPU %d\n", cpu);
-    } else {
-        printf("❌ Failed to set CPU affinity to CPU %d\n", cpu);
-    }
-
-    return result;
-}
-
+/**
+ * Get statistics about NUMA allocation
+ */
 void numa_get_stats(struct numa_stats *stats) {
     if (!stats) return;
 
-    *stats = g_stats;
+    /* Initialize stats */
+    stats->local_allocs = 0;
+    stats->remote_allocs = 0;
+    stats->total_bytes = 0;
+    stats->current_node = -1;
+
+#ifdef HAS_NUMA
+    if (numa_is_available()) {
+        stats->current_node = numa_node_of_cpu(sched_getcpu());
+    }
+#endif
 }
 
+/**
+ * Print NUMA topology information
+ */
 void numa_print_topology(void) {
-    printf("\n=== NUMA Topology ===\n");
-
-#ifdef HAVE_NUMA
-    if (g_numa_available) {
-        int max_node = numa_max_node();
-        int num_cpus = numa_num_configured_cpus();
-
-        printf("Max NUMA node: %d\n", max_node);
-        printf("Configured CPUs: %d\n", num_cpus);
-
-        printf("\nNode-to-CPU mapping:\n");
-        for (int cpu = 0; cpu < num_cpus && cpu < 32; cpu++) {
-            int node = numa_node_of_cpu(cpu);
-            printf("  CPU %2d -> Node %d\n", cpu, node);
+#ifdef HAS_NUMA
+    if (numa_is_available()) {
+        printf("NUMA topology:\n");
+        printf("  Max node: %d\n", numa_max_node());
+        printf("  Available nodes: ");
+        for (int i = 0; i <= numa_max_node(); i++) {
+            if (numa_node_to_cpus(i, NULL) == 0) {
+                printf("%d ", i);
+            }
         }
-
-        printf("\nCurrent CPU: %d (Node %d)\n",
-               sched_getcpu(), g_stats.current_node);
-    } else {
-        printf("NUMA not available on this system\n");
+        printf("\n");
+        return;
     }
-#else
-    printf("NUMA support not compiled in\n");
-    printf("Rebuild with: -DHAVE_NUMA -lnuma\n");
 #endif
 
-    printf("\nAllocation statistics:\n");
-    printf("  Local allocations: %lu\n", g_stats.local_allocs);
-    printf("  Remote allocations: %lu\n", g_stats.remote_allocs);
-    printf("  Total bytes: %lu\n", g_stats.total_bytes);
-    printf("=====================\n\n");
+    printf("NUMA not available - using standard allocation\n");
 }

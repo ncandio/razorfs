@@ -583,6 +583,89 @@ public:
         return children;
     }
 
+    // Remove a child from parent's children list
+    bool remove_child(CacheOptimizedNode* parent, const std::string& child_name) {
+        if (!parent) return false;
+
+        // Lock parent for exclusive access
+        std::unique_lock<std::shared_mutex> parent_lock(parent->node_mutex);
+
+        uint32_t name_hash = hash_string(child_name);
+
+        // Small directories: remove from inline array
+        if (parent->child_count <= MAX_CHILDREN_INLINE) {
+            for (size_t i = 0; i < parent->child_count; ++i) {
+                uint32_t child_inode = parent->inline_children[i];
+                if (child_inode == 0) break;
+
+                CacheOptimizedNode* child = find_by_inode_unlocked(child_inode);
+                if (child && child->name_hash == name_hash) {
+                    const char* stored_name = string_table_.get_string(child->name_offset);
+                    if (child_name == stored_name) {
+                        // Shift remaining children down
+                        for (size_t j = i; j < parent->child_count - 1; ++j) {
+                            parent->inline_children[j] = parent->inline_children[j + 1];
+                        }
+                        parent->inline_children[parent->child_count - 1] = 0;
+                        parent->child_count--;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Large directories: remove from hash table
+        DirectoryHashTable* hash_table = parent->hash_table_ptr.load();
+        if (hash_table) {
+            if (hash_table->remove_child(name_hash, string_table_, child_name)) {
+                parent->child_count--;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Free a node and remove it from the inode map
+    bool free_node(uint64_t inode_number) {
+        // Lock tree structure for modification
+        std::unique_lock<std::shared_mutex> lock(tree_mutex_);
+
+        auto it = inode_map_.find(inode_number);
+        if (it == inode_map_.end()) {
+            return false;  // Node not found
+        }
+
+        CacheOptimizedNode* node = it->second;
+        if (!node) return false;
+
+        // Lock the node for exclusive access
+        std::unique_lock<std::shared_mutex> node_lock(node->node_mutex);
+
+        // Clean up hash table if this is a directory
+        DirectoryHashTable* hash_table = node->hash_table_ptr.load();
+        if (hash_table) {
+            std::lock_guard<std::mutex> ht_lock(hash_table_mutex_);
+            allocated_hash_tables_.erase(hash_table);
+            delete hash_table;
+            node->hash_table_ptr.store(nullptr);
+        }
+
+        // Remove from inode map
+        inode_map_.erase(it);
+        total_nodes_.fetch_sub(1);
+
+        // Mark node as freed (zero out to prevent use-after-free)
+        node->inode_number = 0;
+        node->child_count = 0;
+
+        // Note: Actual memory is freed when the page is destroyed
+        // We don't free individual nodes within pages to avoid fragmentation
+
+        return true;
+    }
+
     // Performance statistics
     struct CacheStats {
         size_t total_nodes;
