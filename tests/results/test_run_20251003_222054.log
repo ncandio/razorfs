@@ -1,0 +1,5 @@
+[0;34m[22:20:54][0m Test run started
+[0;34m[22:20:54][0m Results will be saved to: tests/results/test_run_20251003_222054.log
+[0;34m[22:20:54][0m Checking dependencies...
+[0;31m✗[0m Missing dependencies: valgrind
+[0;34m[22:20:54][0m Install with: sudo apt-get install valgrind

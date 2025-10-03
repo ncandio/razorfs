@@ -1,0 +1,562 @@
+[0;34m[22:52:39][0m Test run started
+[0;34m[22:52:39][0m Results will be saved to: tests/results/test_run_20251003_225239.log
+[0;34m[22:52:39][0m Checking dependencies...
+[0;32m✓[0m All dependencies found
+[0;34m[22:52:39][0m Building test suite...
+-- The C compiler identification is GNU 12.2.0
+-- The CXX compiler identification is GNU 12.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Python3: /usr/local/bin/python3 (found version "3.15.0") found components: Interpreter 
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found PkgConfig: /usr/bin/pkg-config (found version "1.8.1") 
+-- Checking for module 'fuse3'
+--   Found fuse3, version 3.14.0
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.2.13") 
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/nico/WORK_ROOT/RAZOR_repo/build_tests
+make[1]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[2]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[  3%] [32mBuilding CXX object _deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o[0m
+[  7%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/string_table.c.o[0m
+[ 11%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/nary_tree_mt.c.o[0m
+[ 15%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/compression.c.o[0m
+[ 19%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c.o[0m
+[ 23%] [32mBuilding C object CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/numa_support.c.o[0m
+/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c: In function ‘shm_tree_init’:
+/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c:41:9: warning: unused variable ‘numa_nodes’ [-Wunused-variable]
+   41 |     int numa_nodes = numa_init();
+      |         ^~~~~~~~~~
+[ 26%] [32m[1mLinking C static library librazorfs_lib.a[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 26%] Built target razorfs_lib
+[ 30%] [32m[1mLinking CXX static library ../../../lib/libgtest.a[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 30%] Built target gtest
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 38%] [32mBuilding CXX object _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.o[0m
+[ 38%] [32mBuilding CXX object _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o[0m
+[ 42%] [32m[1mLinking CXX static library ../../../lib/libgtest_main.a[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 42%] Built target gtest_main
+[ 46%] [32m[1mLinking CXX static library ../../../lib/libgmock.a[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 46%] Built target gmock
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[3]: Entering directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 50%] [32mBuilding CXX object CMakeFiles/string_table_test.dir/unit/string_table_test.cpp.o[0m
+[ 53%] [32mBuilding CXX object CMakeFiles/shm_persist_test.dir/unit/shm_persist_test.cpp.o[0m
+[ 57%] [32mBuilding CXX object _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.o[0m
+[ 65%] [32mBuilding CXX object CMakeFiles/nary_tree_test.dir/unit/nary_tree_test.cpp.o[0m
+[ 65%] [32mBuilding CXX object CMakeFiles/compression_test.dir/unit/compression_test.cpp.o[0m
+[ 69%] [32mBuilding CXX object CMakeFiles/architecture_test.dir/unit/architecture_test.cpp.o[0m
+[ 73%] [32mBuilding CXX object CMakeFiles/integration_test.dir/integration/filesystem_test.cpp.o[0m
+[ 76%] [32m[1mLinking CXX static library ../../../lib/libgmock_main.a[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 76%] Built target gmock_main
+[ 80%] [32m[1mLinking CXX executable string_table_test[0m
+[ 84%] [32m[1mLinking CXX executable compression_test[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 84%] Built target string_table_test
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 84%] Built target compression_test
+[ 88%] [32m[1mLinking CXX executable shm_persist_test[0m
+[ 92%] [32m[1mLinking CXX executable integration_test[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 92%] Built target shm_persist_test
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[ 92%] Built target integration_test
+[ 96%] [32m[1mLinking CXX executable nary_tree_test[0m
+[100%] [32m[1mLinking CXX executable architecture_test[0m
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[100%] Built target nary_tree_test
+make[3]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[100%] Built target architecture_test
+make[2]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+make[1]: Leaving directory '/home/nico/WORK_ROOT/RAZOR_repo/build_tests'
+[0;32m✓[0m Build successful
+[0;34m[22:53:10][0m Running unit tests...
+[0;34m[22:53:10][0m   Running string_table_test...
+[==========] Running 17 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 11 tests from StringTableTest
+[ RUN      ] StringTableTest.InitializationHeapMode
+[       OK ] StringTableTest.InitializationHeapMode (0 ms)
+[ RUN      ] StringTableTest.InternSingleString
+[       OK ] StringTableTest.InternSingleString (0 ms)
+[ RUN      ] StringTableTest.InternDeduplication
+[       OK ] StringTableTest.InternDeduplication (0 ms)
+[ RUN      ] StringTableTest.InternMultipleStrings
+[       OK ] StringTableTest.InternMultipleStrings (0 ms)
+[ RUN      ] StringTableTest.InternEmptyString
+[       OK ] StringTableTest.InternEmptyString (0 ms)
+[ RUN      ] StringTableTest.InternLongString
+[       OK ] StringTableTest.InternLongString (0 ms)
+[ RUN      ] StringTableTest.GetStats
+[       OK ] StringTableTest.GetStats (0 ms)
+[ RUN      ] StringTableTest.InvalidParameters
+[       OK ] StringTableTest.InvalidParameters (0 ms)
+[ RUN      ] StringTableTest.ManyStrings
+[       OK ] StringTableTest.ManyStrings (4 ms)
+[ RUN      ] StringTableTest.ManyDuplicates
+[       OK ] StringTableTest.ManyDuplicates (0 ms)
+[ RUN      ] StringTableTest.BoundaryConditions
+[       OK ] StringTableTest.BoundaryConditions (0 ms)
+[----------] 11 tests from StringTableTest (4 ms total)
+
+[----------] 6 tests from StringTableShmTest
+[ RUN      ] StringTableShmTest.InitializationShmMode
+[       OK ] StringTableShmTest.InitializationShmMode (0 ms)
+[ RUN      ] StringTableShmTest.InternInShmMode
+[       OK ] StringTableShmTest.InternInShmMode (0 ms)
+[ RUN      ] StringTableShmTest.ShmPersistence
+[       OK ] StringTableShmTest.ShmPersistence (0 ms)
+[ RUN      ] StringTableShmTest.ShmNoRealloc
+[       OK ] StringTableShmTest.ShmNoRealloc (0 ms)
+[ RUN      ] StringTableShmTest.InvalidShmParameters
+[       OK ] StringTableShmTest.InvalidShmParameters (0 ms)
+[ RUN      ] StringTableShmTest.OverflowProtection
+[       OK ] StringTableShmTest.OverflowProtection (0 ms)
+[----------] 6 tests from StringTableShmTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 17 tests from 2 test suites ran. (4 ms total)
+[  PASSED  ] 17 tests.
+[0;32m✓[0m   string_table_test passed
+[0;34m[22:53:10][0m   Running nary_tree_test...
+[==========] Running 20 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 20 tests from NaryTreeTest
+[ RUN      ] NaryTreeTest.Initialization
+[       OK ] NaryTreeTest.Initialization (0 ms)
+[ RUN      ] NaryTreeTest.RootNodeExists
+[       OK ] NaryTreeTest.RootNodeExists (0 ms)
+[ RUN      ] NaryTreeTest.InsertSingleChild
+[       OK ] NaryTreeTest.InsertSingleChild (0 ms)
+[ RUN      ] NaryTreeTest.InsertMultipleChildren
+[       OK ] NaryTreeTest.InsertMultipleChildren (0 ms)
+[ RUN      ] NaryTreeTest.FindChild
+[       OK ] NaryTreeTest.FindChild (0 ms)
+[ RUN      ] NaryTreeTest.FindNonExistentChild
+[       OK ] NaryTreeTest.FindNonExistentChild (0 ms)
+[ RUN      ] NaryTreeTest.DeleteChild
+[       OK ] NaryTreeTest.DeleteChild (0 ms)
+[ RUN      ] NaryTreeTest.DeleteNonEmptyDirectory
+[       OK ] NaryTreeTest.DeleteNonEmptyDirectory (0 ms)
+[ RUN      ] NaryTreeTest.DeleteEmptyDirectory
+[       OK ] NaryTreeTest.DeleteEmptyDirectory (0 ms)
+[ RUN      ] NaryTreeTest.CreateNestedPath
+[       OK ] NaryTreeTest.CreateNestedPath (0 ms)
+[ RUN      ] NaryTreeTest.LockRead
+[       OK ] NaryTreeTest.LockRead (0 ms)
+[ RUN      ] NaryTreeTest.LockWrite
+[       OK ] NaryTreeTest.LockWrite (0 ms)
+[ RUN      ] NaryTreeTest.InvalidLockIndex
+[       OK ] NaryTreeTest.InvalidLockIndex (0 ms)
+[ RUN      ] NaryTreeTest.ConcurrentReads
+[       OK ] NaryTreeTest.ConcurrentReads (1 ms)
+[ RUN      ] NaryTreeTest.ConcurrentInserts
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:226: Failure
+Expected equality of these values:
+  success_count.load()
+    Which is: 16
+  NUM_WRITERS * INSERTS_PER_WRITER
+    Which is: 100
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread0_file16.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread0_file17.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread0_file18.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread0_file19.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file0.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file1.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file2.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file3.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file4.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file5.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file6.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file7.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file8.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file9.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file10.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file11.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file12.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file13.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file14.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file15.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file16.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file17.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file18.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread1_file19.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file0.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file1.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file2.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file3.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file4.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file5.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file6.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file7.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file8.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file9.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file10.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file11.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file12.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file13.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file14.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file15.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file16.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file17.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file18.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread2_file19.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file0.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file1.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file2.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file3.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file4.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file5.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file6.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file7.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file8.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file9.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file10.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file11.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file12.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file13.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file14.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file15.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file16.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file17.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file18.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread3_file19.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file0.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file1.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file2.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file3.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file4.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file5.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file6.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file7.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file8.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file9.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file10.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file11.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file12.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file13.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file14.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file15.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file16.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file17.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file18.txt
+
+/home/nico/WORK_ROOT/RAZOR_repo/tests/unit/nary_tree_test.cpp:235: Failure
+Expected: (found) != (0xFFFF), actual: 65535 vs 65535
+Missing: thread4_file19.txt
+
+[  FAILED  ] NaryTreeTest.ConcurrentInserts (2 ms)
+[ RUN      ] NaryTreeTest.ConcurrentMixedOperations
+[       OK ] NaryTreeTest.ConcurrentMixedOperations (0 ms)
+[ RUN      ] NaryTreeTest.InvalidParameters
+[       OK ] NaryTreeTest.InvalidParameters (0 ms)
+[ RUN      ] NaryTreeTest.CapacityLimit
+[       OK ] NaryTreeTest.CapacityLimit (0 ms)
+[ RUN      ] NaryTreeTest.DeepNesting
+[       OK ] NaryTreeTest.DeepNesting (0 ms)
+[ RUN      ] NaryTreeTest.ManyChildren
+[       OK ] NaryTreeTest.ManyChildren (0 ms)
+[----------] 20 tests from NaryTreeTest (4 ms total)
+
+[----------] Global test environment tear-down
+[==========] 20 tests from 1 test suite ran. (4 ms total)
+[  PASSED  ] 19 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] NaryTreeTest.ConcurrentInserts
+
+ 1 FAILED TEST

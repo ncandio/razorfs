@@ -1,0 +1,5 @@
+[0;34m[22:20:26][0m Test run started
+[0;34m[22:20:26][0m Results will be saved to: tests/results/test_run_20251003_222026.log
+[0;34m[22:20:26][0m Checking dependencies...
+[0;31m✗[0m Missing dependencies: cppcheck clang (for scan-build) valgrind
+[0;34m[22:20:26][0m Install with: sudo apt-get install cppcheck clang (for scan-build) valgrind
