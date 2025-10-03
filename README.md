@@ -161,7 +161,7 @@ make clean && make
 ### Mount
 ```bash
 mkdir /tmp/razorfs_mount
-./fuse/razorfs_mt /tmp/razorfs_mount
+./razorfs /tmp/razorfs_mount
 ```
 
 ### Test
