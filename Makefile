@@ -24,7 +24,7 @@ $(TARGET): $(OBJECTS) $(FUSE_DIR)/razorfs_mt.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 	@echo "✅ Build complete: $(TARGET)"
 
-%.o: %.c
+$(SRC_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
