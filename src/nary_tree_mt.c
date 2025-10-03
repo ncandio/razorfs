@@ -3,6 +3,29 @@
  *
  * Ext4-style per-inode locking for concurrent access.
  * Implements reader-writer locks on per-node basis.
+ *
+ * === LOCKING POLICY ===
+ *
+ * Lock Order (to prevent deadlock):
+ * 1. Always lock parent before child
+ * 2. Release locks in reverse order (child before parent)
+ * 3. Never hold more than 2 locks simultaneously
+ *
+ * Error Handling Policy:
+ * - ALL pthread_rwlock_{rd,wr}lock calls MUST check return value
+ * - On lock failure, function MUST return error immediately
+ * - Never proceed with operation if lock acquisition fails
+ * - Unlock only successfully acquired locks
+ *
+ * Return Values:
+ * - Functions return -1 on error (invalid params or lock failure)
+ * - NARY_INVALID_IDX indicates not found or allocation failure
+ * - Lock functions return pthread error codes directly (0 = success)
+ *
+ * Lock Optimization:
+ * - Parent lock prevents children array modification
+ * - No need to lock children for read-only name comparisons
+ * - name_offset is immutable once set, safe to read
  */
 
 #define _GNU_SOURCE

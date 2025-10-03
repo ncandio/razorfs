@@ -152,18 +152,42 @@ int nary_update_node_mt(struct nary_tree_mt *tree,
 
 /**
  * Acquire read lock on node
- * Returns 0 on success, -1 on failure
+ *
+ * Returns: 0 on success, pthread error code on failure
+ * Common errors:
+ * - EINVAL: Invalid lock or idx out of range
+ * - EDEADLK: Deadlock would occur
+ * - EAGAIN: Max readers reached
+ *
+ * Note: Caller must handle lock failures. Do NOT proceed with
+ * operation if lock acquisition fails. Return error to caller.
  */
 int nary_lock_read(struct nary_tree_mt *tree, uint16_t idx);
 
 /**
  * Acquire write lock on node
- * Returns 0 on success, -1 on failure
+ *
+ * Returns: 0 on success, pthread error code on failure
+ * Common errors:
+ * - EINVAL: Invalid lock or idx out of range
+ * - EDEADLK: Deadlock would occur
+ * - EBUSY: Lock held by another thread (non-blocking mode)
+ *
+ * Note: Caller must handle lock failures. Do NOT proceed with
+ * operation if lock acquisition fails. Return error to caller.
  */
 int nary_lock_write(struct nary_tree_mt *tree, uint16_t idx);
 
 /**
  * Release lock on node
+ *
+ * Returns: 0 on success, pthread error code on failure
+ * Common errors:
+ * - EINVAL: Invalid lock or idx out of range
+ * - EPERM: Lock not held by calling thread
+ *
+ * Note: Should not fail in normal operation if called after
+ * successful lock acquisition.
  */
 int nary_unlock(struct nary_tree_mt *tree, uint16_t idx);
 
