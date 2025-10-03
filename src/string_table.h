@@ -26,18 +26,32 @@
  *
  * Simple design: contiguous buffer of null-terminated strings.
  * No hash table - linear scan for duplicates (acceptable for filesystem scale).
+ *
+ * Two modes:
+ * 1. Heap mode (is_shm = 0): data allocated with malloc/realloc
+ * 2. Shared memory mode (is_shm = 1): data points to fixed-size shared memory
  */
 struct string_table {
     char *data;              /* Contiguous string buffer */
     uint32_t capacity;       /* Total allocated size */
     uint32_t used;           /* Bytes currently used */
+    int is_shm;              /* 1 if backed by shared memory, 0 if heap */
 };
 
 /**
- * Initialize string table
+ * Initialize string table (heap mode)
  * Returns 0 on success, -1 on failure
  */
 int string_table_init(struct string_table *st);
+
+/**
+ * Initialize string table with shared memory buffer
+ * buf: pre-allocated shared memory buffer
+ * size: buffer size
+ * existing: 1 if attaching to existing data, 0 if initializing new
+ * Returns 0 on success, -1 on failure
+ */
+int string_table_init_shm(struct string_table *st, void *buf, size_t size, int existing);
 
 /**
  * Intern a string - store and return offset

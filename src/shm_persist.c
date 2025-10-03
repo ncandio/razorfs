@@ -22,6 +22,9 @@ static size_t calculate_shm_size(uint32_t capacity) {
            (capacity * sizeof(uint16_t));  /* free_list */
 }
 
+/* String table size for shared memory */
+#define STRING_TABLE_SHM_SIZE (1024 * 1024)  /* 1MB for strings */
+
 int shm_tree_exists(void) {
     int fd = shm_open(SHM_TREE_NODES, O_RDONLY, 0);
     if (fd < 0) {
@@ -101,10 +104,42 @@ int shm_tree_init(struct nary_tree_mt *tree) {
         tree->op_count = 0;
         tree->free_count = 0;
 
-        /* Initialize string table (in heap for simplicity) */
-        if (string_table_init(&tree->strings) != 0) {
+        /* Create string table shared memory */
+        int str_fd = shm_open(SHM_STRING_TABLE, O_RDWR | O_CREAT, 0600);
+        if (str_fd < 0) {
+            perror("shm_open (strings)");
             munmap(addr, shm_size);
             shm_unlink(SHM_TREE_NODES);
+            return -1;
+        }
+
+        if (ftruncate(str_fd, STRING_TABLE_SHM_SIZE) < 0) {
+            perror("ftruncate (strings)");
+            close(str_fd);
+            munmap(addr, shm_size);
+            shm_unlink(SHM_TREE_NODES);
+            shm_unlink(SHM_STRING_TABLE);
+            return -1;
+        }
+
+        void *str_buf = mmap(NULL, STRING_TABLE_SHM_SIZE, PROT_READ | PROT_WRITE,
+                             MAP_SHARED, str_fd, 0);
+        close(str_fd);
+
+        if (str_buf == MAP_FAILED) {
+            perror("mmap (strings)");
+            munmap(addr, shm_size);
+            shm_unlink(SHM_TREE_NODES);
+            shm_unlink(SHM_STRING_TABLE);
+            return -1;
+        }
+
+        /* Initialize string table in shared memory */
+        if (string_table_init_shm(&tree->strings, str_buf, STRING_TABLE_SHM_SIZE, 0) != 0) {
+            munmap(str_buf, STRING_TABLE_SHM_SIZE);
+            munmap(addr, shm_size);
+            shm_unlink(SHM_TREE_NODES);
+            shm_unlink(SHM_STRING_TABLE);
             return -1;
         }
 
@@ -160,20 +195,29 @@ int shm_tree_init(struct nary_tree_mt *tree) {
         tree->op_count = 0;
         tree->free_count = hdr->free_count;
 
-        /* Initialize string table (rebuild from nodes) */
-        if (string_table_init(&tree->strings) != 0) {
+        /* Attach to existing string table shared memory */
+        int str_fd = shm_open(SHM_STRING_TABLE, O_RDWR, 0600);
+        if (str_fd < 0) {
+            perror("shm_open (strings)");
             munmap(addr, shm_size);
             return -1;
         }
 
-        /* Rebuild string table from existing nodes */
-        for (uint32_t i = 0; i < tree->used; i++) {
-            /* Note: This is a simplification - in production you'd persist string table too */
-            if (tree->nodes[i].node.inode != 0) {
-                /* Re-intern the name (will get new offset, but works for demo) */
-                const char *name = (i == 0) ? "/" : "file";
-                tree->nodes[i].node.name_offset = string_table_intern(&tree->strings, name);
-            }
+        void *str_buf = mmap(NULL, STRING_TABLE_SHM_SIZE, PROT_READ | PROT_WRITE,
+                             MAP_SHARED, str_fd, 0);
+        close(str_fd);
+
+        if (str_buf == MAP_FAILED) {
+            perror("mmap (strings)");
+            munmap(addr, shm_size);
+            return -1;
+        }
+
+        /* Attach to existing string table in shared memory */
+        if (string_table_init_shm(&tree->strings, str_buf, STRING_TABLE_SHM_SIZE, 1) != 0) {
+            munmap(str_buf, STRING_TABLE_SHM_SIZE);
+            munmap(addr, shm_size);
+            return -1;
         }
 
         /* Tree lock is already initialized in shared memory */
@@ -199,10 +243,16 @@ void shm_tree_detach(struct nary_tree_mt *tree) {
     size_t shm_size = calculate_shm_size(tree->capacity);
     msync(hdr, shm_size, MS_SYNC);
 
+    /* Sync string table to shared memory */
+    if (tree->strings.is_shm && tree->strings.data) {
+        msync(tree->strings.data, STRING_TABLE_SHM_SIZE, MS_SYNC);
+        munmap(tree->strings.data, STRING_TABLE_SHM_SIZE);
+    }
+
     /* Unmap but don't destroy */
     munmap(hdr, shm_size);
 
-    /* Clean up string table */
+    /* Clean up string table structure */
     string_table_destroy(&tree->strings);
 
     printf("💾 Filesystem detached - data persists in shared memory\n");
@@ -210,6 +260,11 @@ void shm_tree_detach(struct nary_tree_mt *tree) {
 
 void shm_tree_destroy(struct nary_tree_mt *tree) {
     if (!tree || !tree->nodes) return;
+
+    /* Unmap string table shared memory */
+    if (tree->strings.is_shm && tree->strings.data) {
+        munmap(tree->strings.data, STRING_TABLE_SHM_SIZE);
+    }
 
     /* Unmap shared memory */
     struct shm_tree_header *hdr = ((struct shm_tree_header *)tree->nodes) - 1;
@@ -222,10 +277,11 @@ void shm_tree_destroy(struct nary_tree_mt *tree) {
         pthread_rwlock_destroy(&tree->nodes[i].lock);
     }
 
-    /* Remove shared memory */
+    /* Remove shared memory regions */
     shm_unlink(SHM_TREE_NODES);
+    shm_unlink(SHM_STRING_TABLE);
 
-    /* Clean up string table */
+    /* Clean up string table structure */
     string_table_destroy(&tree->strings);
 
     printf("🗑️  Persistent filesystem destroyed\n");

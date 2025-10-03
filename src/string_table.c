@@ -18,11 +18,11 @@
 #define MAX_FILENAME_LENGTH 255                     /* POSIX limit */
 
 /* Static assertions */
-_Static_assert(sizeof(struct string_table) == 16,
-               "string_table must be exactly 16 bytes");
+_Static_assert(sizeof(struct string_table) == 24,
+               "string_table must be exactly 24 bytes (with is_shm field and padding)");
 
 /**
- * Initialize string table
+ * Initialize string table (heap mode)
  * Returns 0 on success, -1 on failure
  */
 int string_table_init(struct string_table *st) {
@@ -35,6 +35,33 @@ int string_table_init(struct string_table *st) {
 
     st->capacity = STRING_TABLE_INITIAL_SIZE;
     st->used = 0;
+    st->is_shm = 0;  /* Heap mode */
+
+    return 0;
+}
+
+/**
+ * Initialize string table with shared memory buffer
+ * buf: pre-allocated shared memory buffer
+ * size: buffer size
+ * existing: 1 if attaching to existing data, 0 if initializing new
+ * Returns 0 on success, -1 on failure
+ */
+int string_table_init_shm(struct string_table *st, void *buf, size_t size, int existing) {
+    if (!st || !buf || size == 0) return -1;
+
+    st->data = (char *)buf;
+    st->capacity = size;
+    st->is_shm = 1;  /* Shared memory mode */
+
+    if (existing) {
+        /* Attaching to existing - read used bytes from first uint32_t */
+        memcpy(&st->used, buf, sizeof(uint32_t));
+    } else {
+        /* New buffer - initialize with used = sizeof(uint32_t) */
+        st->used = sizeof(uint32_t);
+        memcpy(buf, &st->used, sizeof(uint32_t));
+    }
 
     return 0;
 }
@@ -66,8 +93,14 @@ uint32_t string_table_intern(struct string_table *st, const char *str) {
     /* String not found - add it */
     size_t needed = len + 1;  /* Include null terminator */
 
-    /* Grow buffer if needed */
+    /* Grow buffer if needed (heap mode only) */
     if (st->used + needed > st->capacity) {
+        if (st->is_shm) {
+            /* Shared memory mode - cannot grow, table full */
+            return UINT32_MAX;
+        }
+
+        /* Heap mode - can realloc */
         uint32_t new_capacity = st->capacity * 2;
         if (new_capacity > STRING_TABLE_MAX_SIZE) {
             return UINT32_MAX;  /* Table full */
@@ -87,6 +120,11 @@ uint32_t string_table_intern(struct string_table *st, const char *str) {
     memcpy(st->data + new_offset, str, needed);
     st->used += needed;
 
+    /* Update shared memory header if in shm mode */
+    if (st->is_shm) {
+        memcpy(st->data, &st->used, sizeof(uint32_t));
+    }
+
     return new_offset;
 }
 
@@ -103,17 +141,20 @@ const char *string_table_get(const struct string_table *st, uint32_t offset) {
 
 /**
  * Free string table resources
+ * Note: In shared memory mode, does NOT free the buffer
  */
 void string_table_destroy(struct string_table *st) {
     if (!st) return;
 
-    if (st->data) {
+    if (st->data && !st->is_shm) {
+        /* Only free if heap mode */
         free(st->data);
-        st->data = NULL;
     }
 
+    st->data = NULL;
     st->capacity = 0;
     st->used = 0;
+    st->is_shm = 0;
 }
 
 /**
