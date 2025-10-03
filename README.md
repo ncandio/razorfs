@@ -337,6 +337,19 @@ razorfs/
 - ❌ **NOT for production data storage**
 - ❌ **NOT for critical data** (no crash recovery)
 
+### Persistence Model Notes
+**Current Implementation:**
+- Tree nodes are stored in shared memory (`/dev/shm/razorfs_nodes`)
+- String table (filenames) uses heap memory and is **not persisted**
+- On remount, filenames are lost and replaced with placeholder names ("file")
+
+**Limitation:** This is a known simplification for the prototype. True persistence requires:
+1. String table in dedicated shared memory segment (`/razorfs_strings`)
+2. Fixed-size string buffer (no `realloc()`)
+3. String table metadata in shared memory header
+
+**Impact:** Filenames are not preserved across unmount/remount cycles. The filesystem structure (tree) persists, but names are lost.
+
 ---
 
 ## 🗺️ Roadmap
