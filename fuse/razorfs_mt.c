@@ -20,6 +20,8 @@
 #include <linux/limits.h>
 
 #include "../src/nary_tree_mt.h"
+#include "../src/shm_persist.h"
+#include "../src/compression.h"
 
 /* RENAME flags if not defined */
 #ifndef RENAME_NOREPLACE
@@ -362,10 +364,29 @@ static int razorfs_mt_read(const char *path, char *buf, size_t size, off_t offse
         return 0;  /* Read past end */
     }
 
-    size_t available = fd->size - offset;
+    /* Check if data is compressed */
+    char *source_data = fd->data;
+    size_t source_size = fd->size;
+    void *decompressed = NULL;
+
+    if (is_compressed(fd->data, fd->capacity)) {
+        size_t decompressed_size;
+        decompressed = decompress_data(fd->data, fd->capacity, &decompressed_size);
+
+        if (decompressed) {
+            source_data = decompressed;
+            source_size = decompressed_size;
+        }
+    }
+
+    size_t available = source_size - offset;
     size_t to_read = size < available ? size : available;
 
-    memcpy(buf, fd->data + offset, to_read);
+    memcpy(buf, source_data + offset, to_read);
+
+    if (decompressed) {
+        free(decompressed);
+    }
 
     pthread_rwlock_unlock(&fd->data_lock);
 
@@ -384,6 +405,19 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
     }
 
     pthread_rwlock_wrlock(&fd->data_lock);
+
+    /* Decompress if currently compressed */
+    if (is_compressed(fd->data, fd->capacity)) {
+        size_t decompressed_size;
+        void *decompressed = decompress_data(fd->data, fd->capacity, &decompressed_size);
+
+        if (decompressed) {
+            free(fd->data);
+            fd->data = decompressed;
+            fd->capacity = decompressed_size;
+            fd->size = decompressed_size;
+        }
+    }
 
     /* Calculate required capacity */
     size_t required = offset + size;
@@ -406,6 +440,20 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
     /* Update size if we extended the file */
     if (required > fd->size) {
         fd->size = required;
+    }
+
+    /* Try compression if file is large enough */
+    if (fd->size >= COMPRESSION_MIN_SIZE) {
+        size_t compressed_size;
+        void *compressed = compress_data(fd->data, fd->size, &compressed_size);
+
+        if (compressed) {
+            /* Compression beneficial - replace data */
+            free(fd->data);
+            fd->data = compressed;
+            fd->capacity = compressed_size;
+            /* Keep fd->size as original (uncompressed) size */
+        }
     }
 
     pthread_rwlock_unlock(&fd->data_lock);
@@ -632,16 +680,17 @@ static void razorfs_mt_destroy(void *private_data) {
     }
     pthread_rwlock_destroy(&g_mt_fs.files_lock);
 
-    /* Free tree */
-    nary_tree_mt_destroy(&g_mt_fs.tree);
+    /* Detach from shared memory (data persists) */
+    shm_tree_detach(&g_mt_fs.tree);
 }
 
 int main(int argc, char *argv[]) {
     /* Initialize multithreaded filesystem */
     memset(&g_mt_fs, 0, sizeof(g_mt_fs));
 
-    if (nary_tree_mt_init(&g_mt_fs.tree) != 0) {
-        fprintf(stderr, "Failed to initialize multithreaded n-ary tree\n");
+    /* Use shared memory for persistence */
+    if (shm_tree_init(&g_mt_fs.tree) != 0) {
+        fprintf(stderr, "Failed to initialize persistent tree\n");
         return 1;
     }
 
@@ -651,10 +700,10 @@ int main(int argc, char *argv[]) {
     g_mt_fs.file_capacity = 0;
     pthread_rwlock_init(&g_mt_fs.files_lock, NULL);
 
-    printf("✅ RAZORFS Phase 3 - Multithreaded N-ary Tree Filesystem\n");
-    printf("   Node size: %zu bytes (MT version with locks)\n", sizeof(struct nary_node_mt));
+    printf("✅ RAZORFS Phase 6 - Persistent Multithreaded Filesystem\n");
+    printf("   Node size: %zu bytes (MT + shared memory)\n", sizeof(struct nary_node_mt));
     printf("   Ext4-style per-inode locking enabled\n");
-    printf("   Ready for concurrent operations\n");
+    printf("   Persistence: Shared memory (survives unmount)\n");
 
     /* Set up FUSE operations */
     razorfs_mt_ops.init = razorfs_mt_init;

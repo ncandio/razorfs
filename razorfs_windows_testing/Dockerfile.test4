@@ -1,7 +1,0 @@
-# Test Dockerfile
-FROM ubuntu:22.04
-
-# Test the problematic section
-RUN echo "Test" && \
-    echo "Building with optimized flags for Docker..." && \
-    timeout 1 CFLAGS_SAFE="-Wall -Wextra -g -O2 -fPIC -pthread" LDFLAGS="" echo "Test command"

@@ -1,6 +1,0 @@
-# Feature_Type Performance_Score Memory_Efficiency Scalability
-N-ary_Tree 95 88 92
-String_Interning 87 95 85
-Cache_Alignment 92 82 89
-Block_Compression 89 91 94
-NUMA_Awareness 84 87 96

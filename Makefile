@@ -1,100 +1,45 @@
-# RAZORFS - Unified Makefile for Phase 5 Simplification
-# Single Makefile to build entire project with FUSE3 and C
+# RAZORFS - Simple Multithreaded Filesystem
+# Unified Makefile - No optimizations, maximum simplicity
 
 CC = gcc
-CFLAGS = -std=c11 -O2 -g -Wall -Wextra -pthread
+CFLAGS = -Wall -Wextra -g -pthread
 CFLAGS += $(shell pkg-config fuse3 --cflags)
-LIBS = $(shell pkg-config fuse3 --libs) -lpthread -lz
+LDFLAGS = -pthread $(shell pkg-config fuse3 --libs) -lrt -lz
 
-# Check if libnuma is available
-HAS_NUMA := $(shell pkg-config libnuma --exists 2>/dev/null && echo YES || echo NO)
-ifeq ($(HAS_NUMA),YES)
-    CFLAGS += $(shell pkg-config libnuma --cflags)
-    LIBS += $(shell pkg-config libnuma --libs)
-endif
+# Source files
+SRC_DIR = src
+FUSE_DIR = fuse
+SOURCES = $(SRC_DIR)/nary_tree_mt.c $(SRC_DIR)/string_table.c $(SRC_DIR)/shm_persist.c $(SRC_DIR)/numa_support.c $(SRC_DIR)/compression.c $(FUSE_DIR)/razorfs_mt.c
+OBJECTS = $(SRC_DIR)/nary_tree_mt.o $(SRC_DIR)/string_table.o $(SRC_DIR)/shm_persist.o $(SRC_DIR)/numa_support.o $(SRC_DIR)/compression.o
 
-# Source files to keep (as per Phase 5 requirements)
-SOURCES = src/nary_tree.c \
-          src/string_table.c \
-          src/numa_alloc.c \
-          src/nary_tree_mt.c \
-          fuse/razorfs_posix.c
+# Target
+TARGET = razorfs
 
-OBJECTS = $(SOURCES:.c=.o)
+.PHONY: all clean help
 
-# Test files to keep
-TEST_SOURCES = tests/test_nary_tree.c \
-               tests/test_mt.c \
-               tests/test_posix.c
+all: $(TARGET)
 
-TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
+$(TARGET): $(OBJECTS) $(FUSE_DIR)/razorfs_mt.c
+	@echo "Building RAZORFS..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	@echo "✅ Build complete: $(TARGET)"
 
-# Main build target
-all: razorfs
-
-# Build the main filesystem
-razorfs: $(OBJECTS)
-	@echo "🔨 Building RAZORFS (FUSE3/C11)"
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
-	@echo "✅ Built: $@"
-	if [ "$(HAS_NUMA)" = "YES" ]; then \
-		echo "   NUMA support: ENABLED"; \
-	else \
-		echo "   NUMA support: DISABLED (libnuma not found)"; \
-	fi
-
-# Build test executables
-tests: test_nary_tree test_mt test_posix
-
-test_nary_tree: src/nary_tree.o src/string_table.o tests/test_nary_tree.o
-	@echo "🧪 Building n-ary tree test"
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
-
-test_mt: src/nary_tree.o src/string_table.o src/nary_tree_mt.o tests/test_mt.o
-	@echo "🧪 Building multithreading test"
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
-
-test_posix: src/nary_tree.o src/string_table.o src/nary_tree_mt.o fuse/razorfs_posix.o tests/test_posix.o
-	@echo "🧪 Building POSIX compliance test"
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
-
-# Compile individual source files
 %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c -o $@ $<
 
-# Run all tests
-test: all tests
-	@echo "🚀 Running all RAZORFS tests..."
-	./test_nary_tree
-	./test_mt
-	./test_posix
-	@echo "✅ All tests completed"
-
-# Run specific tests
-test-nary: test_nary_tree
-	./test_nary_tree
-
-test-mt: test_mt
-	./test_mt
-
-test-posix: test_posix
-	./test_posix
-
-# Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(TEST_OBJECTS) razorfs test_nary_tree test_mt test_posix
-	@echo "🧹 Cleaned build artifacts"
+	@echo "Cleaning..."
+	rm -f $(OBJECTS) $(TARGET) $(FUSE_DIR)/razorfs_mt
+	@echo "✅ Clean complete"
 
-# Install target
-install: razorfs
-	install -m 755 razorfs /usr/local/bin/
-
-# Memory leak detection
-valgrind: all
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./razorfs --help 2>&1 | head -20
-
-# Code coverage (requires gcov/lcov)
-coverage:
-	@echo "Coverage analysis requires gcov/lcov - not implemented yet"
-
-.PHONY: all clean test install valgrind coverage tests test-nary test-mt test-posix
+help:
+	@echo "RAZORFS Makefile"
+	@echo ""
+	@echo "Targets:"
+	@echo "  make       - Build razorfs"
+	@echo "  make clean - Remove build artifacts"
+	@echo "  make help  - Show this help"
+	@echo ""
+	@echo "Usage:"
+	@echo "  mkdir -p /tmp/razorfs_mount"
+	@echo "  ./razorfs /tmp/razorfs_mount"

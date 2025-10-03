@@ -1,5 +1,0 @@
-# Filesystem Compression_Ratio Memory_Usage Metadata_Overhead
-ext4 1.0 100 15
-btrfs 1.8 140 25
-reiserfs 1.1 90 12
-RAZORFS 2.4 85 8
