@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pthread.h>
+#include <linux/limits.h>
 
 #include "../src/nary_tree_mt.h"
 
@@ -107,6 +108,34 @@ static void remove_file_data(uint32_t inode) {
     pthread_rwlock_unlock(&g_mt_fs.files_lock);
 }
 
+/* === Helper Functions === */
+
+/* Simple path splitting: extract parent and filename */
+static int split_path(const char *path, char *parent_out, char *name_out) {
+    if (!path || !parent_out || !name_out) return -1;
+
+    /* Find last slash */
+    const char *last_slash = strrchr(path, '/');
+    if (!last_slash) return -1;
+
+    /* If root */
+    if (last_slash == path) {
+        strcpy(parent_out, "/");
+    } else {
+        size_t parent_len = last_slash - path;
+        if (parent_len >= PATH_MAX) return -1;
+        memcpy(parent_out, path, parent_len);
+        parent_out[parent_len] = '\0';
+    }
+
+    /* Copy filename */
+    const char *filename = last_slash + 1;
+    if (strlen(filename) >= MAX_FILENAME_LENGTH) return -1;
+    strcpy(name_out, filename);
+
+    return 0;
+}
+
 /* === FUSE Operations - Thread-Safe === */
 
 static int razorfs_mt_getattr(const char *path, struct stat *stbuf,
@@ -188,7 +217,7 @@ static int razorfs_mt_mkdir(const char *path, mode_t mode) {
     char parent_path[PATH_MAX];
     char name[MAX_FILENAME_LENGTH];
 
-    if (nary_split_path((char*)path, parent_path, name) != 0) {
+    if (split_path(path, parent_path, name) != 0) {
         return -EINVAL;
     }
 
@@ -229,12 +258,10 @@ static int razorfs_mt_rmdir(const char *path) {
 }
 
 static int razorfs_mt_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-    (void) fi;
-
     char parent_path[PATH_MAX];
     char name[MAX_FILENAME_LENGTH];
 
-    if (nary_split_path((char*)path, parent_path, name) != 0) {
+    if (split_path(path, parent_path, name) != 0) {
         return -EINVAL;
     }
 
@@ -259,6 +286,9 @@ static int razorfs_mt_create(const char *path, mode_t mode, struct fuse_file_inf
         nary_delete_mt(&g_mt_fs.tree, new_idx);
         return -ENOMEM;
     }
+
+    /* Set file handle to inode for subsequent operations */
+    fi->fh = node.inode;
 
     return 0;
 }
