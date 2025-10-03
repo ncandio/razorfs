@@ -312,18 +312,30 @@ razorfs/
 ## ⚠️ Limitations & Known Issues
 
 ### Production Readiness: **NOT READY**
-- ❌ Journaling is stub implementation
-- ❌ Crash recovery incomplete
-- ❌ Limited POSIX compliance
-- ❌ No xattr, hardlink, or mmap support
-- ❌ Performance not optimized for large files
+- ❌ No journaling/WAL (Write-Ahead Logging)
+- ❌ No crash recovery (no journal replay)
+- ❌ No xattr (extended attributes) support
+- ❌ No hardlink support
+- ❌ No mmap support
+- ❌ Not optimized for large files (>10MB)
+- ⚠️  Shared memory persistence (not crash-safe without journaling)
+
+### What IS Implemented
+- ✅ Basic POSIX: chmod, chown, truncate, rename
+- ✅ Standard operations: create, read, write, mkdir, rmdir, unlink
+- ✅ Multithreading with per-inode locks
+- ✅ Transparent compression (zlib)
+- ✅ Shared memory persistence (/dev/shm)
+- ✅ O(log n) operations
 
 ### Recommended Use
 - ✅ Research and education
 - ✅ AI-assisted development experimentation
 - ✅ Filesystem algorithm prototyping
 - ✅ Performance benchmarking studies
+- ✅ Small file workloads (<10MB per file)
 - ❌ **NOT for production data storage**
+- ❌ **NOT for critical data** (no crash recovery)
 
 ---
 
