@@ -1,0 +1,1 @@
+/usr/bin/c++  -Wall -Wextra -g CMakeFiles/string_table_test.dir/unit/string_table_test.cpp.o -o string_table_test  librazorfs_lib.a lib/libgtest_main.a lib/libgmock.a -lfuse3 -lpthread /usr/lib/x86_64-linux-gnu/libz.so -lnuma -lrt lib/libgtest.a 

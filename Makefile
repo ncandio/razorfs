@@ -23,7 +23,7 @@ FUSE_SRC = $(FUSE_DIR)/razorfs_mt.c
 # Target
 TARGET = razorfs
 
-.PHONY: all debug release clean help
+.PHONY: all debug release clean help test test-unit test-integration test-static test-valgrind
 
 all: debug
 
@@ -48,15 +48,50 @@ clean:
 	rm -f $(OBJECTS) $(TARGET) $(FUSE_DIR)/razorfs_mt
 	@echo "✅ Clean complete"
 
+# Test targets
+test: test-unit test-integration
+
+test-unit:
+	@echo "Running unit tests..."
+	@./run_tests.sh --unit-only
+
+test-integration:
+	@echo "Running integration tests..."
+	@./run_tests.sh --no-static --no-dynamic
+
+test-static:
+	@echo "Running static analysis..."
+	@./run_tests.sh --unit-only --no-dynamic
+
+test-valgrind:
+	@echo "Running valgrind memory checks..."
+	@./run_tests.sh --unit-only --no-static
+
+test-all:
+	@echo "Running complete test suite..."
+	@./run_tests.sh
+
+test-coverage:
+	@echo "Running tests with coverage..."
+	@./run_tests.sh --coverage
+
 help:
 	@echo "RAZORFS Makefile"
 	@echo ""
-	@echo "Targets:"
+	@echo "Build Targets:"
 	@echo "  make         - Build razorfs (debug mode, default)"
 	@echo "  make debug   - Build with debug symbols (-g -O0)"
 	@echo "  make release - Build optimized version (-O3)"
 	@echo "  make clean   - Remove build artifacts"
-	@echo "  make help    - Show this help"
+	@echo ""
+	@echo "Test Targets:"
+	@echo "  make test              - Run unit and integration tests"
+	@echo "  make test-unit         - Run unit tests only"
+	@echo "  make test-integration  - Run integration tests only"
+	@echo "  make test-static       - Run static analysis (cppcheck, clang)"
+	@echo "  make test-valgrind     - Run valgrind memory checks"
+	@echo "  make test-all          - Run complete test suite"
+	@echo "  make test-coverage     - Run tests with code coverage"
 	@echo ""
 	@echo "Usage:"
 	@echo "  mkdir -p /tmp/razorfs_mount"

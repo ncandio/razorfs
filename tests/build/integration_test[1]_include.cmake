@@ -1,0 +1,5 @@
+if(EXISTS "/home/nico/WORK_ROOT/RAZOR_repo/tests/build/integration_test[1]_tests.cmake")
+  include("/home/nico/WORK_ROOT/RAZOR_repo/tests/build/integration_test[1]_tests.cmake")
+else()
+  add_test(integration_test_NOT_BUILT integration_test_NOT_BUILT)
+endif()

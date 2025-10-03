@@ -1,0 +1,377 @@
+name: RAZORFS CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  ###############################################################################
+  # Build and Unit Tests
+  ###############################################################################
+  build-and-test:
+    name: Build and Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev \
+          cppcheck \
+          clang \
+          clang-tools \
+          valgrind \
+          lcov
+
+    - name: Build RAZORFS (Release)
+      run: |
+        make release
+
+    - name: Build Tests
+      run: |
+        cd tests
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug
+        make -j$(nproc)
+
+    - name: Run Unit Tests
+      run: |
+        cd tests/build
+        ./string_table_test
+        ./nary_tree_test
+        ./shm_persist_test
+        ./compression_test
+
+    - name: Run Integration Tests
+      run: |
+        cd tests/build
+        sudo rm -f /dev/shm/razorfs_* || true
+        ./integration_test
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: tests/results/
+
+  ###############################################################################
+  # Static Analysis
+  ###############################################################################
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cppcheck \
+          clang \
+          clang-tools \
+          pkg-config \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev
+
+    - name: Run cppcheck
+      run: |
+        mkdir -p tests/results
+        cppcheck --enable=all --inconclusive --std=c11 \
+          --suppress=missingIncludeSystem \
+          --suppress=unusedFunction \
+          --xml --xml-version=2 \
+          -I src/ \
+          src/*.c src/*.h \
+          2> tests/results/cppcheck_report.xml
+
+    - name: Display cppcheck results
+      if: always()
+      run: |
+        if [ -f tests/results/cppcheck_report.xml ]; then
+          echo "=== cppcheck Report ==="
+          cat tests/results/cppcheck_report.xml
+        fi
+
+    - name: Check cppcheck errors
+      run: |
+        ERRORS=$(grep -c 'severity="error"' tests/results/cppcheck_report.xml || echo "0")
+        echo "Found $ERRORS error(s)"
+        if [ "$ERRORS" -gt 0 ]; then
+          echo "⚠️ cppcheck found $ERRORS error(s)"
+          exit 1
+        fi
+
+    - name: Run clang-tidy
+      run: |
+        # Create compile_commands.json
+        mkdir build_analyze
+        cd build_analyze
+        cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        cd ..
+
+        # Run clang-tidy on source files
+        find src -name "*.c" -exec \
+          clang-tidy {} -p build_analyze --checks='-*,clang-analyzer-*,bugprone-*,performance-*' \
+          \; 2>&1 | tee tests/results/clang_tidy_report.txt || true
+
+    - name: Upload static analysis results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: static-analysis-results
+        path: |
+          tests/results/cppcheck_report.xml
+          tests/results/clang_tidy_report.txt
+
+  ###############################################################################
+  # Dynamic Analysis (Valgrind)
+  ###############################################################################
+  valgrind-analysis:
+    name: Memory Leak Detection (Valgrind)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev \
+          valgrind
+
+    - name: Build Tests (Debug)
+      run: |
+        cd tests
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug
+        make -j$(nproc)
+
+    - name: Run Valgrind on Unit Tests
+      run: |
+        mkdir -p tests/results
+        cd tests/build
+
+        # Clean shared memory
+        sudo rm -f /dev/shm/razorfs_* || true
+
+        # Run tests under valgrind
+        valgrind --leak-check=full \
+          --show-leak-kinds=all \
+          --track-origins=yes \
+          --error-exitcode=1 \
+          --log-file=../results/valgrind_string_table.txt \
+          ./string_table_test
+
+        valgrind --leak-check=full \
+          --show-leak-kinds=all \
+          --track-origins=yes \
+          --error-exitcode=1 \
+          --log-file=../results/valgrind_nary_tree.txt \
+          ./nary_tree_test
+
+    - name: Check Valgrind results
+      if: always()
+      run: |
+        echo "=== Valgrind Summary ==="
+        for report in tests/results/valgrind_*.txt; do
+          if [ -f "$report" ]; then
+            echo "--- $(basename $report) ---"
+            grep -A 5 "LEAK SUMMARY" "$report" || echo "No leak summary found"
+          fi
+        done
+
+    - name: Upload Valgrind results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-results
+        path: tests/results/valgrind_*.txt
+
+  ###############################################################################
+  # Code Coverage
+  ###############################################################################
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev \
+          lcov
+
+    - name: Build Tests with Coverage
+      run: |
+        cd tests
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_FLAGS="--coverage" \
+          -DCMAKE_C_FLAGS="--coverage"
+        make -j$(nproc)
+
+    - name: Run Tests
+      run: |
+        cd tests/build
+        sudo rm -f /dev/shm/razorfs_* || true
+        ./string_table_test
+        ./nary_tree_test
+        ./shm_persist_test
+        ./compression_test
+        ./integration_test
+
+    - name: Generate Coverage Report
+      run: |
+        mkdir -p tests/results/coverage
+        lcov --capture --directory tests/build --output-file tests/results/coverage.info
+        lcov --remove tests/results/coverage.info \
+          '/usr/*' \
+          '*/tests/*' \
+          '*/googletest/*' \
+          --output-file tests/results/coverage_filtered.info
+        genhtml tests/results/coverage_filtered.info \
+          --output-directory tests/results/coverage_html
+
+    - name: Display Coverage Summary
+      run: |
+        lcov --summary tests/results/coverage_filtered.info
+
+    - name: Upload Coverage Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: tests/results/coverage_html/
+
+  ###############################################################################
+  # Sanitizer Builds
+  ###############################################################################
+  sanitizers:
+    name: Address & UB Sanitizers
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        sanitizer: [address, undefined, thread]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev
+
+    - name: Build with ${{ matrix.sanitizer }} sanitizer
+      run: |
+        cd tests
+        mkdir build_${{ matrix.sanitizer }}
+        cd build_${{ matrix.sanitizer }}
+
+        SANITIZER_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer -g"
+
+        cmake .. -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_FLAGS="$SANITIZER_FLAGS" \
+          -DCMAKE_C_FLAGS="$SANITIZER_FLAGS"
+
+        make -j$(nproc)
+
+    - name: Run tests with ${{ matrix.sanitizer }} sanitizer
+      run: |
+        cd tests/build_${{ matrix.sanitizer }}
+        sudo rm -f /dev/shm/razorfs_* || true
+
+        export ASAN_OPTIONS=detect_leaks=1:check_initialization_order=1
+        export UBSAN_OPTIONS=print_stacktrace=1
+
+        ./string_table_test
+        ./nary_tree_test
+        ./compression_test
+
+  ###############################################################################
+  # Build Verification
+  ###############################################################################
+  build-variants:
+    name: Build Variants
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        build_type: [Debug, Release]
+        compiler: [gcc, clang]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev \
+          clang
+
+    - name: Build with ${{ matrix.compiler }} (${{ matrix.build_type }})
+      env:
+        CC: ${{ matrix.compiler == 'clang' && 'clang' || 'gcc' }}
+        CXX: ${{ matrix.compiler == 'clang' && 'clang++' || 'g++' }}
+      run: |
+        if [ "${{ matrix.build_type }}" = "Debug" ]; then
+          make debug
+        else
+          make release
+        fi
+
+    - name: Verify binary
+      run: |
+        file ./razorfs
+        ./razorfs --version || echo "Binary built successfully"
