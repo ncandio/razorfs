@@ -180,27 +180,19 @@ uint16_t nary_find_child_mt(struct nary_tree_mt *tree,
         return NARY_INVALID_IDX;
     }
 
-    /* Linear search through children (small N, cache-friendly) */
+    /* Linear search through children (small N, cache-friendly)
+     * Note: No need to lock children - parent lock prevents modification
+     * of children array, and name_offset is immutable once set */
     for (uint16_t i = 0; i < parent->node.num_children; i++) {
         uint16_t child_idx = parent->node.children[i];
         if (child_idx == NARY_INVALID_IDX) break;
 
         struct nary_node_mt *child = &tree->nodes[child_idx];
-        
-        /* Lock child for reading */
-        if (pthread_rwlock_rdlock(&child->lock) != 0) {
-            pthread_rwlock_unlock(&parent->lock);
-            return NARY_INVALID_IDX;
-        }
 
         const char *child_name = string_table_get(&tree->strings,
                                                   child->node.name_offset);
 
-        int match = child_name && strcmp(child_name, name) == 0;
-        
-        pthread_rwlock_unlock(&child->lock);
-
-        if (match) {
+        if (child_name && strcmp(child_name, name) == 0) {
             pthread_rwlock_unlock(&parent->lock);
             return child_idx;
         }
@@ -237,26 +229,19 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
         return NARY_INVALID_IDX;
     }
 
-    /* Check for duplicate name */
+    /* Check for duplicate name
+     * Note: No need to lock children - parent write lock prevents modification
+     * of children array, and name_offset is immutable once set */
     for (uint16_t i = 0; i < parent->node.num_children; i++) {
         uint16_t child_idx = parent->node.children[i];
         if (child_idx == NARY_INVALID_IDX) break;
 
         struct nary_node_mt *child = &tree->nodes[child_idx];
-        
-        /* Lock child for reading */
-        if (pthread_rwlock_rdlock(&child->lock) != 0) {
-            continue;
-        }
 
         const char *child_name = string_table_get(&tree->strings,
                                                   child->node.name_offset);
-        
-        int match = child_name && strcmp(child_name, name) == 0;
-        
-        pthread_rwlock_unlock(&child->lock);
 
-        if (match) {
+        if (child_name && strcmp(child_name, name) == 0) {
             pthread_rwlock_unlock(&parent->lock);
             return NARY_INVALID_IDX;  /* Duplicate name */
         }
@@ -295,30 +280,30 @@ int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx) {
     }
 
     struct nary_node_mt *node = &tree->nodes[idx];
-
-    /* Lock node for writing */
-    if (pthread_rwlock_wrlock(&node->lock) != 0) {
-        return -1;
-    }
-
-    /* Check if directory is empty */
-    if (NARY_IS_DIR(&node->node) && node->node.num_children > 0) {
-        pthread_rwlock_unlock(&node->lock);
-        return -ENOTEMPTY;
-    }
-
     uint32_t parent_idx = node->node.parent_idx;
+
     if (parent_idx >= tree->used) {
-        pthread_rwlock_unlock(&node->lock);
         return -1;
     }
 
-    pthread_rwlock_unlock(&node->lock);
-
-    /* Lock parent for writing */
     struct nary_node_mt *parent = &tree->nodes[parent_idx];
+
+    /* Lock parent FIRST, then child - prevents race conditions */
     if (pthread_rwlock_wrlock(&parent->lock) != 0) {
         return -1;
+    }
+
+    /* Now lock child for writing */
+    if (pthread_rwlock_wrlock(&node->lock) != 0) {
+        pthread_rwlock_unlock(&parent->lock);
+        return -1;
+    }
+
+    /* Check if directory is empty (now safe with both locks held) */
+    if (NARY_IS_DIR(&node->node) && node->node.num_children > 0) {
+        pthread_rwlock_unlock(&node->lock);
+        pthread_rwlock_unlock(&parent->lock);
+        return -ENOTEMPTY;
     }
 
     /* Remove from parent's children array */
@@ -337,20 +322,17 @@ int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx) {
         }
     }
 
+    /* Mark node as free */
+    node->node.inode = 0;
+    node->node.num_children = 0;
+
+    /* Unlock in reverse order: child, then parent */
+    pthread_rwlock_unlock(&node->lock);
     pthread_rwlock_unlock(&parent->lock);
 
     if (!found) {
         return -1;
     }
-
-    /* Mark node as free */
-    if (pthread_rwlock_wrlock(&node->lock) != 0) {
-        return -1;
-    }
-    
-    node->node.inode = 0;
-    node->node.num_children = 0;
-    pthread_rwlock_unlock(&node->lock);
 
     /* Add to free list */
     if (tree->free_count < tree->capacity) {
