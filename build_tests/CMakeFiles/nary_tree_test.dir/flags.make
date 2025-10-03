@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/nico/WORK_ROOT/RAZOR_repo/tests/../src -I/home/nico/WORK_ROOT/RAZOR_repo/tests -I/usr/include/fuse3 -isystem /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googletest/include -isystem /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googletest -isystem /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googlemock/include -isystem /home/nico/WORK_ROOT/RAZOR_repo/build_tests/_deps/googletest-src/googlemock
 
-CXX_FLAGS =  -Wall -Wextra -std=gnu++17
+CXX_FLAGS =  -Wall -Wextra -g -std=gnu++17
 

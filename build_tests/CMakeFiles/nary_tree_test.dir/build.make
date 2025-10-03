@@ -96,6 +96,7 @@ nary_tree_test: librazorfs_lib.a
 nary_tree_test: lib/libgtest_main.a
 nary_tree_test: lib/libgmock.a
 nary_tree_test: /usr/lib/x86_64-linux-gnu/libz.so
+nary_tree_test: /usr/lib/x86_64-linux-gnu/libnuma.so
 nary_tree_test: lib/libgtest.a
 nary_tree_test: CMakeFiles/nary_tree_test.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/nico/WORK_ROOT/RAZOR_repo/build_tests/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable nary_tree_test"

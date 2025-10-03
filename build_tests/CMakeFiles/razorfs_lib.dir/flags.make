@@ -6,5 +6,5 @@ C_DEFINES =
 
 C_INCLUDES = -I/home/nico/WORK_ROOT/RAZOR_repo/tests/../src -I/home/nico/WORK_ROOT/RAZOR_repo/tests -I/usr/include/fuse3
 
-C_FLAGS =  -Wall -Wextra -D_FILE_OFFSET_BITS=64 -std=gnu11
+C_FLAGS =  -Wall -Wextra -D_FILE_OFFSET_BITS=64 -g -std=gnu11
 

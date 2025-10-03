@@ -96,6 +96,7 @@ shm_persist_test: librazorfs_lib.a
 shm_persist_test: lib/libgtest_main.a
 shm_persist_test: lib/libgmock.a
 shm_persist_test: /usr/lib/x86_64-linux-gnu/libz.so
+shm_persist_test: /usr/lib/x86_64-linux-gnu/libnuma.so
 shm_persist_test: lib/libgtest.a
 shm_persist_test: CMakeFiles/shm_persist_test.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/nico/WORK_ROOT/RAZOR_repo/build_tests/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable shm_persist_test"

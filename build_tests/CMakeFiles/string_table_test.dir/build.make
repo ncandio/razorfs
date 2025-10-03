@@ -96,6 +96,7 @@ string_table_test: librazorfs_lib.a
 string_table_test: lib/libgtest_main.a
 string_table_test: lib/libgmock.a
 string_table_test: /usr/lib/x86_64-linux-gnu/libz.so
+string_table_test: /usr/lib/x86_64-linux-gnu/libnuma.so
 string_table_test: lib/libgtest.a
 string_table_test: CMakeFiles/string_table_test.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/nico/WORK_ROOT/RAZOR_repo/build_tests/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable string_table_test"

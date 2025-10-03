@@ -96,6 +96,7 @@ compression_test: librazorfs_lib.a
 compression_test: lib/libgtest_main.a
 compression_test: lib/libgmock.a
 compression_test: /usr/lib/x86_64-linux-gnu/libz.so
+compression_test: /usr/lib/x86_64-linux-gnu/libnuma.so
 compression_test: lib/libgtest.a
 compression_test: CMakeFiles/compression_test.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/nico/WORK_ROOT/RAZOR_repo/build_tests/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable compression_test"
