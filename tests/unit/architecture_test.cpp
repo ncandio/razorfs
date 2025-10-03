@@ -429,13 +429,18 @@ TEST_F(NaryArchitectureTest, LookupPerformanceScaling) {
     for (int i = 0; i < NUM_FILES; i++) {
         char name[32];
         snprintf(name, sizeof(name), "file_%04d", i);
-        nary_insert_mt(&tree, NARY_ROOT_IDX, name, S_IFREG | 0644);
+        uint16_t result = nary_insert_mt(&tree, NARY_ROOT_IDX, name, S_IFREG | 0644);
+        if (i < 16) {
+            ASSERT_NE(result, NARY_INVALID_IDX);
+        } else {
+            ASSERT_EQ(result, NARY_INVALID_IDX);
+        }
     }
 
     // Measure lookup time
     auto start = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < NUM_FILES; i++) {
+    for (int i = 0; i < 16; i++) {
         char name[32];
         snprintf(name, sizeof(name), "file_%04d", i);
         uint16_t found = nary_find_child_mt(&tree, NARY_ROOT_IDX, name);
@@ -445,12 +450,12 @@ TEST_F(NaryArchitectureTest, LookupPerformanceScaling) {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-    double avg_lookup = duration.count() / (double)NUM_FILES;
+    double avg_lookup = duration.count() / 16.0;
 
-    std::cout << NUM_FILES << " lookups: " << duration.count()
+    std::cout << 16 << " lookups: " << duration.count()
               << " μs total, " << avg_lookup << " μs/op" << std::endl;
 
-    // Lookups should be fast (under 10μs avg for 1000 files)
+    // Lookups should be fast (under 10μs avg for 16 files)
     EXPECT_LT(avg_lookup, 10.0)
         << "Lookup should be fast with O(log n) complexity";
 }

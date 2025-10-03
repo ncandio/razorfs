@@ -277,6 +277,9 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
         return NARY_INVALID_IDX;
     }
 
+    /* Re-fetch parent pointer in case of realloc */
+    parent = &tree->nodes[parent_idx];
+
     /* Initialize child node */
     init_node_mt(&tree->nodes[child_idx], tree->next_inode++,
                  parent_idx, name, &tree->strings, mode);

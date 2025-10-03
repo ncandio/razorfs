@@ -19,7 +19,11 @@ extern "C" {
 #endif
 
 /* Compression threshold - don't compress smaller files */
-#define COMPRESSION_MIN_SIZE 512
+#ifdef TESTING
+#define COMPRESSION_MIN_SIZE 16  /* Lower threshold for testing */
+#else
+#define COMPRESSION_MIN_SIZE 512  /* Production threshold */
+#endif
 
 /* Compression header magic */
 #define COMPRESSION_MAGIC 0x525A4350  /* "RZCP" */
@@ -64,6 +68,11 @@ struct compression_stats {
 };
 
 void get_compression_stats(struct compression_stats *stats);
+
+/**
+ * Reset compression statistics (for testing)
+ */
+void reset_compression_stats(void);
 
 #ifdef __cplusplus
 }

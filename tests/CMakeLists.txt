@@ -67,6 +67,7 @@ if(NUMA_LIB)
     target_include_directories(razorfs_lib PRIVATE ${NUMA_INCLUDE_DIR})
 endif()
 
+target_compile_definitions(razorfs_lib PUBLIC TESTING=1)
 target_link_libraries(razorfs_lib ${RAZORFS_LIB_TARGETS})
 target_include_directories(razorfs_lib PUBLIC ${FUSE3_INCLUDE_DIRS})
 

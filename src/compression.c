@@ -113,3 +113,11 @@ void get_compression_stats(struct compression_stats *stats) {
     stats->compressed_writes = g_stats.compressed_writes;
     stats->bytes_saved = g_stats.bytes_saved;
 }
+
+void reset_compression_stats(void) {
+    g_stats.total_reads = 0;
+    g_stats.compressed_reads = 0;
+    g_stats.total_writes = 0;
+    g_stats.compressed_writes = 0;
+    g_stats.bytes_saved = 0;
+}
