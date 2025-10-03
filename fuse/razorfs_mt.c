@@ -21,6 +21,11 @@
 
 #include "../src/nary_tree_mt.h"
 
+/* RENAME flags if not defined */
+#ifndef RENAME_NOREPLACE
+#define RENAME_NOREPLACE (1 << 0)
+#endif
+
 /* Global multithreaded filesystem state */
 static struct {
     struct nary_tree_mt tree;
@@ -522,6 +527,44 @@ static int razorfs_mt_chown(const char *path, uid_t uid, gid_t gid,
     return 0;
 }
 
+static int razorfs_mt_rename(const char *from, const char *to, unsigned int flags) {
+    /* Simple rename: same-directory only for now */
+    char from_parent[PATH_MAX], from_name[MAX_FILENAME_LENGTH];
+    char to_parent[PATH_MAX], to_name[MAX_FILENAME_LENGTH];
+
+    if (split_path(from, from_parent, from_name) != 0) return -EINVAL;
+    if (split_path(to, to_parent, to_name) != 0) return -EINVAL;
+
+    /* Only support same-directory renames for simplicity */
+    if (strcmp(from_parent, to_parent) != 0) {
+        return -EXDEV;  /* Cross-directory not supported yet */
+    }
+
+    /* Lookup source */
+    uint16_t from_idx = nary_path_lookup_mt(&g_mt_fs.tree, from);
+    if (from_idx == NARY_INVALID_IDX) return -ENOENT;
+    if (from_idx == NARY_ROOT_IDX) return -EBUSY;
+
+    /* Check if destination exists */
+    uint16_t parent_idx = nary_path_lookup_mt(&g_mt_fs.tree, from_parent);
+    uint16_t to_idx = nary_find_child_mt(&g_mt_fs.tree, parent_idx, to_name);
+
+    if (to_idx != NARY_INVALID_IDX && to_idx != from_idx) {
+        if (flags & RENAME_NOREPLACE) return -EEXIST;
+        /* Would need to delete destination - skip for now */
+        return -EEXIST;
+    }
+
+    /* Update name */
+    struct nary_node node;
+    if (nary_read_node_mt(&g_mt_fs.tree, from_idx, &node) != 0) return -EIO;
+
+    node.name_offset = string_table_intern(&g_mt_fs.tree.strings, to_name);
+    node.mtime = time(NULL);
+
+    return nary_update_node_mt(&g_mt_fs.tree, from_idx, &node);
+}
+
 /* FUSE operations structure */
 static struct fuse_operations razorfs_mt_ops = {
     .getattr    = razorfs_mt_getattr,
@@ -537,6 +580,7 @@ static struct fuse_operations razorfs_mt_ops = {
     .access     = razorfs_mt_access,
     .chmod      = razorfs_mt_chmod,
     .chown      = razorfs_mt_chown,
+    .rename     = razorfs_mt_rename,
     .utimens    = NULL,  /* Not implemented yet */
 };
 
