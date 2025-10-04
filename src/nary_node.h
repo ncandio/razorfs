@@ -47,7 +47,11 @@ struct __attribute__((aligned(CACHE_LINE_SIZE))) nary_node {
 
     /* Metadata (16 bytes) */
     uint64_t size;                                  /* File size in bytes */
-    uint64_t mtime;                                 /* Modification time (unix timestamp) */
+    uint32_t mtime;                                 /* Modification time (uint32 = year 2106) */
+    uint32_t xattr_head;                            /* First xattr entry offset (0=none) */
+
+    /* Extended attributes (0 bytes - packed into metadata above) */
+    /* NOTE: xattr_count removed to fit in 64 bytes - count via linked list traversal */
 };
 
 /* Compile-time size verification */

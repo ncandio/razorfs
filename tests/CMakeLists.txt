@@ -51,6 +51,7 @@ set(RAZORFS_SOURCES
     ../src/numa_support.c
     ../src/wal.c
     ../src/recovery.c
+    ../src/xattr.c
 )
 
 # Create library from RAZORFS sources
@@ -125,6 +126,14 @@ target_link_libraries(recovery_test
     GTest::gmock
 )
 
+# Xattr Tests
+add_executable(xattr_test unit/xattr_test.cpp)
+target_link_libraries(xattr_test
+    razorfs_lib
+    GTest::gtest_main
+    GTest::gmock
+)
+
 # Integration Tests
 add_executable(integration_test integration/filesystem_test.cpp)
 target_link_libraries(integration_test
@@ -142,4 +151,5 @@ gtest_discover_tests(compression_test)
 gtest_discover_tests(architecture_test)
 gtest_discover_tests(wal_test)
 gtest_discover_tests(recovery_test)
+gtest_discover_tests(xattr_test)
 gtest_discover_tests(integration_test)
