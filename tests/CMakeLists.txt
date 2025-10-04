@@ -53,6 +53,7 @@ set(RAZORFS_SOURCES
     ../src/recovery.c
     ../src/xattr.c
     ../src/inode_table.c
+    ../src/block_alloc.c
 )
 
 # Create library from RAZORFS sources
@@ -143,6 +144,14 @@ target_link_libraries(inode_table_test
     GTest::gmock
 )
 
+# Block Allocator Tests
+add_executable(block_alloc_test unit/block_alloc_test.cpp)
+target_link_libraries(block_alloc_test
+    razorfs_lib
+    GTest::gtest_main
+    GTest::gmock
+)
+
 # Integration Tests
 add_executable(integration_test integration/filesystem_test.cpp)
 target_link_libraries(integration_test
@@ -162,4 +171,5 @@ gtest_discover_tests(wal_test)
 gtest_discover_tests(recovery_test)
 gtest_discover_tests(xattr_test)
 gtest_discover_tests(inode_table_test)
+gtest_discover_tests(block_alloc_test)
 gtest_discover_tests(integration_test)

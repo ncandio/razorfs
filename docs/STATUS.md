@@ -109,8 +109,22 @@ RAZORFS is a multithreaded FUSE filesystem with shared memory persistence, curre
 ## 🚧 In Progress
 
 ### Phase 5: Large Files + mmap
-**Status**: Not Started
+**Status**: In Progress - Block Allocator Complete
 **Dependencies**: None
+
+**Phase 5.1: Block Allocator** ✅
+- ✅ Bitmap-based block allocator
+- ✅ First-fit allocation with hint optimization
+- ✅ Thread-safe operations (pthread rwlocks)
+- ✅ Fragmentation calculation
+- ✅ 22 unit tests (all passing)
+- ✅ Write/read operations on blocks
+
+**Phase 5.2: Extent Storage** (Next)
+- [ ] Extent descriptor structures
+- [ ] Inline extent support (small/medium files)
+- [ ] Extent tree for large files
+- [ ] Extent merging and splitting
 
 ---
 
@@ -142,8 +156,8 @@ Detailed roadmap available in `docs/PRODUCTION_ROADMAP.md`
 - [ ] FUSE link/unlink operations (deferred)
 
 ### Phase 5: Large Files + mmap (3-4 days)
+- [x] Block allocator
 - [ ] Extent-based storage
-- [ ] Block allocator
 - [ ] Read-ahead/write-behind
 - [ ] mmap support
 - [ ] Sparse files
@@ -168,6 +182,7 @@ Detailed roadmap available in `docs/PRODUCTION_ROADMAP.md`
 - `recovery_test`: 13/13 ✅ (1 disabled test)
 - `xattr_test`: 22/22 ✅
 - `inode_table_test`: 21/21 ✅
+- `block_alloc_test`: 22/22 ✅
 
 ### Memory Safety: ✅ Clean
 - **Valgrind**: 0 leaks, 0 errors
@@ -193,6 +208,8 @@ RAZOR_repo/
 │   ├── xattr.h            # ✅ Xattr header
 │   ├── inode_table.c      # ✅ Inode table (hardlinks)
 │   ├── inode_table.h      # ✅ Inode table header
+│   ├── block_alloc.c      # ✅ Block allocator
+│   ├── block_alloc.h      # ✅ Block allocator header
 │   ├── nary_tree_mt.c     # ✅ Multithreaded tree
 │   ├── nary_node.h        # ✅ Node structure (with xattr)
 │   ├── string_table.c     # ✅ String interning
@@ -204,7 +221,7 @@ RAZOR_repo/
 │   └── razorfs_mt.c       # ✅ Multithreaded FUSE ops
 │
 ├── tests/                  # Test suite
-│   ├── unit/              # ✅ Unit tests (9 files)
+│   ├── unit/              # ✅ Unit tests (10 files)
 │   └── integration/       # ✅ Integration tests
 │
 ├── docs/                   # Documentation
@@ -213,6 +230,7 @@ RAZOR_repo/
 │   ├── RECOVERY_DESIGN.md     # ✅ Recovery specification
 │   ├── XATTR_DESIGN.md        # ✅ Xattr specification
 │   ├── HARDLINK_DESIGN.md     # ✅ Hardlink specification
+│   ├── LARGE_FILE_DESIGN.md   # ✅ Large file specification
 │   ├── STATUS.md              # ✅ This file
 │   └── ARCHITECTURE.md        # ✅ System design
 │
@@ -263,11 +281,12 @@ make
 ## 🎯 Next Session Tasks
 
 ### Option A: Continue with Phase 5 (Recommended)
-1. Create `docs/LARGE_FILE_DESIGN.md`
-2. Design extent-based storage
-3. Implement block allocator
-4. Add mmap support
-5. Implement sparse files
+1. ✅ Create `docs/LARGE_FILE_DESIGN.md`
+2. ✅ Implement block allocator
+3. Implement extent storage structures
+4. Implement extent operations (read/write with extents)
+5. Add sparse file support
+6. Add mmap support (optional)
 
 ### Option B: Integrate WAL & Recovery
 1. Add WAL to `razorfs_mt.c` (optional flag)
@@ -324,11 +343,13 @@ make
 - ✅ `PRODUCTION_ROADMAP.md` - Complete 6-phase plan
 - ✅ `WAL_DESIGN.md` - WAL specification
 - ✅ `RECOVERY_DESIGN.md` - ARIES-style recovery algorithm
+- ✅ `XATTR_DESIGN.md` - Extended attributes specification
+- ✅ `HARDLINK_DESIGN.md` - Hardlink/inode table specification
+- ✅ `LARGE_FILE_DESIGN.md` - Large file & extent storage specification
 - ✅ `ARCHITECTURE.md` - System design
 - ✅ `STATUS.md` - This file
 
 ### To Be Created
-- ⏳ `LARGE_FILE_DESIGN.md` - Large file optimization (Phase 5)
 - ⏳ `DEPLOYMENT_GUIDE.md` - Production deployment (Phase 6)
 
 ---
