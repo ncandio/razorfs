@@ -50,11 +50,12 @@ int nary_tree_mt_init(struct nary_tree_mt *tree) {
 
     memset(tree, 0, sizeof(*tree));
 
-    /* Allocate initial node array */
-    tree->nodes = calloc(NARY_INITIAL_CAPACITY, sizeof(struct nary_node_mt));
-    if (!tree->nodes) {
+    /* Allocate initial node array with 128-byte alignment */
+    size_t size = NARY_INITIAL_CAPACITY * sizeof(struct nary_node_mt);
+    if (posix_memalign((void **)&tree->nodes, 128, size) != 0) {
         return -1;
     }
+    memset(tree->nodes, 0, size);
 
     /* Allocate free list */
     tree->free_list = malloc(NARY_INITIAL_CAPACITY * sizeof(uint16_t));
@@ -140,12 +141,18 @@ static uint16_t allocate_node_mt(struct nary_tree_mt *tree) {
             return NARY_INVALID_IDX;
         }
 
-        struct nary_node_mt *new_nodes = realloc(tree->nodes,
-                                                 new_capacity * sizeof(struct nary_node_mt));
-        if (!new_nodes) {
+        /* Reallocate with 128-byte alignment */
+        struct nary_node_mt *new_nodes = NULL;
+        size_t new_size = new_capacity * sizeof(struct nary_node_mt);
+        if (posix_memalign((void **)&new_nodes, 128, new_size) != 0) {
             return NARY_INVALID_IDX;
         }
 
+        /* Copy existing nodes */
+        memcpy(new_nodes, tree->nodes, tree->used * sizeof(struct nary_node_mt));
+
+        /* Free old array */
+        free(tree->nodes);
         tree->nodes = new_nodes;
         tree->capacity = new_capacity;
 

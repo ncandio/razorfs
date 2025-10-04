@@ -111,12 +111,12 @@ TEST_F(NaryArchitectureTest, LogarithmicComplexity) {
 // ============================================================================
 
 TEST_F(NaryArchitectureTest, SixtyFourByteAlignment) {
-    // Verify nodes are 64-byte aligned (single cache line)
+    // Verify nodes are 128-byte aligned (two cache lines, prevents false sharing)
     struct nary_node_mt *root = &tree.nodes[NARY_ROOT_IDX];
 
     uintptr_t addr = reinterpret_cast<uintptr_t>(root);
-    EXPECT_EQ(addr % 64, 0u)
-        << "Nodes should be 64-byte aligned for cache efficiency";
+    EXPECT_EQ(addr % 128, 0u)
+        << "Nodes should be 128-byte aligned for cache efficiency and false sharing prevention";
 
     // Check multiple nodes
     for (int i = 0; i < 10; i++) {
@@ -125,8 +125,8 @@ TEST_F(NaryArchitectureTest, SixtyFourByteAlignment) {
                                       S_IFREG | 0644);
         if (idx != NARY_INVALID_IDX) {
             uintptr_t node_addr = reinterpret_cast<uintptr_t>(&tree.nodes[idx]);
-            EXPECT_EQ(node_addr % 64, 0u)
-                << "Node " << i << " should be 64-byte aligned";
+            EXPECT_EQ(node_addr % 128, 0u)
+                << "Node " << i << " should be 128-byte aligned";
         }
     }
 }
