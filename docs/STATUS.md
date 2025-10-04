@@ -1,7 +1,7 @@
 # RAZORFS Development Status
 
 **Last Updated**: 2025-10-04
-**Current Phase**: Phase 1 Complete ✅
+**Current Phase**: Phase 2 Complete ✅
 
 ## Overview
 
@@ -43,20 +43,40 @@ RAZORFS is a multithreaded FUSE filesystem with shared memory persistence, curre
 
 **Not Yet Integrated**: WAL is implemented but not hooked into filesystem operations. This allows testing and future integration without affecting current functionality.
 
+### Phase 2: Crash Recovery ✅
+**Status**: Complete - Ready for Integration
+**Files**: `src/recovery.h`, `src/recovery.c`, `tests/unit/recovery_test.cpp`
+
+**Features**:
+- ARIES-style three-phase recovery (Analysis, Redo, Undo)
+- Transaction table management
+- Idempotent operation replay
+- CRC32 checksum validation
+- Committed transaction redo
+- Uncommitted transaction rollback
+- Clean shutdown detection
+- Recovery statistics tracking
+- 13 unit tests (all passing)
+
+**Design Document**: See `docs/RECOVERY_DESIGN.md`
+
+**Not Yet Integrated**: Recovery is implemented but not hooked into mount process. Integration will be done in future phase.
+
 ---
 
 ## 🚧 In Progress
 
-### Phase 2: Crash Recovery
+### Phase 3: Extended Attributes (xattr)
 **Status**: Not Started
-**Design**: See `docs/RECOVERY_DESIGN.md` (to be created)
-**Dependencies**: WAL (Phase 1) ✅
+**Design**: See `docs/XATTR_DESIGN.md` (to be created)
+**Dependencies**: None
 
 **Planned Features**:
-- Three-phase recovery (Analysis, Redo, Undo)
-- Mount-time recovery
-- Idempotent operations
-- Corrupted log detection
+- xattr storage design
+- xattr pool implementation
+- FUSE xattr operations (getxattr, setxattr, listxattr, removexattr)
+- xattr persistence
+- xattr tests
 
 ---
 
@@ -64,12 +84,12 @@ RAZORFS is a multithreaded FUSE filesystem with shared memory persistence, curre
 
 Detailed roadmap available in `docs/PRODUCTION_ROADMAP.md`
 
-### Phase 2: Crash Recovery (2-3 days)
-- [ ] Design recovery algorithm
-- [ ] Implement log scanning
-- [ ] Implement redo/undo phases
-- [ ] Integration with mount
-- [ ] Recovery tests
+### Phase 2: Crash Recovery ✅ (2-3 days)
+- [x] Design recovery algorithm
+- [x] Implement log scanning
+- [x] Implement redo/undo phases
+- [ ] Integration with mount (deferred)
+- [x] Recovery tests
 
 ### Phase 3: Extended Attributes (1-2 days)
 - [ ] xattr storage design
@@ -107,6 +127,7 @@ Detailed roadmap available in `docs/PRODUCTION_ROADMAP.md`
 - `compression_test`: All passing ✅
 - `architecture_test`: 15/15 ✅ (12 passed, 3 skipped NUMA tests)
 - `wal_test`: 22/22 ✅
+- `recovery_test`: 13/13 ✅ (1 disabled test)
 
 ### Memory Safety: ✅ Clean
 - **Valgrind**: 0 leaks, 0 errors
@@ -126,6 +147,8 @@ RAZOR_repo/
 ├── src/                    # Core implementation
 │   ├── wal.c              # ✅ WAL implementation
 │   ├── wal.h              # ✅ WAL header
+│   ├── recovery.c         # ✅ Crash recovery
+│   ├── recovery.h         # ✅ Recovery header
 │   ├── nary_tree_mt.c     # ✅ Multithreaded tree
 │   ├── string_table.c     # ✅ String interning
 │   ├── compression.c      # ✅ zlib compression
@@ -136,12 +159,13 @@ RAZOR_repo/
 │   └── razorfs_mt.c       # ✅ Multithreaded FUSE ops
 │
 ├── tests/                  # Test suite
-│   ├── unit/              # ✅ Unit tests (6 files)
+│   ├── unit/              # ✅ Unit tests (7 files)
 │   └── integration/       # ✅ Integration tests
 │
 ├── docs/                   # Documentation
 │   ├── PRODUCTION_ROADMAP.md  # ✅ 6-phase plan
 │   ├── WAL_DESIGN.md          # ✅ WAL specification
+│   ├── RECOVERY_DESIGN.md     # ✅ Recovery specification
 │   ├── STATUS.md              # ✅ This file
 │   └── ARCHITECTURE.md        # ✅ System design
 │
@@ -172,6 +196,7 @@ cd build_tests
 cmake ../tests
 make
 ./wal_test             # Run WAL tests
+./recovery_test        # Run recovery tests
 ```
 
 ---
@@ -190,22 +215,23 @@ make
 
 ## 🎯 Next Session Tasks
 
-### Option A: Continue with Phase 2 (Recommended)
-1. Create `docs/RECOVERY_DESIGN.md`
-2. Implement recovery algorithm
-3. Add recovery tests
-4. Integrate with mount process
+### Option A: Continue with Phase 3 (Recommended)
+1. Create `docs/XATTR_DESIGN.md`
+2. Design xattr storage system
+3. Implement xattr pool and operations
+4. Add xattr tests
+5. Integrate with FUSE operations
 
-### Option B: Integrate WAL First
+### Option B: Integrate WAL & Recovery
 1. Add WAL to `razorfs_mt.c` (optional flag)
 2. Wrap filesystem operations in transactions
-3. Add integration tests
-4. Performance benchmarks
+3. Add mount-time recovery call
+4. Integration tests and benchmarks
 
-### Option C: Jump to Phase 3
-1. Skip recovery for now
-2. Implement xattr support
-3. Return to recovery later
+### Option C: Jump to Phase 4
+1. Skip xattr for now
+2. Implement hardlink support
+3. Return to xattr later
 
 ---
 
@@ -227,13 +253,13 @@ make
 ## ⚠️ Known Limitations
 
 ### Current Limitations
-- ❌ No journaling/WAL (implemented but not integrated)
-- ❌ No crash recovery (Phase 2)
+- ⚠️ No journaling/WAL integration (implemented but not hooked into FUSE ops)
+- ⚠️ No crash recovery integration (implemented but not hooked into mount)
 - ❌ No xattr support (Phase 3)
 - ❌ No hardlink support (Phase 4)
 - ❌ No mmap support (Phase 5)
 - ❌ Not optimized for large files >10MB (Phase 5)
-- ⚠️ Shared memory persistence (not crash-safe without journaling)
+- ⚠️ Shared memory persistence (crash-safe WAL+recovery exists but not integrated)
 
 ### Resolved Issues
 - ✅ Path traversal vulnerability (fixed)
@@ -249,11 +275,11 @@ make
 ### Available Documents
 - ✅ `PRODUCTION_ROADMAP.md` - Complete 6-phase plan
 - ✅ `WAL_DESIGN.md` - WAL specification
+- ✅ `RECOVERY_DESIGN.md` - ARIES-style recovery algorithm
 - ✅ `ARCHITECTURE.md` - System design
 - ✅ `STATUS.md` - This file
 
 ### To Be Created
-- ⏳ `RECOVERY_DESIGN.md` - Recovery algorithm (Phase 2)
 - ⏳ `XATTR_DESIGN.md` - xattr specification (Phase 3)
 - ⏳ `HARDLINK_DESIGN.md` - Hardlink design (Phase 4)
 - ⏳ `LARGE_FILE_DESIGN.md` - Large file optimization (Phase 5)
@@ -280,7 +306,8 @@ See LICENSE file in repository root.
 - ✅ 2025-10-03: Security fixes complete
 - ✅ 2025-10-04: Memory optimization complete
 - ✅ 2025-10-04: Phase 1 (WAL) complete
-- ⏳ 2025-10-05: Phase 2 (Recovery) target
+- ✅ 2025-10-04: Phase 2 (Recovery) complete
+- ⏳ 2025-10-05: Phase 3 (xattr) target
 - ⏳ 2025-10-20: All phases complete (target)
 
 ---
