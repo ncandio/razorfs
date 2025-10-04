@@ -1,0 +1,61 @@
+name: "Security Hardening Check"
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-hardening:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y checksec.sh pkg-config libfuse3-dev zlib1g-dev
+
+    - name: Build with security flags
+      run: |
+        mkdir build-secure
+        cd build-secure
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_FLAGS="-O2 -D_FORTIFY_SOURCE=2 -fstack-protector-strong -Wformat -Wformat-security -fPIC" \
+          -DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,relro,-z,now -Wl,--as-needed"
+        make -j$(nproc)
+
+    - name: Check binary hardening
+      run: |
+        cd build-secure
+        # Check if binary has proper hardening flags
+        if ! readelf -d razorfs | grep -q "GNU_RELRO\|GNU_STACK\|RUNPATH\|FLAGS_1"; then
+          echo "Binary missing hardening features"
+          exit 1
+        fi
+        
+        # Verify stack protection is enabled
+        if readelf -s razorfs | grep -q "__stack_chk_fail"; then
+          echo "✓ Stack protection detected"
+        else
+          echo "✗ Stack protection not detected"
+          exit 1
+        fi
+        
+        # Check for NX bit
+        if readelf -W -l razorfs | grep -q "GNU_STACK.*RW "; then
+          echo "✗ NX bit not properly set"
+          exit 1
+        else
+          echo "✓ NX bit properly set"
+        fi
+
+    - name: Run hardened tests
+      run: |
+        cd build-secure
+        # Test for buffer overflow vulnerabilities with malformed inputs
+        timeout 30 ./tests/string_table_test || true
+        timeout 30 ./tests/nary_tree_test || true

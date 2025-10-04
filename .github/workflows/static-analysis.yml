@@ -1,0 +1,60 @@
+name: "Static Analysis"
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  static-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-tools pkg-config libfuse3-dev zlib1g-dev
+
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --inconclusive --std=c11 --std=c++17 \
+                 --suppress=missingIncludeSystem \
+                 --inline-suppr \
+                 --template=gcc \
+                 --verbose \
+                 src/*.c fuse/*.c src/*.h \
+                 2> cppcheck-report.txt || true
+        if grep -q "error\|warning" cppcheck-report.txt; then
+          echo "cppcheck found issues:"
+          grep -E "error|warning" cppcheck-report.txt | head -20
+          exit 1
+        fi
+
+    - name: Run clang static analyzer
+      run: |
+        mkdir -p analysis-build
+        cd analysis-build
+        scan-build --use-cc=gcc --use-c++=g++ \
+                   -o ../clang-analysis-report \
+                   cmake .. -DCMAKE_BUILD_TYPE=Debug
+        scan-build --use-cc=gcc --use-c++=g++ \
+                   -o ../clang-analysis-report \
+                   make -j$(nproc) 2>/dev/null
+        # Check if issues were found
+        if [ -d "../clang-analysis-report" ] && [ "$(find ../clang-analysis-report -mindepth 1 -print -quit)" ]; then
+          echo "Clang static analyzer found potential issues:"
+          find ../clang-analysis-report -name "*.html" | head -5
+          exit 1
+        fi
+
+    - name: Upload analysis reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: static-analysis-reports-${{ matrix.config }}
+        path: |
+          cppcheck-report.txt
+          clang-analysis-report/

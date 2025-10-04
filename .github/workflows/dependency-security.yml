@@ -1,0 +1,66 @@
+name: "Dependency Security Scan"
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 1'  # Weekly
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner in repo mode
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        exit-code: '1'
+        severity: 'CRITICAL,HIGH'
+
+    - name: Run Snyk to check for vulnerabilities
+      uses: snyk/actions/c-cpp-clang@master
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --sarif-file-output=snyk.sarif
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Upload Snyk scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'snyk.sarif'
+
+    - name: Run OWASP Dependency Check
+      uses: dependency-check/Dependency-Check-ACTION@main
+      id: Depcheck
+      with:
+        project: 'RazorFS'
+        path: '.'
+        format: 'JSON'
+        out: 'reports'
+        args: >-
+          --enableRetired
+          --enableExperimental
+          --suppression ./suppressions.xml
+          --failOnCVSS 7
+
+    - name: Upload OWASP Dependency Check results
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-check-report
+        path: reports/

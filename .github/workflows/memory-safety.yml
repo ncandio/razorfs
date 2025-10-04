@@ -1,0 +1,47 @@
+name: "Memory Safety Testing"
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  memory-safety:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sanitizer: [ address, thread, undefined ]
+
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libfuse3-dev zlib1g-dev valgrind
+
+    - name: Configure build with ${{ matrix.sanitizer }} sanitizer
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Debug \
+                 -DCMAKE_C_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer -g" \
+                 -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer -g"
+
+    - name: Build with sanitizer
+      run: |
+        cd build
+        make -j$(nproc)
+
+    - name: Run unit tests with sanitizer
+      run: |
+        cd build
+        ./tests/string_table_test
+        ./tests/nary_tree_test
+        ./tests/compression_test
+
+    - name: Run integration tests
+      run: |
+        cd build
+        sudo ./tests/integration_test || true

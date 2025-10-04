@@ -1,0 +1,16 @@
+name: "RazorFS CodeQL Config"
+
+paths-ignore:
+  - node_modules
+  - '_build'
+  - 'build'
+  - tests/
+  - benchmarks/
+  - examples/
+  - readme_graphs/
+  - performance_*.cpp
+  - test_*.cpp
+  - test_*.sh
+
+queries:
+  - uses: security-and-quality

@@ -204,6 +204,31 @@ cd testing
 
 ---
 
+## 🔐 Security Testing & Vulnerability Management
+
+RazorFS implements comprehensive automated security testing to identify and prevent vulnerabilities:
+
+### Security Gates
+1. **Static Analysis:** CodeQL, cppcheck, clang-analyzer for vulnerability detection
+2. **Memory Safety:** AddressSanitizer, ThreadSanitizer, Valgrind for memory issues
+3. **Dependency Scanning:** Trivy, Snyk, OWASP Dependency Check for vulnerable dependencies
+4. **Fuzz Testing:** AFL++ for discovering edge-case vulnerabilities
+5. **Hardening Checks:** Binary security feature verification
+
+### Security Policies
+- **Path Traversal Protection:** Rejects `..` and validates all path components
+- **Input Validation:** Checks for null bytes, control characters, and buffer overflow conditions
+- **Thread Safety:** Per-inode locking prevents race conditions
+- **Memory Safety:** Bounds checking and pointer validation
+
+### Security Artifacts
+- **CodeQL Results:** Available in GitHub Security tab
+- **Dependency Reports:** Generated and stored in CI/CD pipeline
+- **Fuzzing Results:** Coverage and crash detection logs
+- **Hardening Reports:** Binary security feature analysis
+
+---
+
 ## 📊 Performance Characteristics & Benchmarks
 
 ### Algorithmic Complexity

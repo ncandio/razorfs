@@ -1,0 +1,58 @@
+name: "Fuzz Testing Security"
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly
+  workflow_dispatch:
+
+jobs:
+  fuzz-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install AFL++
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y afl++ pkg-config libfuse3-dev zlib1g-dev
+
+    - name: Compile with afl-clang-fast
+      run: |
+        mkdir fuzz-build
+        cd fuzz-build
+        CC=afl-clang-fast cmake .. -DCMAKE_BUILD_TYPE=Debug
+        afl-clang-fast -c ../src/nary_tree_mt.c -o nary_tree_mt.o
+        afl-clang-fast -c ../src/string_table.c -o string_table.o
+        # Create fuzzer for path parsing specifically
+        echo '#include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
+        #include "src/nary_tree_mt.h"
+        
+        int main(int argc, char **argv) {
+            struct nary_tree_mt tree;
+            nary_tree_mt_init(&tree);
+            
+            if (argc > 1) {
+                // Fuzz path lookup function for security issues
+                uint16_t result = nary_path_lookup_mt(&tree, argv[1]);
+            }
+            nary_tree_mt_destroy(&tree);
+            return 0;
+        }' > path_fuzzer.c
+        
+        afl-clang-fast path_fuzzer.c -o path_fuzzer nary_tree_mt.o string_table.o -lpthread -lz
+
+    - name: Run afl-fuzz on path parsing
+      run: |
+        cd fuzz-build
+        mkdir -p input_corpus
+        echo "/test" > input_corpus/test1
+        echo "/test/../etc/passwd" > input_corpus/test2
+        echo "/././test" > input_corpus/test3
+        echo "/test/../../../" > input_corpus/test4
+        echo "" > input_corpus/empty
+        echo "../../../../../../../../../../../../etc/passwd" > input_corpus/test5
+        
+        timeout 300 afl-fuzz -i input_corpus -o findings -m none ./path_fuzzer @@
