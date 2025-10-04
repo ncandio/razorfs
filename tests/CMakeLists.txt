@@ -52,6 +52,7 @@ set(RAZORFS_SOURCES
     ../src/wal.c
     ../src/recovery.c
     ../src/xattr.c
+    ../src/inode_table.c
 )
 
 # Create library from RAZORFS sources
@@ -134,6 +135,14 @@ target_link_libraries(xattr_test
     GTest::gmock
 )
 
+# Inode Table Tests
+add_executable(inode_table_test unit/inode_table_test.cpp)
+target_link_libraries(inode_table_test
+    razorfs_lib
+    GTest::gtest_main
+    GTest::gmock
+)
+
 # Integration Tests
 add_executable(integration_test integration/filesystem_test.cpp)
 target_link_libraries(integration_test
@@ -152,4 +161,5 @@ gtest_discover_tests(architecture_test)
 gtest_discover_tests(wal_test)
 gtest_discover_tests(recovery_test)
 gtest_discover_tests(xattr_test)
+gtest_discover_tests(inode_table_test)
 gtest_discover_tests(integration_test)

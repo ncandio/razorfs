@@ -1,7 +1,7 @@
 # RAZORFS Development Status
 
 **Last Updated**: 2025-10-04
-**Current Phase**: Phase 3 Complete ✅
+**Current Phase**: Phase 4 Complete ✅
 
 ## Overview
 
@@ -83,11 +83,32 @@ RAZORFS is a multithreaded FUSE filesystem with shared memory persistence, curre
 
 **Not Yet Integrated**: FUSE operations (getxattr, setxattr, listxattr, removexattr) not yet added to razorfs_mt.c
 
+### Phase 4: Hardlink Support (Inode Table) ✅
+**Status**: Core Implementation Complete
+**Files**: `src/inode_table.h`, `src/inode_table.c`, `tests/unit/inode_table_test.cpp`
+**Design**: See `docs/HARDLINK_DESIGN.md`
+
+**Features**:
+- Inode table with hash-based O(1) lookup
+- Reference counting for hardlinks
+- Support for up to 65535 links per inode
+- Thread-safe operations with rwlocks
+- Inline data storage (32 bytes per inode)
+- Timestamps (atime, mtime, ctime)
+- 21 unit tests (all passing)
+
+**Node Structure**:
+- 64-byte aligned inodes (cache-friendly)
+- Separate from directory entries (dentries)
+- Ready for hardlink implementation
+
+**Not Yet Integrated**: FUSE link/unlink operations not hooked up. Tree structure not yet refactored to use inode table.
+
 ---
 
 ## 🚧 In Progress
 
-### Phase 4: Hardlinks
+### Phase 5: Large Files + mmap
 **Status**: Not Started
 **Dependencies**: None
 
@@ -112,11 +133,13 @@ Detailed roadmap available in `docs/PRODUCTION_ROADMAP.md`
 - [x] Node structure integration
 - [ ] FUSE xattr operations (deferred)
 
-### Phase 4: Hardlinks (1-2 days)
-- [ ] Separate inodes from dentries
-- [ ] Inode table with refcounting
-- [ ] link/unlink operations
-- [ ] Hardlink tests
+### Phase 4: Hardlinks ✅ (1-2 days)
+- [x] Design hardlink architecture
+- [x] Inode table with refcounting
+- [x] Hash-based O(1) inode lookup
+- [x] Hardlink tests (21 tests passing)
+- [ ] Refactor tree to separate dentries from inodes (deferred)
+- [ ] FUSE link/unlink operations (deferred)
 
 ### Phase 5: Large Files + mmap (3-4 days)
 - [ ] Extent-based storage
@@ -144,6 +167,7 @@ Detailed roadmap available in `docs/PRODUCTION_ROADMAP.md`
 - `wal_test`: 22/22 ✅
 - `recovery_test`: 13/13 ✅ (1 disabled test)
 - `xattr_test`: 22/22 ✅
+- `inode_table_test`: 21/21 ✅
 
 ### Memory Safety: ✅ Clean
 - **Valgrind**: 0 leaks, 0 errors
@@ -167,6 +191,8 @@ RAZOR_repo/
 │   ├── recovery.h         # ✅ Recovery header
 │   ├── xattr.c            # ✅ Extended attributes
 │   ├── xattr.h            # ✅ Xattr header
+│   ├── inode_table.c      # ✅ Inode table (hardlinks)
+│   ├── inode_table.h      # ✅ Inode table header
 │   ├── nary_tree_mt.c     # ✅ Multithreaded tree
 │   ├── nary_node.h        # ✅ Node structure (with xattr)
 │   ├── string_table.c     # ✅ String interning
@@ -178,7 +204,7 @@ RAZOR_repo/
 │   └── razorfs_mt.c       # ✅ Multithreaded FUSE ops
 │
 ├── tests/                  # Test suite
-│   ├── unit/              # ✅ Unit tests (8 files)
+│   ├── unit/              # ✅ Unit tests (9 files)
 │   └── integration/       # ✅ Integration tests
 │
 ├── docs/                   # Documentation
@@ -186,6 +212,7 @@ RAZOR_repo/
 │   ├── WAL_DESIGN.md          # ✅ WAL specification
 │   ├── RECOVERY_DESIGN.md     # ✅ Recovery specification
 │   ├── XATTR_DESIGN.md        # ✅ Xattr specification
+│   ├── HARDLINK_DESIGN.md     # ✅ Hardlink specification
 │   ├── STATUS.md              # ✅ This file
 │   └── ARCHITECTURE.md        # ✅ System design
 │
@@ -235,11 +262,12 @@ make
 
 ## 🎯 Next Session Tasks
 
-### Option A: Continue with Phase 4 (Recommended)
-1. Create `docs/HARDLINK_DESIGN.md`
-2. Design inode table and dentry separation
-3. Implement hardlink support (link/unlink)
-4. Add hardlink tests
+### Option A: Continue with Phase 5 (Recommended)
+1. Create `docs/LARGE_FILE_DESIGN.md`
+2. Design extent-based storage
+3. Implement block allocator
+4. Add mmap support
+5. Implement sparse files
 
 ### Option B: Integrate WAL & Recovery
 1. Add WAL to `razorfs_mt.c` (optional flag)
@@ -247,10 +275,11 @@ make
 3. Add mount-time recovery call
 4. Integration tests and benchmarks
 
-### Option C: Integrate Phase 3 xattr with FUSE
-1. Add getxattr/setxattr/listxattr/removexattr to razorfs_mt.c
-2. Test with real FUSE filesystem
-3. Return to Phase 4 after
+### Option C: Integrate Previous Phases
+1. Integrate WAL/recovery with FUSE operations
+2. Add xattr FUSE operations (getxattr/setxattr/listxattr/removexattr)
+3. Refactor tree to use inode table for hardlinks
+4. Add FUSE link/unlink operations
 
 ---
 
@@ -275,7 +304,7 @@ make
 - ⚠️ No journaling/WAL integration (implemented but not hooked into FUSE ops)
 - ⚠️ No crash recovery integration (implemented but not hooked into mount)
 - ⚠️ No xattr FUSE integration (core implemented but not hooked into FUSE ops)
-- ❌ No hardlink support (Phase 4)
+- ⚠️ No hardlink FUSE integration (inode table implemented but not hooked into FUSE ops)
 - ❌ No mmap support (Phase 5)
 - ❌ Not optimized for large files >10MB (Phase 5)
 - ⚠️ Shared memory persistence (crash-safe WAL+recovery exists but not integrated)
@@ -299,7 +328,6 @@ make
 - ✅ `STATUS.md` - This file
 
 ### To Be Created
-- ⏳ `HARDLINK_DESIGN.md` - Hardlink design (Phase 4)
 - ⏳ `LARGE_FILE_DESIGN.md` - Large file optimization (Phase 5)
 - ⏳ `DEPLOYMENT_GUIDE.md` - Production deployment (Phase 6)
 
@@ -326,6 +354,7 @@ See LICENSE file in repository root.
 - ✅ 2025-10-04: Phase 1 (WAL) complete
 - ✅ 2025-10-04: Phase 2 (Recovery) complete
 - ✅ 2025-10-04: Phase 3 (xattr) complete
+- ✅ 2025-10-04: Phase 4 (inode table) complete
 - ⏳ 2025-10-20: All phases complete (target)
 
 ---
