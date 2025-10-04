@@ -49,6 +49,7 @@ set(RAZORFS_SOURCES
     ../src/shm_persist.c
     ../src/compression.c
     ../src/numa_support.c
+    ../src/wal.c
 )
 
 # Create library from RAZORFS sources
@@ -107,6 +108,14 @@ target_link_libraries(architecture_test
     GTest::gmock
 )
 
+# WAL Tests
+add_executable(wal_test unit/wal_test.cpp)
+target_link_libraries(wal_test
+    razorfs_lib
+    GTest::gtest_main
+    GTest::gmock
+)
+
 # Integration Tests
 add_executable(integration_test integration/filesystem_test.cpp)
 target_link_libraries(integration_test
@@ -122,4 +131,5 @@ gtest_discover_tests(nary_tree_test)
 gtest_discover_tests(shm_persist_test)
 gtest_discover_tests(compression_test)
 gtest_discover_tests(architecture_test)
+gtest_discover_tests(wal_test)
 gtest_discover_tests(integration_test)
