@@ -1,10 +1,20 @@
 name: "Security Hardening Check"
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+        - Debug
+        - Release
+      branch:
+        description: 'Branch to check'
+        required: true
+        default: 'main'
 
 jobs:
   security-hardening:

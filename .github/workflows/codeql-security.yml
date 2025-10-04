@@ -1,14 +1,16 @@
 name: "CodeQL Security Analysis"
 
 on:
-  push:
-    branches: [ main, develop ]
-    paths: [ 'src/**', 'fuse/**', 'tests/**' ]
-  pull_request:
-    branches: [ main ]
-    paths: [ 'src/**', 'fuse/**', 'tests/**' ]
-  schedule:
-    - cron: '0 0 * * 1'  # Weekly
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to analyze'
+        required: true
+        default: 'main'
+      paths:
+        description: 'Paths to analyze (comma-separated)'
+        required: false
+        default: 'src,fuse,tests'
 
 jobs:
   analyze:

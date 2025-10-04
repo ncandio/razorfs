@@ -1,10 +1,21 @@
 name: "Memory Safety Testing"
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      sanitizer:
+        description: 'Sanitizer to use'
+        required: true
+        default: 'address'
+        type: choice
+        options:
+        - address
+        - thread
+        - undefined
+      branch:
+        description: 'Branch to test'
+        required: true
+        default: 'main'
 
 jobs:
   memory-safety:

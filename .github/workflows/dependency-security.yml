@@ -1,12 +1,22 @@
 name: "Dependency Security Scan"
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
-  schedule:
-    - cron: '0 0 * * 1'  # Weekly
+  workflow_dispatch:
+    inputs:
+      severity:
+        description: 'Minimum severity level'
+        required: true
+        default: 'HIGH'
+        type: choice
+        options:
+        - CRITICAL
+        - HIGH
+        - MEDIUM
+        - LOW
+      branch:
+        description: 'Branch to scan'
+        required: true
+        default: 'main'
 
 jobs:
   security-scan:

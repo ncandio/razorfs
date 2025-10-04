@@ -1,9 +1,26 @@
 name: "Fuzz Testing Security"
 
 on:
-  schedule:
-    - cron: '0 2 * * 1'  # Weekly
   workflow_dispatch:
+    inputs:
+      runtime:
+        description: 'Fuzzing runtime in seconds'
+        required: true
+        default: '300'
+        type: number
+      target:
+        description: 'Fuzzing target'
+        required: true
+        default: 'path_parsing'
+        type: choice
+        options:
+        - path_parsing
+        - string_table
+        - nary_tree
+      branch:
+        description: 'Branch to fuzz'
+        required: true
+        default: 'main'
 
 jobs:
   fuzz-test:

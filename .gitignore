@@ -1,0 +1,60 @@
+# Build artifacts
+build/
+build_tests/
+*.o
+*.a
+*.so
+*.exe
+*.out
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.manifest
+Makefile
+
+# FUSE filesystem executable
+razorfs
+razorfsck
+razorfsck_new
+
+# Test results and logs
+tests/results/
+*.log
+*.txt
+*.csv
+
+# Coverage reports
+coverage/
+*.gcda
+*.gcno
+
+# Memory sanitizer output
+*.asan
+*.ubsan
+
+# Fuzzing artifacts
+findings/
+input_corpus/
+fuzz-build/
+
+# Valgrind output
+*.vglog
+*.memcheck
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Shared memory artifacts
+/dev/shm/razorfs_*
+
+# Editor backup files
+*~
+\#*\#
