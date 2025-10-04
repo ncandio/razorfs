@@ -42,6 +42,7 @@ protected:
     }
 
     void TearDown() override {
+        string_table_destroy(&st);
         if (shm_buffer != MAP_FAILED) {
             munmap(shm_buffer, shm_size);
         }
@@ -184,6 +185,9 @@ TEST_F(StringTableShmTest, ShmPersistence) {
 
     // Verify used bytes match
     EXPECT_EQ(st.used, st2.used);
+
+    // Clean up st2
+    string_table_destroy(&st2);
 }
 
 TEST_F(StringTableShmTest, ShmNoRealloc) {
