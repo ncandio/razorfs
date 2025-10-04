@@ -270,9 +270,16 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
         }
     }
 
+    /* Acquire tree-level lock before allocating node to prevent race conditions */
+    if (pthread_rwlock_wrlock(&tree->tree_lock) != 0) {
+        pthread_rwlock_unlock(&parent->lock);
+        return NARY_INVALID_IDX;
+    }
+
     /* Allocate new node */
     uint16_t child_idx = allocate_node_mt(tree);
     if (child_idx == NARY_INVALID_IDX) {
+        pthread_rwlock_unlock(&tree->tree_lock);
         pthread_rwlock_unlock(&parent->lock);
         return NARY_INVALID_IDX;
     }
@@ -283,6 +290,9 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
     /* Initialize child node */
     init_node_mt(&tree->nodes[child_idx], tree->next_inode++,
                  parent_idx, name, &tree->strings, mode);
+
+    /* Release tree-level lock - node allocation complete */
+    pthread_rwlock_unlock(&tree->tree_lock);
 
     /* Add to parent's children array */
     parent->node.children[parent->node.num_children++] = child_idx;
@@ -380,7 +390,7 @@ uint16_t nary_path_lookup_mt(struct nary_tree_mt *tree, const char *path) {
         return NARY_ROOT_IDX;
     }
 
-    /* Parse path components */
+    /* Parse path components with path traversal protection */
     uint16_t current_idx = NARY_ROOT_IDX;
     char path_copy[PATH_MAX];
     strncpy(path_copy, path, PATH_MAX - 1);
@@ -390,6 +400,25 @@ uint16_t nary_path_lookup_mt(struct nary_tree_mt *tree, const char *path) {
     char *token = strtok_r(path_copy + 1, "/", &saveptr);  /* Skip leading '/' */
 
     while (token != NULL) {
+        /* Security: Reject path traversal attempts */
+        if (strcmp(token, ".") == 0) {
+            /* Skip "." - same directory */
+            token = strtok_r(NULL, "/", &saveptr);
+            continue;
+        }
+
+        if (strcmp(token, "..") == 0) {
+            /* Reject ".." - path traversal not allowed */
+            return NARY_INVALID_IDX;
+        }
+
+        /* Validate component name - reject null bytes and control characters */
+        for (const char *p = token; *p; p++) {
+            if (*p == '\0' || (*p > 0 && *p < 32)) {
+                return NARY_INVALID_IDX;
+            }
+        }
+
         current_idx = nary_find_child_mt(tree, current_idx, token);
         if (current_idx == NARY_INVALID_IDX) {
             return NARY_INVALID_IDX;

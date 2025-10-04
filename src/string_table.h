@@ -20,22 +20,32 @@
 #define STRING_TABLE_INITIAL_SIZE (64 * 1024)      /* 64KB initial */
 #define STRING_TABLE_MAX_SIZE (16 * 1024 * 1024)   /* 16MB maximum */
 #define MAX_FILENAME_LENGTH 255                     /* POSIX limit */
+#define STRING_HASH_TABLE_SIZE 1024                 /* Hash table buckets */
+
+/**
+ * Hash table entry for fast string lookup
+ */
+struct string_hash_entry {
+    uint32_t offset;                        /* Offset in string buffer */
+    struct string_hash_entry *next;         /* Next entry in chain */
+};
 
 /**
  * String Table Structure
  *
- * Simple design: contiguous buffer of null-terminated strings.
- * No hash table - linear scan for duplicates (acceptable for filesystem scale).
+ * Design: contiguous buffer of null-terminated strings with hash table for fast lookup.
+ * Hash table maps string -> offset for O(1) duplicate detection.
  *
  * Two modes:
  * 1. Heap mode (is_shm = 0): data allocated with malloc/realloc
  * 2. Shared memory mode (is_shm = 1): data points to fixed-size shared memory
  */
 struct string_table {
-    char *data;              /* Contiguous string buffer */
-    uint32_t capacity;       /* Total allocated size */
-    uint32_t used;           /* Bytes currently used */
-    int is_shm;              /* 1 if backed by shared memory, 0 if heap */
+    char *data;                             /* Contiguous string buffer */
+    uint32_t capacity;                      /* Total allocated size */
+    uint32_t used;                          /* Bytes currently used */
+    int is_shm;                             /* 1 if backed by shared memory, 0 if heap */
+    struct string_hash_entry *hash_table[STRING_HASH_TABLE_SIZE];  /* Hash table for lookups */
 };
 
 /**

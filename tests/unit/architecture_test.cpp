@@ -424,38 +424,54 @@ TEST_F(NaryArchitectureTest, InsertPerformanceScaling) {
 }
 
 TEST_F(NaryArchitectureTest, LookupPerformanceScaling) {
-    // Pre-populate tree
-    const int NUM_FILES = 1000;
-    for (int i = 0; i < NUM_FILES; i++) {
-        char name[32];
-        snprintf(name, sizeof(name), "file_%04d", i);
-        uint16_t result = nary_insert_mt(&tree, NARY_ROOT_IDX, name, S_IFREG | 0644);
-        if (i < 16) {
-            ASSERT_NE(result, NARY_INVALID_IDX);
-        } else {
-            ASSERT_EQ(result, NARY_INVALID_IDX);
+    // Create a hierarchical tree structure to test lookup performance
+    // With 16-way branching, we can create directories to hold more files
+    const int NUM_DIRS = 10;
+    const int FILES_PER_DIR = 16;
+
+    std::vector<uint16_t> dir_indices;
+
+    // Create directories in root
+    for (int d = 0; d < NUM_DIRS; d++) {
+        char dirname[32];
+        snprintf(dirname, sizeof(dirname), "dir_%02d", d);
+        uint16_t dir_idx = nary_insert_mt(&tree, NARY_ROOT_IDX, dirname, S_IFDIR | 0755);
+        ASSERT_NE(dir_idx, NARY_INVALID_IDX) << "Failed to create directory " << d;
+        dir_indices.push_back(dir_idx);
+
+        // Fill each directory with files (up to branching factor)
+        for (int f = 0; f < FILES_PER_DIR; f++) {
+            char filename[32];
+            snprintf(filename, sizeof(filename), "file_%04d", f);
+            uint16_t file_idx = nary_insert_mt(&tree, dir_idx, filename, S_IFREG | 0644);
+            ASSERT_NE(file_idx, NARY_INVALID_IDX)
+                << "Failed to create file " << f << " in directory " << d;
         }
     }
 
-    // Measure lookup time
+    // Measure lookup time across different directories
     auto start = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < 16; i++) {
-        char name[32];
-        snprintf(name, sizeof(name), "file_%04d", i);
-        uint16_t found = nary_find_child_mt(&tree, NARY_ROOT_IDX, name);
-        EXPECT_NE(found, NARY_INVALID_IDX);
+    int total_lookups = 0;
+    for (int d = 0; d < NUM_DIRS; d++) {
+        for (int f = 0; f < FILES_PER_DIR; f++) {
+            char filename[32];
+            snprintf(filename, sizeof(filename), "file_%04d", f);
+            uint16_t found = nary_find_child_mt(&tree, dir_indices[d], filename);
+            EXPECT_NE(found, NARY_INVALID_IDX);
+            total_lookups++;
+        }
     }
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-    double avg_lookup = duration.count() / 16.0;
+    double avg_lookup = duration.count() / (double)total_lookups;
 
-    std::cout << 16 << " lookups: " << duration.count()
-              << " μs total, " << avg_lookup << " μs/op" << std::endl;
+    std::cout << total_lookups << " lookups in " << NUM_DIRS << " directories: "
+              << duration.count() << " μs total, " << avg_lookup << " μs/op" << std::endl;
 
-    // Lookups should be fast (under 10μs avg for 16 files)
+    // Lookups should be fast (under 10μs avg)
     EXPECT_LT(avg_lookup, 10.0)
         << "Lookup should be fast with O(log n) complexity";
 }

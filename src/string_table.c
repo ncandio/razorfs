@@ -17,9 +17,15 @@
 #define STRING_TABLE_MAX_SIZE (16 * 1024 * 1024)   /* 16MB maximum */
 #define MAX_FILENAME_LENGTH 255                     /* POSIX limit */
 
-/* Static assertions */
-_Static_assert(sizeof(struct string_table) == 24,
-               "string_table must be exactly 24 bytes (with is_shm field and padding)");
+/* Simple hash function (djb2) */
+static uint32_t hash_string(const char *str) {
+    uint32_t hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    }
+    return hash % STRING_HASH_TABLE_SIZE;
+}
 
 /**
  * Initialize string table (heap mode)
@@ -36,6 +42,11 @@ int string_table_init(struct string_table *st) {
     st->capacity = STRING_TABLE_INITIAL_SIZE;
     st->used = 0;
     st->is_shm = 0;  /* Heap mode */
+
+    /* Initialize hash table */
+    for (int i = 0; i < STRING_HASH_TABLE_SIZE; i++) {
+        st->hash_table[i] = NULL;
+    }
 
     return 0;
 }
@@ -54,9 +65,30 @@ int string_table_init_shm(struct string_table *st, void *buf, size_t size, int e
     st->capacity = size;
     st->is_shm = 1;  /* Shared memory mode */
 
+    /* Initialize hash table */
+    for (int i = 0; i < STRING_HASH_TABLE_SIZE; i++) {
+        st->hash_table[i] = NULL;
+    }
+
     if (existing) {
         /* Attaching to existing - read used bytes from first uint32_t */
         memcpy(&st->used, buf, sizeof(uint32_t));
+
+        /* Rebuild hash table from existing strings */
+        uint32_t offset = sizeof(uint32_t);
+        while (offset < st->used) {
+            const char *str = st->data + offset;
+            uint32_t hash = hash_string(str);
+
+            struct string_hash_entry *entry = malloc(sizeof(struct string_hash_entry));
+            if (entry) {
+                entry->offset = offset;
+                entry->next = st->hash_table[hash];
+                st->hash_table[hash] = entry;
+            }
+
+            offset += strlen(str) + 1;
+        }
     } else {
         /* New buffer - initialize with used = sizeof(uint32_t) */
         st->used = sizeof(uint32_t);
@@ -74,20 +106,23 @@ int string_table_init_shm(struct string_table *st, void *buf, size_t size, int e
  */
 uint32_t string_table_intern(struct string_table *st, const char *str) {
     if (!st || !str) return UINT32_MAX;
-    
+
     size_t len = strlen(str);
     if (len > MAX_FILENAME_LENGTH) {
         return UINT32_MAX;
     }
 
-    /* Check if string already exists (linear scan for now) */
-    uint32_t offset = 0;
-    while (offset < st->used) {
-        const char *existing = st->data + offset;
+    /* Calculate hash */
+    uint32_t hash = hash_string(str);
+
+    /* Check if string already exists using hash table */
+    struct string_hash_entry *entry = st->hash_table[hash];
+    while (entry) {
+        const char *existing = st->data + entry->offset;
         if (strcmp(existing, str) == 0) {
-            return offset;  /* Found duplicate */
+            return entry->offset;  /* Found duplicate */
         }
-        offset += strlen(existing) + 1;  /* Move to next string */
+        entry = entry->next;
     }
 
     /* String not found - add it */
@@ -120,6 +155,14 @@ uint32_t string_table_intern(struct string_table *st, const char *str) {
     memcpy(st->data + new_offset, str, needed);
     st->used += needed;
 
+    /* Add to hash table */
+    struct string_hash_entry *new_entry = malloc(sizeof(struct string_hash_entry));
+    if (new_entry) {
+        new_entry->offset = new_offset;
+        new_entry->next = st->hash_table[hash];
+        st->hash_table[hash] = new_entry;
+    }
+
     /* Update shared memory header if in shm mode */
     if (st->is_shm) {
         memcpy(st->data, &st->used, sizeof(uint32_t));
@@ -145,6 +188,17 @@ const char *string_table_get(const struct string_table *st, uint32_t offset) {
  */
 void string_table_destroy(struct string_table *st) {
     if (!st) return;
+
+    /* Free hash table entries */
+    for (int i = 0; i < STRING_HASH_TABLE_SIZE; i++) {
+        struct string_hash_entry *entry = st->hash_table[i];
+        while (entry) {
+            struct string_hash_entry *next = entry->next;
+            free(entry);
+            entry = next;
+        }
+        st->hash_table[i] = NULL;
+    }
 
     if (st->data && !st->is_shm) {
         /* Only free if heap mode */

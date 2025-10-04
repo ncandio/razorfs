@@ -28,6 +28,11 @@
 #define RENAME_NOREPLACE (1 << 0)
 #endif
 
+/* File data hash table size */
+#define FILE_HASH_TABLE_SIZE 1024
+/* Compression threshold - only compress files larger than this */
+#define COMPRESSION_BUFFER_THRESHOLD (64 * 1024)  /* 64KB */
+
 /* Global multithreaded filesystem state */
 static struct {
     struct nary_tree_mt tree;
@@ -39,33 +44,39 @@ static struct {
         char *data;
         size_t size;
         size_t capacity;
+        int is_compressed;           /* Flag to track compression state */
+        size_t uncompressed_size;    /* Original size if compressed */
     } *files;
 
     uint32_t file_count;
     uint32_t file_capacity;
     pthread_rwlock_t files_lock;  /* Lock for files array management */
+
+    /* Hash table for O(1) file lookup by inode */
+    struct mt_file_data *file_hash_table[FILE_HASH_TABLE_SIZE];
 } g_mt_fs;
 
 /* === Thread-Safe File Content Management === */
 
+static inline uint32_t hash_inode(uint32_t inode) {
+    /* Simple modulo hash */
+    return inode % FILE_HASH_TABLE_SIZE;
+}
+
 static struct mt_file_data *find_file_data(uint32_t inode) {
+    uint32_t hash = hash_inode(inode);
+
     pthread_rwlock_rdlock(&g_mt_fs.files_lock);
-    
-    struct mt_file_data *result = NULL;
-    for (uint32_t i = 0; i < g_mt_fs.file_count; i++) {
-        if (g_mt_fs.files[i].inode == inode) {
-            result = &g_mt_fs.files[i];
-            break;
-        }
-    }
-    
+
+    struct mt_file_data *result = g_mt_fs.file_hash_table[hash];
+
     pthread_rwlock_unlock(&g_mt_fs.files_lock);
     return result;
 }
 
 static struct mt_file_data *create_file_data(uint32_t inode) {
     pthread_rwlock_wrlock(&g_mt_fs.files_lock);
-    
+
     /* Grow array if needed */
     if (g_mt_fs.file_count >= g_mt_fs.file_capacity) {
         uint32_t new_capacity = g_mt_fs.file_capacity == 0 ? 64 : g_mt_fs.file_capacity * 2;
@@ -86,6 +97,12 @@ static struct mt_file_data *create_file_data(uint32_t inode) {
     fd->data = NULL;
     fd->size = 0;
     fd->capacity = 0;
+    fd->is_compressed = 0;
+    fd->uncompressed_size = 0;
+
+    /* Add to hash table */
+    uint32_t hash = hash_inode(inode);
+    g_mt_fs.file_hash_table[hash] = fd;
 
     pthread_rwlock_unlock(&g_mt_fs.files_lock);
     return fd;
@@ -93,7 +110,11 @@ static struct mt_file_data *create_file_data(uint32_t inode) {
 
 static void remove_file_data(uint32_t inode) {
     pthread_rwlock_wrlock(&g_mt_fs.files_lock);
-    
+
+    /* Remove from hash table */
+    uint32_t hash = hash_inode(inode);
+    g_mt_fs.file_hash_table[hash] = NULL;
+
     for (uint32_t i = 0; i < g_mt_fs.file_count; i++) {
         if (g_mt_fs.files[i].inode == inode) {
             pthread_rwlock_wrlock(&g_mt_fs.files[i].data_lock);
@@ -106,12 +127,15 @@ static void remove_file_data(uint32_t inode) {
             /* Shift remaining entries */
             for (uint32_t j = i; j < g_mt_fs.file_count - 1; j++) {
                 g_mt_fs.files[j] = g_mt_fs.files[j + 1];
+                /* Update hash table for shifted entries */
+                uint32_t shifted_hash = hash_inode(g_mt_fs.files[j].inode);
+                g_mt_fs.file_hash_table[shifted_hash] = &g_mt_fs.files[j];
             }
             g_mt_fs.file_count--;
             break;
         }
     }
-    
+
     pthread_rwlock_unlock(&g_mt_fs.files_lock);
 }
 
@@ -121,13 +145,18 @@ static void remove_file_data(uint32_t inode) {
 static int split_path(const char *path, char *parent_out, char *name_out) {
     if (!path || !parent_out || !name_out) return -1;
 
+    /* Validate path length */
+    size_t path_len = strnlen(path, PATH_MAX);
+    if (path_len >= PATH_MAX) return -1;
+
     /* Find last slash */
     const char *last_slash = strrchr(path, '/');
     if (!last_slash) return -1;
 
     /* If root */
     if (last_slash == path) {
-        strcpy(parent_out, "/");
+        strncpy(parent_out, "/", PATH_MAX - 1);
+        parent_out[PATH_MAX - 1] = '\0';
     } else {
         size_t parent_len = last_slash - path;
         if (parent_len >= PATH_MAX) return -1;
@@ -135,10 +164,12 @@ static int split_path(const char *path, char *parent_out, char *name_out) {
         parent_out[parent_len] = '\0';
     }
 
-    /* Copy filename */
+    /* Copy filename with bounds checking */
     const char *filename = last_slash + 1;
-    if (strlen(filename) >= MAX_FILENAME_LENGTH) return -1;
-    strcpy(name_out, filename);
+    size_t filename_len = strnlen(filename, MAX_FILENAME_LENGTH);
+    if (filename_len >= MAX_FILENAME_LENGTH) return -1;
+    memcpy(name_out, filename, filename_len);
+    name_out[filename_len] = '\0';
 
     return 0;
 }
@@ -369,13 +400,13 @@ static int razorfs_mt_read(const char *path, char *buf, size_t size, off_t offse
     size_t source_size = fd->size;
     void *decompressed = NULL;
 
-    if (is_compressed(fd->data, fd->capacity)) {
+    if (fd->is_compressed) {
         size_t decompressed_size;
         decompressed = decompress_data(fd->data, fd->capacity, &decompressed_size);
 
         if (decompressed) {
             source_data = decompressed;
-            source_size = decompressed_size;
+            source_size = fd->uncompressed_size;
         }
     }
 
@@ -406,16 +437,18 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
 
     pthread_rwlock_wrlock(&fd->data_lock);
 
-    /* Decompress if currently compressed */
-    if (is_compressed(fd->data, fd->capacity)) {
+    /* Decompress if currently compressed - we need uncompressed data for writing */
+    if (fd->is_compressed) {
         size_t decompressed_size;
         void *decompressed = decompress_data(fd->data, fd->capacity, &decompressed_size);
 
         if (decompressed) {
             free(fd->data);
             fd->data = decompressed;
-            fd->capacity = decompressed_size;
-            fd->size = decompressed_size;
+            fd->capacity = fd->uncompressed_size;
+            fd->size = fd->uncompressed_size;
+            fd->is_compressed = 0;
+            fd->uncompressed_size = 0;
         }
     }
 
@@ -442,17 +475,22 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
         fd->size = required;
     }
 
-    /* Try compression if file is large enough */
-    if (fd->size >= COMPRESSION_MIN_SIZE) {
+    /* Only compress if file exceeds the buffer threshold - avoids compressing on every small write */
+    if (fd->size >= COMPRESSION_BUFFER_THRESHOLD && !fd->is_compressed) {
         size_t compressed_size;
         void *compressed = compress_data(fd->data, fd->size, &compressed_size);
 
-        if (compressed) {
+        if (compressed && compressed_size < fd->size) {
             /* Compression beneficial - replace data */
+            fd->uncompressed_size = fd->size;
             free(fd->data);
             fd->data = compressed;
             fd->capacity = compressed_size;
-            /* Keep fd->size as original (uncompressed) size */
+            fd->is_compressed = 1;
+            /* Keep fd->size as original (uncompressed) size for file size tracking */
+        } else if (compressed) {
+            /* Compression not beneficial */
+            free(compressed);
         }
     }
 
@@ -613,6 +651,37 @@ static int razorfs_mt_rename(const char *from, const char *to, unsigned int flag
     return nary_update_node_mt(&g_mt_fs.tree, from_idx, &node);
 }
 
+static int razorfs_mt_utimens(const char *path, const struct timespec tv[2],
+                               struct fuse_file_info *fi) {
+    (void) fi;
+
+    uint16_t idx = nary_path_lookup_mt(&g_mt_fs.tree, path);
+    if (idx == NARY_INVALID_IDX) {
+        return -ENOENT;
+    }
+
+    struct nary_node node;
+    if (nary_read_node_mt(&g_mt_fs.tree, idx, &node) != 0) {
+        return -EIO;
+    }
+
+    /* Update modification time */
+    if (tv) {
+        /* tv[0] is atime, tv[1] is mtime */
+        /* We only track mtime in our simple implementation */
+        if (tv[1].tv_nsec == UTIME_NOW) {
+            node.mtime = time(NULL);
+        } else if (tv[1].tv_nsec != UTIME_OMIT) {
+            node.mtime = tv[1].tv_sec;
+        }
+    } else {
+        /* NULL means set to current time */
+        node.mtime = time(NULL);
+    }
+
+    return nary_update_node_mt(&g_mt_fs.tree, idx, &node);
+}
+
 /* FUSE operations structure */
 static struct fuse_operations razorfs_mt_ops = {
     .getattr    = razorfs_mt_getattr,
@@ -629,7 +698,7 @@ static struct fuse_operations razorfs_mt_ops = {
     .chmod      = razorfs_mt_chmod,
     .chown      = razorfs_mt_chown,
     .rename     = razorfs_mt_rename,
-    .utimens    = NULL,  /* Not implemented yet */
+    .utimens    = razorfs_mt_utimens,
 };
 
 /* === Initialization and Cleanup === */
@@ -669,15 +738,21 @@ static void razorfs_mt_destroy(void *private_data) {
         pthread_rwlock_wrlock(&g_mt_fs.files[i].data_lock);
         if (g_mt_fs.files[i].data) {
             free(g_mt_fs.files[i].data);
+            g_mt_fs.files[i].data = NULL;  /* Prevent double-free */
         }
         pthread_rwlock_unlock(&g_mt_fs.files[i].data_lock);
+        /* Destroy lock while still holding files_lock to prevent race */
         pthread_rwlock_destroy(&g_mt_fs.files[i].data_lock);
     }
-    pthread_rwlock_unlock(&g_mt_fs.files_lock);
 
     if (g_mt_fs.files) {
         free(g_mt_fs.files);
+        g_mt_fs.files = NULL;
     }
+    g_mt_fs.file_count = 0;
+    g_mt_fs.file_capacity = 0;
+
+    pthread_rwlock_unlock(&g_mt_fs.files_lock);
     pthread_rwlock_destroy(&g_mt_fs.files_lock);
 
     /* Detach from shared memory (data persists) */
@@ -699,6 +774,11 @@ int main(int argc, char *argv[]) {
     g_mt_fs.file_count = 0;
     g_mt_fs.file_capacity = 0;
     pthread_rwlock_init(&g_mt_fs.files_lock, NULL);
+
+    /* Initialize hash table */
+    for (int i = 0; i < FILE_HASH_TABLE_SIZE; i++) {
+        g_mt_fs.file_hash_table[i] = NULL;
+    }
 
     printf("✅ RAZORFS Phase 6 - Persistent Multithreaded Filesystem\n");
     printf("   Node size: %zu bytes (MT + shared memory)\n", sizeof(struct nary_node_mt));
