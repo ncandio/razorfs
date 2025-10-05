@@ -1,0 +1,2 @@
+# Note: googletest is automatically fetched by CMake FetchContent
+# This file prevents git warnings about missing submodules

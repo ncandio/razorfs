@@ -34,6 +34,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y afl++ pkg-config libfuse3-dev zlib1g-dev
 
+    - name: Configure system for AFL fuzzing
+      run: |
+        # Fix core_pattern for AFL
+        echo core | sudo tee /proc/sys/kernel/core_pattern
+        # Disable CPU frequency scaling
+        echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor || true
+
     - name: Compile with afl-clang-fast
       run: |
         mkdir fuzz-build
