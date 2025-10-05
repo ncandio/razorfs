@@ -269,7 +269,7 @@ jobs:
     - name: Generate Coverage Report
       run: |
         mkdir -p tests/results/coverage
-        lcov --capture --directory tests/build --output-file tests/results/coverage.info
+        lcov --capture --directory tests/build --output-file tests/results/coverage.info --ignore-errors mismatch
         lcov --remove tests/results/coverage.info \
           '/usr/*' \
           '*/tests/*' \
