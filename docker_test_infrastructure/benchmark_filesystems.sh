@@ -3,9 +3,8 @@
 # Compares RAZORFS against ext4, ReiserFS, and ZFS
 # Tests: Compression, Backup/Recovery, NUMA, Persistence
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESULTS_DIR="/mnt/c/Users/liber/Desktop/Testing-Razor-FS/benchmarks"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 TEST_FILE_URL="https://github.com/git/git/archive/refs/tags/v2.43.0.tar.gz"
@@ -29,14 +28,16 @@ mkdir -p "$RESULTS_DIR"/{data,graphs}
 if [ ! -f "/tmp/$TEST_FILE_NAME" ]; then
     echo -e "${YELLOW}[1/5]${NC} Downloading test file (1MB+)..."
     wget -q -O "/tmp/$TEST_FILE_NAME" "$TEST_FILE_URL"
-    TEST_SIZE=$(stat -f%z "/tmp/$TEST_FILE_NAME" 2>/dev/null || stat -c%s "/tmp/$TEST_FILE_NAME")
-    echo "Test file size: $((TEST_SIZE / 1024 / 1024))MB"
 fi
 
+# Get test file size
+TEST_SIZE=$(stat -c%s "/tmp/$TEST_FILE_NAME" 2>/dev/null || echo "10485760")
+echo "Test file size: $((TEST_SIZE / 1024 / 1024))MB"
+
 # Build RAZORFS if needed
-if [ ! -f "$SCRIPT_DIR/razorfs" ]; then
+if [ ! -f "$REPO_ROOT/razorfs" ]; then
     echo -e "${YELLOW}[2/5]${NC} Building RAZORFS..."
-    cd "$SCRIPT_DIR"
+    cd "$REPO_ROOT"
     make clean && make release
 fi
 
@@ -87,7 +88,7 @@ test_compression() {
 test_compression "RAZORFS" "/tmp/razorfs_bench" "
     rm -f /dev/shm/razorfs_*
     mkdir -p /tmp/razorfs_bench
-    $SCRIPT_DIR/razorfs /tmp/razorfs_bench -f &
+    $REPO_ROOT/razorfs /tmp/razorfs_bench -f &
     sleep 2
 "
 
@@ -141,7 +142,7 @@ test_recovery() {
         # RAZORFS: Mount, write, unmount, remount
         rm -f /dev/shm/razorfs_*
         mkdir -p /tmp/razorfs_bench
-        $SCRIPT_DIR/razorfs /tmp/razorfs_bench -f &
+        $REPO_ROOT/razorfs /tmp/razorfs_bench -f &
         sleep 2
 
         echo "test data" > /tmp/razorfs_bench/recovery_test.txt
@@ -150,7 +151,7 @@ test_recovery() {
         fusermount3 -u /tmp/razorfs_bench
         sleep 1
 
-        $SCRIPT_DIR/razorfs /tmp/razorfs_bench -f &
+        $REPO_ROOT/razorfs /tmp/razorfs_bench -f &
         sleep 2
 
         if [ -f /tmp/razorfs_bench/recovery_test.txt ]; then
@@ -209,7 +210,7 @@ test_persistence() {
         mkdir -p /tmp/razorfs_bench
 
         # First mount
-        $SCRIPT_DIR/razorfs /tmp/razorfs_bench -f &
+        $REPO_ROOT/razorfs /tmp/razorfs_bench -f &
         sleep 2
 
         # Create 1MB test file
@@ -224,7 +225,7 @@ test_persistence() {
         sleep 2
 
         # Remount
-        $SCRIPT_DIR/razorfs /tmp/razorfs_bench -f &
+        $REPO_ROOT/razorfs /tmp/razorfs_bench -f &
         sleep 2
 
         # Verify
