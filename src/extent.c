@@ -62,7 +62,7 @@ static int load_extent_tree(struct block_allocator *alloc,
         return -EINVAL;
     }
 
-    void *block_addr = block_get_addr(alloc, block_num);
+    const void *block_addr = block_get_addr(alloc, block_num);
     if (!block_addr) {
         return -EINVAL;
     }
@@ -74,7 +74,7 @@ static int load_extent_tree(struct block_allocator *alloc,
 /* Helper: Save extent tree node */
 static int save_extent_tree(struct block_allocator *alloc,
                             uint32_t block_num,
-                            struct extent_tree_node *node) {
+                            const struct extent_tree_node *node) {
     if (block_num == 0 || block_num == EXTENT_HOLE) {
         return -EINVAL;
     }
@@ -90,7 +90,7 @@ static int save_extent_tree(struct block_allocator *alloc,
 
 /* Helper: Find extent containing logical offset */
 static int find_extent(struct razorfs_inode *inode,
-                      struct block_allocator *alloc,
+                      const struct block_allocator *alloc,
                       uint64_t logical_offset,
                       struct extent *out_extent,
                       int *out_index) {
@@ -103,7 +103,7 @@ static int find_extent(struct razorfs_inode *inode,
 
     if (inline_mode) {
         /* Search inline extents */
-        struct extent *extents = get_inline_extents(inode);
+        const struct extent *extents = (const struct extent *)inode->data;
 
         for (int i = 0; i < EXTENT_INLINE_MAX; i++) {
             if (extents[i].num_blocks == 0) continue;
@@ -127,7 +127,7 @@ static int find_extent(struct razorfs_inode *inode,
         uint32_t tree_block = *(uint32_t *)inode->data;
         struct extent_tree_node node;
 
-        if (load_extent_tree(alloc, tree_block, &node) < 0) {
+        if (load_extent_tree((struct block_allocator *)alloc, tree_block, &node) < 0) { // Cast for load_extent_tree function
             return -EIO;
         }
 
@@ -153,7 +153,7 @@ static int find_extent(struct razorfs_inode *inode,
 
 /* Map logical offset to physical block */
 int extent_map(struct razorfs_inode *inode,
-               struct block_allocator *alloc,
+               const struct block_allocator *alloc,
                uint64_t logical_offset,
                uint32_t *block_num,
                uint32_t *block_offset) {
@@ -162,7 +162,7 @@ int extent_map(struct razorfs_inode *inode,
     }
 
     struct extent ext;
-    if (find_extent(inode, alloc, logical_offset, &ext, NULL) < 0) {
+    if (find_extent(inode, (struct block_allocator *)alloc, logical_offset, &ext, NULL) < 0) {  // Cast for find_extent function
         return -ENOENT;
     }
 
@@ -554,7 +554,7 @@ int extent_free_all(struct razorfs_inode *inode,
 
     if (inline_mode) {
         /* Free inline extents */
-        struct extent *extents = get_inline_extents(inode);
+        const struct extent *extents = (const struct extent *)inode->data;
 
         for (int i = 0; i < EXTENT_INLINE_MAX; i++) {
             if (extents[i].num_blocks > 0 && extents[i].block_num != EXTENT_HOLE) {
@@ -642,7 +642,7 @@ int extent_iter_next(struct extent_iterator *iter,
 
     if (iter->is_inline) {
         /* Iterate inline extents */
-        struct extent *extents = get_inline_extents(iter->inode);
+        const struct extent *extents = (const struct extent *)iter->inode->data;
 
         while (iter->current_index < EXTENT_INLINE_MAX) {
             if (extents[iter->current_index].num_blocks > 0) {

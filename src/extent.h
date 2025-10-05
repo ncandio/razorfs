@@ -107,7 +107,7 @@ int extent_remove(struct razorfs_inode *inode,
  * @return 0 on success, -errno on error (e.g., -ENOENT if not mapped)
  */
 int extent_map(struct razorfs_inode *inode,
-               struct block_allocator *alloc,
+               const struct block_allocator *alloc,
                uint64_t logical_offset,
                uint32_t *block_num,
                uint32_t *block_offset);

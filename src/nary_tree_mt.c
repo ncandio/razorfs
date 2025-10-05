@@ -217,7 +217,7 @@ uint16_t nary_find_child_mt(struct nary_tree_mt *tree,
         uint16_t child_idx = parent->node.children[i];
         if (child_idx == NARY_INVALID_IDX) break;
 
-        struct nary_node_mt *child = &tree->nodes[child_idx];
+        const struct nary_node_mt *child = &tree->nodes[child_idx];
 
         const char *child_name = string_table_get(&tree->strings,
                                                   child->node.name_offset);
@@ -266,7 +266,7 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
         uint16_t child_idx = parent->node.children[i];
         if (child_idx == NARY_INVALID_IDX) break;
 
-        struct nary_node_mt *child = &tree->nodes[child_idx];
+        const struct nary_node_mt *child = &tree->nodes[child_idx];
 
         const char *child_name = string_table_get(&tree->strings,
                                                   child->node.name_offset);

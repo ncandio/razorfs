@@ -88,7 +88,7 @@ int wal_needs_recovery(const struct wal *wal) {
     /* Only checkpoint entry = clean shutdown */
     if (wal->header->entry_count == 1) {
         /* Read the entry to check if it's a checkpoint */
-        struct wal_entry *entry = (struct wal_entry *)(wal->log_buffer + wal->header->tail_offset);
+        const struct wal_entry *entry = (const struct wal_entry *)(wal->log_buffer + wal->header->tail_offset);
         if (entry->op_type == WAL_OP_CHECKPOINT) {
             return 0;  // Clean shutdown
         }
@@ -149,7 +149,7 @@ int recovery_analysis(struct recovery_ctx *ctx) {
     uint64_t head = ctx->wal->header->head_offset;
 
     while (offset != head) {
-        struct wal_entry *entry = read_entry_at(ctx->wal, offset, NULL);
+        const struct wal_entry *entry = read_entry_at(ctx->wal, offset, NULL);
         if (!entry) {
             /* Corrupted entry - stop here */
             break;
@@ -322,7 +322,7 @@ static int replay_update(struct recovery_ctx *ctx, const struct wal_update_data 
 }
 
 /* Replay a single operation */
-static int replay_operation(struct recovery_ctx *ctx, struct wal_entry *entry,
+static int replay_operation(struct recovery_ctx *ctx, const struct wal_entry *entry,
                            void *data) {
     if (!data) return -1;
 
@@ -364,7 +364,7 @@ int recovery_redo(struct recovery_ctx *ctx) {
         if (!entry) break;
 
         /* Find transaction */
-        struct tx_info *tx = NULL;
+        const struct tx_info *tx = NULL;
         for (uint32_t i = 0; i < ctx->tx_count; i++) {
             if (ctx->tx_table[i].tx_id == entry->tx_id) {
                 tx = &ctx->tx_table[i];

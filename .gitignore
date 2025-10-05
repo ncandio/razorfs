@@ -22,3 +22,4 @@ findings/
 .DS_Store
 *.swp
 *~
+src/*.o

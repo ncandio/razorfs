@@ -38,7 +38,7 @@ int shm_tree_init(struct nary_tree_mt *tree) {
     if (!tree) return -1;
 
     /* Initialize NUMA support */
-    int numa_nodes = numa_init();
+    numa_init();
     int numa_node = numa_get_current_node();
 
     int is_new = !shm_tree_exists();
