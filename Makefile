@@ -4,11 +4,16 @@
 CC = gcc
 CFLAGS_BASE = -Wall -Wextra -pthread
 CFLAGS_BASE += $(shell pkg-config fuse3 --cflags)
-LDFLAGS = -pthread $(shell pkg-config fuse3 --libs) -lrt -lz
+LDFLAGS_BASE = -pthread $(shell pkg-config fuse3 --libs) -lrt -lz
+LDFLAGS = $(LDFLAGS_BASE) $(HARDENING_LDFLAGS)
+
+# Security hardening flags
+HARDENING_FLAGS = -fstack-protector-strong -D_FORTIFY_SOURCE=2
+HARDENING_LDFLAGS = -Wl,-z,relro,-z,now -Wl,-z,noexecstack
 
 # Build configurations
-CFLAGS_DEBUG = $(CFLAGS_BASE) -g -O0
-CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG
+CFLAGS_DEBUG = $(CFLAGS_BASE) -g -O0 $(HARDENING_FLAGS)
+CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG $(HARDENING_FLAGS)
 
 # Default to debug build
 CFLAGS ?= $(CFLAGS_DEBUG)
@@ -34,6 +39,13 @@ debug:
 release:
 	@echo "Building RAZORFS (Release - Optimized)..."
 	@$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_RELEASE)"
+
+hardened:
+	@echo "Building RAZORFS (Hardened Release - Security Optimized)..."
+	@$(MAKE) clean
+	@$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_RELEASE)"
+	@strip $(TARGET)
+	@echo "✅ Hardened build complete (stripped symbols)"
 
 $(TARGET): $(OBJECTS) $(FUSE_DIR)/razorfs_mt.c
 	@echo "Building RAZORFS..."
@@ -79,10 +91,11 @@ help:
 	@echo "RAZORFS Makefile"
 	@echo ""
 	@echo "Build Targets:"
-	@echo "  make         - Build razorfs (debug mode, default)"
-	@echo "  make debug   - Build with debug symbols (-g -O0)"
-	@echo "  make release - Build optimized version (-O3)"
-	@echo "  make clean   - Remove build artifacts"
+	@echo "  make          - Build razorfs (debug mode, default)"
+	@echo "  make debug    - Build with debug symbols (-g -O0)"
+	@echo "  make release  - Build optimized version (-O3)"
+	@echo "  make hardened - Build hardened release (Full RELRO, stack canary, stripped)"
+	@echo "  make clean    - Remove build artifacts"
 	@echo ""
 	@echo "Test Targets:"
 	@echo "  make test              - Run unit and integration tests"
