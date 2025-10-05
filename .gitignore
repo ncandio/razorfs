@@ -2,13 +2,24 @@
 *.o
 *.a
 razorfs
+razorfsck
+razorfsck_new
 src/*.o
 fuse/*.o
 
-# Test builds
+# Test builds and binaries
 build_tests/
 tests/build/
 tests/results/
+test_*
+!test_*.sh
+!test_*.c
+!test_*.cpp
+!test_*.h
+performance_demo
+performance_comparison
+performance_benchmark
+nary_vs_flat_comparison
 
 # Fuzzing
 fuzz-build/
