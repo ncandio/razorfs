@@ -137,6 +137,9 @@ static void remove_file_data(uint32_t inode) {
     }
 
     pthread_rwlock_unlock(&g_mt_fs.files_lock);
+
+    /* Remove persisted file data from shared memory */
+    shm_file_data_remove(inode);
 }
 
 /* === Helper Functions === */
@@ -376,6 +379,31 @@ static int razorfs_mt_open(const char *path, struct fuse_file_info *fi) {
     /* Store inode in file handle for faster access */
     fi->fh = node.inode;
 
+    /* Try to restore file data from shared memory if not already loaded */
+    if (find_file_data(node.inode) == NULL && node.size > 0) {
+        void *data = NULL;
+        size_t size = 0;
+        size_t data_size = 0;
+        int is_compressed = 0;
+
+        if (shm_file_data_restore(node.inode, &data, &size,
+                                  &data_size, &is_compressed) == 0) {
+            /* Successfully restored - create file data structure */
+            struct mt_file_data *fd = create_file_data(node.inode);
+            if (fd) {
+                pthread_rwlock_wrlock(&fd->data_lock);
+                fd->data = data;
+                fd->size = size;
+                fd->capacity = data_size;
+                fd->is_compressed = is_compressed;
+                fd->uncompressed_size = is_compressed ? size : 0;
+                pthread_rwlock_unlock(&fd->data_lock);
+            } else {
+                free(data);  /* Failed to create fd, free the data */
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -494,7 +522,23 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
         }
     }
 
+    /* Persist file data to shared memory before unlocking */
+    size_t persist_size = fd->size;
+    size_t persist_data_size = fd->is_compressed ? fd->capacity : fd->size;
+    int persist_compressed = fd->is_compressed;
+    char *persist_data = malloc(persist_data_size);
+    if (persist_data) {
+        memcpy(persist_data, fd->data, persist_data_size);
+    }
+
     pthread_rwlock_unlock(&fd->data_lock);
+
+    /* Save to shared memory */
+    if (persist_data) {
+        shm_file_data_save(fi->fh, persist_data, persist_size,
+                          persist_data_size, persist_compressed);
+        free(persist_data);
+    }
 
     /* Update node size separately */
     uint16_t idx = nary_path_lookup_mt(&g_mt_fs.tree, path);

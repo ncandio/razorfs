@@ -286,3 +286,177 @@ void shm_tree_destroy(struct nary_tree_mt *tree) {
 
     printf("🗑️  Persistent filesystem destroyed\n");
 }
+
+/* === File Data Persistence === */
+
+/**
+ * File data header in shared memory
+ */
+struct shm_file_header {
+    uint32_t magic;              /* Magic number for validation */
+    uint32_t inode;              /* Inode number */
+    size_t size;                 /* Uncompressed file size */
+    size_t data_size;            /* Actual data size (may be compressed) */
+    int is_compressed;           /* 1 if data is compressed */
+};
+
+#define SHM_FILE_MAGIC 0x46494C45  /* "FILE" */
+
+/**
+ * Save file data to shared memory
+ * Creates/updates /dev/shm/razorfs_file_<inode>
+ *
+ * @param inode Inode number
+ * @param data File data (may be compressed)
+ * @param size Original (uncompressed) size
+ * @param data_size Actual data size (compressed size if compressed)
+ * @param is_compressed 1 if data is compressed, 0 otherwise
+ * @return 0 on success, -1 on failure
+ */
+int shm_file_data_save(uint32_t inode, const void *data, size_t size,
+                        size_t data_size, int is_compressed) {
+    if (!data || data_size == 0) return -1;
+
+    /* Create shared memory name */
+    char shm_name[64];
+    snprintf(shm_name, sizeof(shm_name), "%s%u", SHM_FILE_PREFIX, inode);
+
+    /* Calculate total size needed */
+    size_t total_size = sizeof(struct shm_file_header) + data_size;
+
+    /* Create/open shared memory */
+    int fd = shm_open(shm_name, O_RDWR | O_CREAT, 0600);
+    if (fd < 0) {
+        perror("shm_open (file data)");
+        return -1;
+    }
+
+    /* Set size */
+    if (ftruncate(fd, total_size) < 0) {
+        perror("ftruncate (file data)");
+        close(fd);
+        shm_unlink(shm_name);
+        return -1;
+    }
+
+    /* Map memory */
+    void *addr = mmap(NULL, total_size, PROT_READ | PROT_WRITE,
+                      MAP_SHARED, fd, 0);
+    close(fd);
+
+    if (addr == MAP_FAILED) {
+        perror("mmap (file data)");
+        shm_unlink(shm_name);
+        return -1;
+    }
+
+    /* Write header */
+    struct shm_file_header *hdr = (struct shm_file_header *)addr;
+    hdr->magic = SHM_FILE_MAGIC;
+    hdr->inode = inode;
+    hdr->size = size;
+    hdr->data_size = data_size;
+    hdr->is_compressed = is_compressed;
+
+    /* Write data */
+    memcpy(hdr + 1, data, data_size);
+
+    /* Sync to disk */
+    msync(addr, total_size, MS_SYNC);
+
+    /* Unmap */
+    munmap(addr, total_size);
+
+    return 0;
+}
+
+/**
+ * Restore file data from shared memory
+ * Reads from /dev/shm/razorfs_file_<inode>
+ *
+ * @param inode Inode number
+ * @param data_out Output pointer to receive allocated data (caller must free)
+ * @param size_out Output pointer for original (uncompressed) size
+ * @param data_size_out Output pointer for actual data size
+ * @param is_compressed_out Output pointer for compression flag
+ * @return 0 on success, -1 if not found or error
+ */
+int shm_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
+                           size_t *data_size_out, int *is_compressed_out) {
+    if (!data_out || !size_out) return -1;
+
+    /* Create shared memory name */
+    char shm_name[64];
+    snprintf(shm_name, sizeof(shm_name), "%s%u", SHM_FILE_PREFIX, inode);
+
+    /* Try to open existing shared memory */
+    int fd = shm_open(shm_name, O_RDONLY, 0);
+    if (fd < 0) {
+        /* File has no persisted data (not an error) */
+        return -1;
+    }
+
+    /* Get size */
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        perror("fstat (file data)");
+        close(fd);
+        return -1;
+    }
+
+    if (st.st_size < (off_t)sizeof(struct shm_file_header)) {
+        fprintf(stderr, "Invalid file data size for inode %u\n", inode);
+        close(fd);
+        return -1;
+    }
+
+    /* Map memory */
+    void *addr = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    close(fd);
+
+    if (addr == MAP_FAILED) {
+        perror("mmap (file data restore)");
+        return -1;
+    }
+
+    /* Read header */
+    struct shm_file_header *hdr = (struct shm_file_header *)addr;
+
+    /* Validate magic */
+    if (hdr->magic != SHM_FILE_MAGIC) {
+        fprintf(stderr, "Invalid file data magic for inode %u: 0x%x\n",
+                inode, hdr->magic);
+        munmap(addr, st.st_size);
+        return -1;
+    }
+
+    /* Allocate memory for data */
+    *data_out = malloc(hdr->data_size);
+    if (!*data_out) {
+        munmap(addr, st.st_size);
+        return -1;
+    }
+
+    /* Copy data */
+    memcpy(*data_out, hdr + 1, hdr->data_size);
+    *size_out = hdr->size;
+    if (data_size_out) *data_size_out = hdr->data_size;
+    if (is_compressed_out) *is_compressed_out = hdr->is_compressed;
+
+    /* Unmap */
+    munmap(addr, st.st_size);
+
+    return 0;
+}
+
+/**
+ * Remove file data from shared memory
+ * Called when a file is deleted
+ *
+ * @param inode Inode number
+ */
+void shm_file_data_remove(uint32_t inode) {
+    char shm_name[64];
+    snprintf(shm_name, sizeof(shm_name), "%s%u", SHM_FILE_PREFIX, inode);
+    shm_unlink(shm_name);  /* Ignore errors - file may not have persisted data */
+}
