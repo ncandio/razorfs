@@ -299,9 +299,9 @@ RazorFS implements comprehensive automated security testing to identify and prev
 ### Real-World Benchmark Results
 
 #### O(log n) Scalability Validation
-*Tested on live system - October 2025*
+*Tested on live system - October 2025 (Generated with Docker test infrastructure)*
 
-![O(log n) Comparison](benchmarks/graphs/razorfs_ologn_comparison.png)
+![O(log n) Comparison](readme_graphs/ologn_scaling_validation.png)
 
 **Key Findings:**
 - **10 files:** 2079μs per lookup
@@ -313,14 +313,14 @@ RazorFS implements comprehensive automated security testing to identify and prev
 ✅ **Conclusion:** Consistent performance demonstrates true O(log n) complexity
 
 #### Comprehensive Feature Comparison (Radar Chart)
-*RAZORFS vs ext4, btrfs across 8 dimensions*
+*RAZORFS Phase 6 vs ext4, ZFS, ReiserFS across 8 dimensions (Generated with Docker test infrastructure)*
 
-![Feature Radar](benchmarks/graphs/razorfs_radar.png)
+![Feature Radar](readme_graphs/comprehensive_performance_radar.png)
 
 #### Performance Heatmap
-*Side-by-side comparison across all metrics*
+*Side-by-side comparison across all metrics (Generated with Docker test infrastructure)*
 
-![Performance Heatmap](benchmarks/graphs/razorfs_heatmap.png)
+![Performance Heatmap](readme_graphs/scalability_heatmap.png)
 
 ### Measured Performance Metrics
 
