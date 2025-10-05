@@ -415,15 +415,19 @@ razorfs/
 - ✅ Transparent compression (zlib)
 - ✅ Shared memory persistence (/dev/shm)
 - ✅ O(log n) operations
+- ✅ WAL journaling with crash recovery
+- ✅ Extended attributes (xattr)
+- ✅ Hardlink support with reference counting
 
 ### Recommended Use
 - ✅ Research and education
 - ✅ AI-assisted development experimentation
 - ✅ Filesystem algorithm prototyping
 - ✅ Performance benchmarking studies
-- ✅ Small file workloads (<10MB per file)
-- ❌ **NOT for production data storage**
-- ❌ **NOT for critical data** (no crash recovery)
+- ✅ Small to medium file workloads (<10MB per file)
+- ✅ **Development and testing environments** (with WAL enabled)
+- ⚠️  **Use with caution for non-critical production workloads**
+- ❌ **NOT recommended for mission-critical data** (beta status)
 
 ### Persistence Model Notes
 **Current Implementation:**
