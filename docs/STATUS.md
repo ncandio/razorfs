@@ -120,11 +120,20 @@ RAZORFS is a multithreaded FUSE filesystem with shared memory persistence, curre
 - ✅ 22 unit tests (all passing)
 - ✅ Write/read operations on blocks
 
-**Phase 5.2: Extent Storage** (Next)
-- [ ] Extent descriptor structures
-- [ ] Inline extent support (small/medium files)
-- [ ] Extent tree for large files
-- [ ] Extent merging and splitting
+**Phase 5.2: Extent Storage** ✅
+- ✅ Extent descriptor structures
+- ✅ Inline extent support (small/medium files)
+- ✅ Extent tree for large files
+- ✅ Extent merging for adjacent blocks
+- ✅ Read/write operations with extents
+- ✅ Sparse file support (holes return zeros)
+- ✅ Automatic inline-to-extent conversion
+- ✅ 19 unit tests (all passing)
+
+**Phase 5.3: File Operations** (Next)
+- [ ] Integration with FUSE operations
+- [ ] Performance optimizations
+- [ ] Read-ahead/write-behind (optional)
 
 ---
 
@@ -157,10 +166,10 @@ Detailed roadmap available in `docs/PRODUCTION_ROADMAP.md`
 
 ### Phase 5: Large Files + mmap (3-4 days)
 - [x] Block allocator
-- [ ] Extent-based storage
-- [ ] Read-ahead/write-behind
-- [ ] mmap support
-- [ ] Sparse files
+- [x] Extent-based storage
+- [x] Sparse file support
+- [ ] Read-ahead/write-behind (optional)
+- [ ] mmap support (optional)
 
 ### Phase 6: Production Hardening (1-2 days)
 - [ ] Performance optimization
@@ -183,6 +192,7 @@ Detailed roadmap available in `docs/PRODUCTION_ROADMAP.md`
 - `xattr_test`: 22/22 ✅
 - `inode_table_test`: 21/21 ✅
 - `block_alloc_test`: 22/22 ✅
+- `extent_test`: 19/19 ✅
 
 ### Memory Safety: ✅ Clean
 - **Valgrind**: 0 leaks, 0 errors
@@ -210,6 +220,8 @@ RAZOR_repo/
 │   ├── inode_table.h      # ✅ Inode table header
 │   ├── block_alloc.c      # ✅ Block allocator
 │   ├── block_alloc.h      # ✅ Block allocator header
+│   ├── extent.c           # ✅ Extent management
+│   ├── extent.h           # ✅ Extent management header
 │   ├── nary_tree_mt.c     # ✅ Multithreaded tree
 │   ├── nary_node.h        # ✅ Node structure (with xattr)
 │   ├── string_table.c     # ✅ String interning
@@ -221,7 +233,7 @@ RAZOR_repo/
 │   └── razorfs_mt.c       # ✅ Multithreaded FUSE ops
 │
 ├── tests/                  # Test suite
-│   ├── unit/              # ✅ Unit tests (10 files)
+│   ├── unit/              # ✅ Unit tests (11 files)
 │   └── integration/       # ✅ Integration tests
 │
 ├── docs/                   # Documentation
