@@ -213,7 +213,7 @@ done:
 }
 
 /* Check if insert was already applied (idempotency) */
-static int check_insert_applied(struct recovery_ctx *ctx,
+static int check_insert_applied(const struct recovery_ctx *ctx,
                                const struct wal_insert_data *data) {
     /* Look up by inode */
     for (uint32_t i = 0; i < ctx->tree->used; i++) {
@@ -253,7 +253,7 @@ static int replay_insert(struct recovery_ctx *ctx, const struct wal_insert_data 
 }
 
 /* Check if delete was already applied */
-static int check_delete_applied(struct recovery_ctx *ctx,
+static int check_delete_applied(const struct recovery_ctx *ctx,
                                const struct wal_delete_data *data) {
     if (data->node_idx >= ctx->tree->used) {
         return 1;  // Node doesn't exist
@@ -285,7 +285,7 @@ static int replay_delete(struct recovery_ctx *ctx, const struct wal_delete_data 
 }
 
 /* Check if update was already applied */
-static int check_update_applied(struct recovery_ctx *ctx,
+static int check_update_applied(const struct recovery_ctx *ctx,
                                const struct wal_update_data *data) {
     if (data->node_idx >= ctx->tree->used) {
         return -1;  // Invalid node
@@ -360,7 +360,7 @@ int recovery_redo(struct recovery_ctx *ctx) {
 
     while (offset != head) {
         void *data = NULL;
-        struct wal_entry *entry = read_entry_at(ctx->wal, offset, &data);
+        const struct wal_entry *entry = read_entry_at(ctx->wal, offset, &data);
         if (!entry) break;
 
         /* Find transaction */

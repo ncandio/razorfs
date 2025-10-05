@@ -73,7 +73,7 @@ void block_alloc_destroy(struct block_allocator *alloc) {
 }
 
 /* Check if blocks are contiguously free */
-static int is_contiguous_free(struct block_allocator *alloc,
+static int is_contiguous_free(const struct block_allocator *alloc,
                               uint32_t start,
                               uint32_t num_blocks) {
     if (start + num_blocks > alloc->total_blocks) {
@@ -202,7 +202,7 @@ void block_stats(struct block_allocator *alloc,
 }
 
 /* Get block address */
-void* block_get_addr(struct block_allocator *alloc, uint32_t block_num) {
+void* block_get_addr(const struct block_allocator *alloc, uint32_t block_num) {
     if (!alloc || block_num >= alloc->total_blocks) {
         return NULL;
     }

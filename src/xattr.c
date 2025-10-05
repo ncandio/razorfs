@@ -12,7 +12,7 @@
 /* Initialize xattr subsystem */
 int xattr_init(struct xattr_pool *pool,
                struct xattr_value_pool *values,
-               struct string_table *names,
+               const struct string_table *names,
                uint32_t max_entries,
                uint32_t value_pool_size) {
     if (!pool || !values || !names) return -1;
@@ -176,7 +176,7 @@ static void free_entry(struct xattr_pool *pool, uint32_t offset) {
 /* Get xattr value */
 int xattr_get(struct xattr_pool *pool,
               struct xattr_value_pool *values,
-              struct string_table *names,
+              const struct string_table *names,
               uint32_t xattr_head,
               const char *name,
               void *value,
@@ -199,7 +199,7 @@ int xattr_get(struct xattr_pool *pool,
             return -EINVAL;
         }
 
-        struct xattr_entry *entry = &pool->entries[offset];
+        const struct xattr_entry *entry = &pool->entries[offset];
 
         /* Get name from string table */
         const char *entry_name = string_table_get(names, entry->name_offset);
@@ -368,7 +368,7 @@ int xattr_set(struct xattr_pool *pool,
 
 /* List xattr names */
 ssize_t xattr_list(struct xattr_pool *pool,
-                   struct string_table *names,
+                   const struct string_table *names,
                    uint32_t xattr_head,
                    char *list,
                    size_t size) {
@@ -386,7 +386,7 @@ ssize_t xattr_list(struct xattr_pool *pool,
             return -EINVAL;
         }
 
-        struct xattr_entry *entry = &pool->entries[offset];
+        const struct xattr_entry *entry = &pool->entries[offset];
         const char *entry_name = string_table_get(names, entry->name_offset);
 
         if (entry_name) {
@@ -434,7 +434,7 @@ ssize_t xattr_list(struct xattr_pool *pool,
 /* Remove xattr */
 int xattr_remove(struct xattr_pool *pool,
                  struct xattr_value_pool *values,
-                 struct string_table *names,
+                 const struct string_table *names,
                  uint32_t *xattr_head,
                  uint16_t *xattr_count,
                  const char *name) {
@@ -461,7 +461,7 @@ int xattr_remove(struct xattr_pool *pool,
             return -EINVAL;
         }
 
-        struct xattr_entry *entry = &pool->entries[offset];
+        const struct xattr_entry *entry = &pool->entries[offset];
         const char *entry_name = string_table_get(names, entry->name_offset);
 
         if (entry_name && strcmp(entry_name, name) == 0) {
@@ -512,7 +512,7 @@ void xattr_free_all(struct xattr_pool *pool,
     while (offset != 0 && count < xattr_count) {
         if (offset >= pool->used) break;
 
-        struct xattr_entry *entry = &pool->entries[offset];
+        const struct xattr_entry *entry = &pool->entries[offset];
         uint32_t next = entry->next_offset;
 
         /* Free value */

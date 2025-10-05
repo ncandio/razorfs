@@ -12,7 +12,7 @@
 /* Helper: Check if inode uses inline extents */
 static int is_inline_extents(struct razorfs_inode *inode) {
     /* Check if extent tree block is allocated (first 4 bytes of data) */
-    uint32_t *extent_tree_ptr = (uint32_t *)inode->data;
+    const uint32_t *extent_tree_ptr = (const uint32_t *)inode->data;
 
     /* If extent tree block is set, we're using extent tree */
     if (*extent_tree_ptr != 0) {
@@ -20,7 +20,7 @@ static int is_inline_extents(struct razorfs_inode *inode) {
     }
 
     /* Otherwise, check if we have inline extents by looking at extent structure */
-    struct extent *extents = (struct extent *)inode->data;
+    const struct extent *extents = (const struct extent *)inode->data;
 
     /* If any extent is defined, we're using inline extents */
     for (int i = 0; i < EXTENT_INLINE_MAX; i++) {
@@ -42,7 +42,7 @@ static struct extent* get_inline_extents(struct razorfs_inode *inode) {
 /* Helper: Get extent count from inline storage */
 static uint32_t get_inline_extent_count(struct razorfs_inode *inode) {
     /* Count non-zero extents */
-    struct extent *extents = get_inline_extents(inode);
+    const struct extent *extents = get_inline_extents(inode);
     uint32_t count = 0;
 
     for (int i = 0; i < EXTENT_INLINE_MAX; i++) {
@@ -518,7 +518,7 @@ ssize_t extent_write(struct razorfs_inode *inode,
 
 /* Truncate file */
 int extent_truncate(struct razorfs_inode *inode,
-                    struct block_allocator *alloc,
+                    const struct block_allocator *alloc,
                     off_t new_size) {
     if (!inode || !alloc || new_size < 0) {
         return -EINVAL;
