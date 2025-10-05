@@ -39,6 +39,7 @@ jobs:
 
     - name: Build RAZORFS (Release)
       run: |
+        make clean
         make release
 
     - name: Build Tests
