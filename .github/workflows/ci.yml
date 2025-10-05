@@ -127,15 +127,13 @@ jobs:
 
     - name: Run clang-tidy
       run: |
-        # Create compile_commands.json
-        mkdir build_analyze
-        cd build_analyze
-        cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-        cd ..
+        # Generate compile_commands.json using bear (Build EAR)
+        sudo apt-get install -y bear
+        bear -- make clean && bear -- make
 
         # Run clang-tidy on source files
         find src -name "*.c" -exec \
-          clang-tidy {} -p build_analyze --checks='-*,clang-analyzer-*,bugprone-*,performance-*' \
+          clang-tidy {} -p . --checks='-*,clang-analyzer-*,bugprone-*,performance-*' \
           \; 2>&1 | tee tests/results/clang_tidy_report.txt || true
 
     - name: Upload static analysis results
