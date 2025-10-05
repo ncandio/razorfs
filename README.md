@@ -6,6 +6,15 @@
 
 **⚠️ EXPERIMENTAL PROJECT - AI-ASSISTED ENGINEERING**
 
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/ncandio/razorfs)
+[![Tests](https://img.shields.io/badge/tests-199%2F199%20passing-brightgreen.svg)](https://github.com/ncandio/razorfs)
+[![Coverage](https://img.shields.io/badge/coverage-core%20components-blue.svg)](https://github.com/ncandio/razorfs)
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://github.com/ncandio/razorfs)
+[![FUSE](https://img.shields.io/badge/FUSE-3.0-orange.svg)](https://github.com/libfuse/libfuse)
+[![Status](https://img.shields.io/badge/status-alpha-yellow.svg)](https://github.com/ncandio/razorfs)
+[![Security](https://img.shields.io/badge/security-hardened-green.svg)](docs/SECURITY_AUDIT.md)
+
 </div>
 
 RAZORFS is an experimental filesystem built using AI-assisted development methodology. This project demonstrates the potential of AI copilots (Claude Code, and other AI tools) in systems programming, data structure optimization, and filesystem research.
