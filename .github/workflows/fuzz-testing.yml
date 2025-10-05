@@ -68,6 +68,8 @@ jobs:
         afl-clang-fast -D_FILE_OFFSET_BITS=64 -I../src -I/usr/include/fuse3 path_fuzzer.c ../src/nary_tree_mt.c ../src/string_table.c -o path_fuzzer -lpthread -lz -lfuse3
 
     - name: Run afl-fuzz on path parsing
+      env:
+        AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES: 1
       run: |
         cd fuzz-build
         mkdir -p input_corpus
@@ -77,5 +79,5 @@ jobs:
         echo "/test/../../../" > input_corpus/test4
         echo "" > input_corpus/empty
         echo "../../../../../../../../../../../../etc/passwd" > input_corpus/test5
-        
+
         timeout 300 afl-fuzz -i input_corpus -o findings -m none ./path_fuzzer @@
