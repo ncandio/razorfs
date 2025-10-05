@@ -25,6 +25,9 @@ on:
 jobs:
   fuzz-test:
     runs-on: ubuntu-latest
+    env:
+      AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES: 1
+      AFL_SKIP_CPUFREQ: 1
 
     steps:
     - uses: actions/checkout@v4
@@ -78,5 +81,9 @@ jobs:
         echo "" > input_corpus/empty
         echo "../../../../../../../../../../../../etc/passwd" > input_corpus/test5
 
+        # Set AFL environment variables to work around CI restrictions
         export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+        export AFL_SKIP_CPUFREQ=1
+
+        # Run fuzzer with timeout
         timeout 300 afl-fuzz -i input_corpus -o findings -m none ./path_fuzzer @@ || echo "Fuzzing completed or timed out"
