@@ -38,14 +38,13 @@ jobs:
       run: |
         mkdir fuzz-build
         cd fuzz-build
-        CC=afl-clang-fast cmake .. -DCMAKE_BUILD_TYPE=Debug
-        afl-clang-fast -c ../src/nary_tree_mt.c -o nary_tree_mt.o
-        afl-clang-fast -c ../src/string_table.c -o string_table.o
+        # Use the Makefile to build the project for fuzzing
+        make -C .. debug
         # Create fuzzer for path parsing specifically
         echo '#include <stdio.h>
         #include <stdlib.h>
         #include <string.h>
-        #include "src/nary_tree_mt.h"
+        #include "../src/nary_tree_mt.h"
         
         int main(int argc, char **argv) {
             struct nary_tree_mt tree;
@@ -59,7 +58,7 @@ jobs:
             return 0;
         }' > path_fuzzer.c
         
-        afl-clang-fast path_fuzzer.c -o path_fuzzer nary_tree_mt.o string_table.o -lpthread -lz
+        afl-clang-fast -D_FILE_OFFSET_BITS=64 -I../src -I/usr/include/fuse3 path_fuzzer.c ../src/nary_tree_mt.c ../src/string_table.c -o path_fuzzer -lpthread -lz -lfuse3
 
     - name: Run afl-fuzz on path parsing
       run: |
