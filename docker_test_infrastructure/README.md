@@ -1,0 +1,438 @@
+# Docker Test Infrastructure
+
+This directory contains the complete test infrastructure for staging RAZORFS filesystem benchmarks and producing publication-quality comparison graphs.
+
+## Purpose
+
+The Docker Test Infrastructure provides:
+
+1. **Isolated Testing Environment** - Docker containers for running ext4, ReiserFS, and ZFS tests without affecting the host system
+2. **Automated Benchmarking** - Comprehensive test suite comparing RAZORFS against major filesystems
+3. **Graph Generation** - Gnuplot-based visualization of benchmark results
+4. **Reproducible Results** - Consistent test methodology across all filesystems
+
+## Infrastructure Components
+
+```
+docker_test_infrastructure/
+├── README.md                      # This file
+├── BENCHMARKS_README.md          # Detailed benchmark documentation
+└── benchmark_filesystems.sh      # Main test orchestration script
+```
+
+## What This Infrastructure Does
+
+### 1. Staging Tests
+
+The infrastructure stages and executes 4 comprehensive benchmark tests:
+
+#### Test 1: Compression Efficiency
+- **Method:** Downloads a real-world 1MB+ compressed archive (git source code)
+- **Comparison:** RAZORFS (zlib) vs ext4 (none) vs ZFS (LZ4) vs ReiserFS (none)
+- **Output:** Disk usage and compression ratio comparison graph
+
+#### Test 2: Backup & Recovery Simulation
+- **Method:** 10-second crash recovery scenario with data integrity verification
+- **Comparison:** Recovery time and success rate across all filesystems
+- **Output:** Recovery performance graph showing time-to-recovery and data integrity
+
+#### Test 3: NUMA Friendliness
+- **Method:** Memory locality measurement on NUMA (Non-Uniform Memory Access) systems
+- **Comparison:** NUMA score (0-100) and access latency (nanoseconds)
+- **Output:** NUMA performance graph highlighting memory optimization
+
+#### Test 4: Persistence Verification
+- **Method:** Create 1MB random file → unmount → remount → verify MD5 checksum
+- **Comparison:** Data persistence across mount/unmount cycles
+- **Output:** Checksum verification table and persistence graph
+
+### 2. Graph Production
+
+The infrastructure produces 4 publication-quality graphs using gnuplot:
+
+1. **`compression_comparison.png`**
+   - Dual Y-axis: Disk usage (MB) + Compression ratio
+   - Color-coded bars for easy comparison
+   - Legend explaining compression efficiency
+
+2. **`recovery_comparison.png`**
+   - Dual Y-axis: Recovery time (ms) + Success rate (%)
+   - Highlights RAZORFS instant recovery advantage
+   - Shows data integrity scores
+
+3. **`numa_comparison.png`**
+   - Dual Y-axis: NUMA score (0-100) + Access latency (ns)
+   - Demonstrates RAZORFS NUMA-aware design
+   - Lower latency = better performance
+
+4. **`persistence_verification.png`**
+   - Visual representation of checksum verification
+   - Before/after comparison for mount cycles
+   - Pass/fail indicators
+
+## Architecture
+
+### Docker Integration
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    WSL2 (Linux)                         │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  RAZORFS Tests                                   │   │
+│  │  • Native execution on WSL2                      │   │
+│  │  • Shared memory (/dev/shm)                      │   │
+│  │  • FUSE3 filesystem                              │   │
+│  └─────────────────────────────────────────────────┘   │
+│                         ▼                                │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  Docker Containers (via Docker Desktop)         │   │
+│  │  ┌─────────────┐  ┌─────────────┐              │   │
+│  │  │ ext4 Test   │  │ ZFS Test    │              │   │
+│  │  │ Container   │  │ Container   │              │   │
+│  │  └─────────────┘  └─────────────┘              │   │
+│  │  • Privileged mode for filesystem creation      │   │
+│  │  • Loop devices for disk images                 │   │
+│  │  • Volume mounts for test data                  │   │
+│  └─────────────────────────────────────────────────┘   │
+│                         ▼                                │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  Gnuplot Graph Generation                       │   │
+│  │  • Processes test data                          │   │
+│  │  • Creates PNG graphs                           │   │
+│  │  • Generates markdown report                    │   │
+│  └─────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│              Windows Filesystem                          │
+│  C:\Users\liber\Desktop\Testing-Razor-FS\benchmarks\   │
+│  • Benchmark reports (.md)                              │
+│  • Raw data files (.dat)                                │
+│  • PNG graphs (.png)                                    │
+│  • Gnuplot scripts (.gp)                                │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Test Flow
+
+```
+1. Initialize
+   ├── Download test file (1MB+ git archive)
+   ├── Build RAZORFS if needed
+   └── Create results directory
+
+2. Run RAZORFS Tests
+   ├── Mount RAZORFS with shared memory
+   ├── Execute compression test
+   ├── Execute recovery test
+   ├── Execute NUMA test
+   ├── Execute persistence test
+   └── Collect metrics
+
+3. Run Docker Tests
+   ├── Spawn Docker container (ext4)
+   ├── Create loop device
+   ├── Format filesystem
+   ├── Run same tests
+   ├── Collect metrics
+   └── Repeat for ZFS
+
+4. Generate Graphs
+   ├── Process raw data
+   ├── Execute gnuplot scripts
+   ├── Create PNG images
+   └── Generate markdown report
+
+5. Output Results
+   ├── Save to Windows filesystem
+   ├── Display summary
+   └── Auto-open report
+```
+
+## Requirements
+
+### System Requirements
+
+- **OS:** WSL2 on Windows 10/11
+- **RAM:** 4GB minimum (8GB recommended for ZFS tests)
+- **Disk:** 1GB free space for test files and results
+- **Docker:** Docker Desktop for Windows with WSL2 backend
+
+### Software Dependencies
+
+```bash
+# Install on WSL2
+sudo apt-get update
+sudo apt-get install -y \
+    gnuplot \
+    bc \
+    wget \
+    fuse3 \
+    libfuse3-dev \
+    docker.io
+```
+
+### Docker Configuration
+
+1. **Docker Desktop Settings:**
+   - Settings → General → "Use the WSL 2 based engine" ✓
+   - Settings → Resources → WSL Integration → Enable your WSL distro ✓
+
+2. **Permissions:**
+```bash
+# Add user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+## Usage
+
+### Quick Start
+
+```bash
+cd /home/nico/WORK_ROOT/RAZOR_repo/docker_test_infrastructure
+./benchmark_filesystems.sh
+```
+
+The script will automatically:
+1. Download test data
+2. Build RAZORFS
+3. Run all benchmarks
+4. Generate graphs
+5. Create a comprehensive report
+6. Save results to Windows: `C:\Users\liber\Desktop\Testing-Razor-FS\benchmarks\`
+
+### Output Structure
+
+```
+C:\Users\liber\Desktop\Testing-Razor-FS\benchmarks\
+├── BENCHMARK_REPORT_20251005_091234.md   # Comprehensive report
+├── data/                                  # Raw test data
+│   ├── compression_20251005_091234.dat
+│   ├── recovery_20251005_091234.dat
+│   ├── numa_20251005_091234.dat
+│   └── persistence_20251005_091234.dat
+├── graphs/                                # Generated graphs
+│   ├── compression_comparison.png
+│   ├── recovery_comparison.png
+│   ├── numa_comparison.png
+│   └── persistence_verification.png
+└── *.gp                                   # Gnuplot scripts
+```
+
+### Viewing Results
+
+**On Windows:**
+- Report auto-opens in default markdown viewer
+- Graphs viewable in any image viewer
+- Navigate to: `C:\Users\liber\Desktop\Testing-Razor-FS\benchmarks\`
+
+**On WSL:**
+```bash
+# View report
+cat /mnt/c/Users/liber/Desktop/Testing-Razor-FS/benchmarks/BENCHMARK_REPORT_*.md
+
+# View data
+cat /mnt/c/Users/liber/Desktop/Testing-Razor-FS/benchmarks/data/*.dat
+```
+
+## Customization
+
+### Custom Test Files
+
+Edit `benchmark_filesystems.sh`:
+
+```bash
+# Change test file URL and name
+TEST_FILE_URL="https://example.com/your-test-file.tar.gz"
+TEST_FILE_NAME="your-test-file.tar.gz"
+```
+
+### Custom Output Location
+
+Edit `benchmark_filesystems.sh`:
+
+```bash
+# Change results directory
+RESULTS_DIR="/mnt/c/Users/liber/Desktop/My-Custom-Location"
+```
+
+### Add New Filesystems
+
+To add btrfs, f2fs, or other filesystems:
+
+1. Add Docker test in `benchmark_filesystems.sh`
+2. Follow the pattern of existing ext4/ZFS tests
+3. Update gnuplot scripts to include new filesystem
+
+Example:
+```bash
+# Test btrfs (add to benchmark_filesystems.sh)
+docker run --rm --privileged -v "/tmp/$TEST_FILE_NAME:/data/$TEST_FILE_NAME:ro" \
+    ubuntu:22.04 bash -c "
+    apt-get update -qq && apt-get install -y btrfs-progs bc &>/dev/null
+    truncate -s 100M /tmp/btrfs.img
+    mkfs.btrfs -f /tmp/btrfs.img &>/dev/null
+    mkdir -p /mnt/btrfs
+    mount -o loop,compress=zstd /tmp/btrfs.img /mnt/btrfs
+    cp /data/$TEST_FILE_NAME /mnt/btrfs/
+    sync
+    du -sm /mnt/btrfs/$TEST_FILE_NAME | awk '{print \"btrfs\", \$1, \"2.0\"}'
+" >> "$RESULTS_DIR/data/compression_${TIMESTAMP}.dat"
+```
+
+## Graph Customization
+
+### Gnuplot Settings
+
+Graphs are generated using gnuplot scripts (`*.gp` files). To customize:
+
+1. **Colors:**
+```gnuplot
+# Edit color schemes in .gp files
+linecolor rgb "#3498db"  # Blue
+linecolor rgb "#e74c3c"  # Red
+linecolor rgb "#2ecc71"  # Green
+```
+
+2. **Size:**
+```gnuplot
+# Change graph dimensions
+set terminal pngcairo enhanced font 'Arial,12' size 1200,800
+```
+
+3. **Style:**
+```gnuplot
+# Modify graph style
+set style fill solid border -1    # Solid bars with border
+set style histogram cluster gap 1 # Clustered bars
+set grid y                         # Grid lines
+```
+
+## Troubleshooting
+
+### Docker Container Fails
+
+**Symptom:** `docker: Error response from daemon...`
+
+**Solution:**
+```bash
+# Check Docker is running
+docker ps
+
+# Restart Docker Desktop
+# Windows: Docker Desktop → Restart
+
+# Check WSL integration
+# Docker Desktop → Settings → Resources → WSL Integration
+```
+
+### Permission Denied
+
+**Symptom:** `permission denied while trying to connect to the Docker daemon socket`
+
+**Solution:**
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+### Gnuplot Not Found
+
+**Symptom:** `gnuplot: command not found`
+
+**Solution:**
+```bash
+sudo apt-get install gnuplot
+```
+
+### RAZORFS Build Fails
+
+**Symptom:** Build errors when running benchmark
+
+**Solution:**
+```bash
+cd /home/nico/WORK_ROOT/RAZOR_repo
+make clean
+make release
+```
+
+### ZFS Tests Fail
+
+**Symptom:** ZFS container fails to create pool
+
+**Solution:**
+- ZFS requires significant memory
+- Allocate more RAM to WSL2 in `.wslconfig`
+- Or skip ZFS tests by commenting out in script
+
+## Data Format
+
+All test data uses space-separated format compatible with gnuplot, Excel, Python, R:
+
+```
+# Filesystem Metric1 Metric2
+RAZORFS 5.2 2.5
+ext4 10.0 1.0
+ZFS 8.5 1.5
+```
+
+Import into your favorite analysis tool:
+
+**Python:**
+```python
+import pandas as pd
+df = pd.read_csv('compression_*.dat', sep=r'\s+', comment='#')
+```
+
+**R:**
+```r
+data <- read.table('compression_*.dat', header=TRUE, comment.char='#')
+```
+
+**Excel:**
+- File → Open → Select .dat file
+- Choose "Delimited" → "Space" as delimiter
+
+## Performance Notes
+
+### Test Duration
+
+- **RAZORFS tests:** ~30 seconds
+- **Docker tests (ext4):** ~45 seconds
+- **Docker tests (ZFS):** ~90 seconds
+- **Graph generation:** ~10 seconds
+- **Total runtime:** ~3-4 minutes
+
+### Resource Usage
+
+- **CPU:** Moderate (mostly Docker overhead)
+- **RAM:** 2-4GB during ZFS tests
+- **Disk:** ~500MB for Docker images
+- **Network:** One-time download of test file (~1MB)
+
+## Contributing
+
+To extend the test infrastructure:
+
+1. Add new test functions following existing patterns
+2. Update gnuplot scripts for new metrics
+3. Document new tests in BENCHMARKS_README.md
+4. Submit PR with test results
+
+## References
+
+- **RAZORFS Documentation:** `../README.md`
+- **Benchmark Details:** `BENCHMARKS_README.md`
+- **Gnuplot Manual:** http://www.gnuplot.info/docs_5.4/Gnuplot_5_4.pdf
+- **Docker Documentation:** https://docs.docker.com/
+
+## License
+
+This test infrastructure is part of RAZORFS and follows the same license.
+
+---
+
+**Last Updated:** October 2025
+**Maintained by:** RAZORFS Development Team
+**Issues:** Report to https://github.com/ncandio/razorfs/issues
