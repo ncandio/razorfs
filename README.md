@@ -151,20 +151,70 @@ RAZORFS is a FUSE3-based filesystem implementing an n-ary tree structure with ad
 - zlib development libraries
 - Make
 
-### Build
+### Build and Run
+
+Copy and paste this complete script to build and test RAZORFS:
+
+```bash
+#!/bin/bash
+# RAZORFS Quick Start Script
+
+# Colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}   RAZORFS Quick Start${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+
+# Step 1: Build
+echo -e "\n${BLUE}[1/5]${NC} Building RAZORFS..."
+make clean && make
+echo -e "${GREEN}✓${NC} Build complete\n"
+
+# Step 2: Create mount point
+echo -e "${BLUE}[2/5]${NC} Creating mount point..."
+mkdir -p /tmp/razorfs_mount
+echo -e "${GREEN}✓${NC} Mount point created at /tmp/razorfs_mount\n"
+
+# Step 3: Mount filesystem
+echo -e "${BLUE}[3/5]${NC} Mounting RAZORFS..."
+./razorfs /tmp/razorfs_mount
+echo -e "${GREEN}✓${NC} Filesystem mounted\n"
+
+# Step 4: Test filesystem
+echo -e "${BLUE}[4/5]${NC} Testing filesystem operations..."
+echo "Hello RAZORFS!" > /tmp/razorfs_mount/test.txt
+cat /tmp/razorfs_mount/test.txt
+echo -e "${GREEN}✓${NC} File operations working\n"
+
+# Step 5: Check stats
+echo -e "${BLUE}[5/5]${NC} Checking filesystem stats..."
+ls -la /tmp/razorfs_mount/
+echo -e "${GREEN}✓${NC} Filesystem ready\n"
+
+echo -e "${YELLOW}ℹ${NC}  To unmount: fusermount3 -u /tmp/razorfs_mount"
+echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+```
+
+### Manual Steps
+
+**Build:**
 ```bash
 git clone https://github.com/yourusername/razorfs.git
 cd razorfs
 make clean && make
 ```
 
-### Mount
+**Mount:**
 ```bash
 mkdir /tmp/razorfs_mount
 ./razorfs /tmp/razorfs_mount
 ```
 
-### Test
+**Test:**
 ```bash
 # Create files
 echo "Hello RAZORFS" > /tmp/razorfs_mount/test.txt
@@ -174,7 +224,7 @@ cat /tmp/razorfs_mount/test.txt
 ls -la /tmp/razorfs_mount/
 ```
 
-### Unmount
+**Unmount:**
 ```bash
 fusermount3 -u /tmp/razorfs_mount
 ```
