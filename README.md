@@ -395,14 +395,18 @@ razorfs/
 
 ## ⚠️ Limitations & Known Issues
 
-### Production Readiness: **NOT READY**
-- ❌ No journaling/WAL (Write-Ahead Logging)
-- ❌ No crash recovery (no journal replay)
-- ❌ No xattr (extended attributes) support
-- ❌ No hardlink support
-- ❌ No mmap support
-- ❌ Not optimized for large files (>10MB)
-- ⚠️  Shared memory persistence (not crash-safe without journaling)
+### Production Readiness: **BETA**
+
+**Implemented Features (Phase 6+):**
+- ✅ **WAL (Write-Ahead Logging)** - Complete ARIES-style journaling ([src/wal.h](src/wal.h))
+- ✅ **Crash Recovery** - Three-phase recovery: Analysis/Redo/Undo ([src/recovery.h](src/recovery.h))
+- ✅ **xattr Support** - Four namespaces with 64KB value support ([src/xattr.h](src/xattr.h))
+- ✅ **Hardlink Support** - Reference counting up to 65,535 links ([src/inode_table.h](src/inode_table.h))
+- ✅ **Shared Memory Persistence** - Now crash-safe with WAL
+
+**Remaining Limitations:**
+- ⚠️  **No mmap support** - Not yet fully implemented
+- ⚠️  **Not optimized for large files (>10MB)** - Currently uses inline data (32 bytes)
 
 ### What IS Implemented
 - ✅ Basic POSIX: chmod, chown, truncate, rename
