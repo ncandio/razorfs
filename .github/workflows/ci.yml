@@ -18,6 +18,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
 
     - name: Install dependencies
       run: |
@@ -42,6 +44,7 @@ jobs:
     - name: Build Tests
       run: |
         cd tests
+        rm -rf build
         mkdir build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Debug
@@ -78,6 +81,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
 
     - name: Install dependencies
       run: |
@@ -152,6 +157,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
 
     - name: Install dependencies
       run: |
@@ -168,6 +175,7 @@ jobs:
     - name: Build Tests (Debug)
       run: |
         cd tests
+        rm -rf build
         mkdir build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Debug
@@ -224,6 +232,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
 
     - name: Install dependencies
       run: |
@@ -240,6 +250,7 @@ jobs:
     - name: Build Tests with Coverage
       run: |
         cd tests
+        rm -rf build
         mkdir build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Debug \
@@ -294,6 +305,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
 
     - name: Install dependencies
       run: |
@@ -347,6 +360,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
 
     - name: Install dependencies
       run: |

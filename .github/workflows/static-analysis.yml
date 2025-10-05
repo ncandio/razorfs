@@ -23,6 +23,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: false
 
     - name: Install dependencies
       run: |
@@ -47,6 +49,7 @@ jobs:
     - name: Run clang static analyzer
       run: |
         cd tests
+        rm -rf analysis-build
         mkdir -p analysis-build
         cd analysis-build
         scan-build --use-cc=gcc --use-c++=g++ \
