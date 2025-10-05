@@ -33,4 +33,9 @@ findings/
 .DS_Store
 *.swp
 *~
-src/*.o
+
+# Temporary test scripts
+test.sh
+
+# Duplicates and test repos
+TEST_REPO/
