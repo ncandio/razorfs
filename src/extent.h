@@ -156,7 +156,7 @@ ssize_t extent_read(struct razorfs_inode *inode,
  * @return 0 on success, -errno on error
  */
 int extent_truncate(struct razorfs_inode *inode,
-                    struct block_allocator *alloc,
+                    const struct block_allocator *alloc,
                     off_t new_size);
 
 /**

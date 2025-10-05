@@ -112,7 +112,7 @@ void block_stats(struct block_allocator *alloc,
  * @param block_num Block number
  * @return Pointer to block data, or NULL if invalid
  */
-void* block_get_addr(struct block_allocator *alloc, uint32_t block_num);
+void* block_get_addr(const struct block_allocator *alloc, uint32_t block_num);
 
 /**
  * Write data to block

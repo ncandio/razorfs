@@ -100,7 +100,7 @@ struct xattr_pool {
  */
 int xattr_init(struct xattr_pool *pool,
                struct xattr_value_pool *values,
-               struct string_table *names,
+               const struct string_table *names,
                uint32_t max_entries,
                uint32_t value_pool_size);
 
@@ -129,7 +129,7 @@ void xattr_destroy(struct xattr_pool *pool,
  */
 int xattr_get(struct xattr_pool *pool,
               struct xattr_value_pool *values,
-              struct string_table *names,
+              const struct string_table *names,
               uint32_t xattr_head,
               const char *name,
               void *value,
@@ -175,7 +175,7 @@ int xattr_set(struct xattr_pool *pool,
  *         If size>0, fills buffer and returns total size
  */
 ssize_t xattr_list(struct xattr_pool *pool,
-                   struct string_table *names,
+                   const struct string_table *names,
                    uint32_t xattr_head,
                    char *list,
                    size_t size);
@@ -194,7 +194,7 @@ ssize_t xattr_list(struct xattr_pool *pool,
  */
 int xattr_remove(struct xattr_pool *pool,
                  struct xattr_value_pool *values,
-                 struct string_table *names,
+                 const struct string_table *names,
                  uint32_t *xattr_head,
                  uint16_t *xattr_count,  /* Can be NULL */
                  const char *name);
