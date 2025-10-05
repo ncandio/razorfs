@@ -1,19 +1,43 @@
 # RAZORFS - Simple Multithreaded Filesystem
 # Unified Makefile with debug/release configurations
 
-CC = gcc
-CFLAGS_BASE = -Wall -Wextra -pthread
-CFLAGS_BASE += $(shell pkg-config fuse3 --cflags)
-LDFLAGS_BASE = -pthread $(shell pkg-config fuse3 --libs) -lrt -lz
+# Toolchain (supports cross-compilation)
+CC ?= gcc
+AR ?= ar
+STRIP ?= strip
+PKG_CONFIG ?= pkg-config
+
+# Dependency checks
+ifeq ($(shell $(PKG_CONFIG) --exists fuse3 && echo yes),yes)
+    FUSE_CFLAGS = $(shell $(PKG_CONFIG) fuse3 --cflags)
+    FUSE_LIBS = $(shell $(PKG_CONFIG) fuse3 --libs)
+else
+    $(error FUSE3 not found. Install with: sudo apt-get install libfuse3-dev)
+endif
+
+ifeq ($(shell $(PKG_CONFIG) --exists zlib && echo yes),yes)
+    ZLIB_LIBS = $(shell $(PKG_CONFIG) zlib --libs)
+else
+    ZLIB_LIBS = -lz
+    $(warning zlib pkg-config not found, using -lz)
+endif
+
+# Base flags
+CFLAGS_BASE = -Wall -Wextra -Werror=implicit-function-declaration -pthread
+CFLAGS_BASE += $(FUSE_CFLAGS)
+LDFLAGS_BASE = -pthread $(FUSE_LIBS) -lrt $(ZLIB_LIBS)
 LDFLAGS = $(LDFLAGS_BASE) $(HARDENING_LDFLAGS)
 
-# Security hardening flags
-HARDENING_FLAGS = -fstack-protector-strong -D_FORTIFY_SOURCE=2
-HARDENING_LDFLAGS = -Wl,-z,relro,-z,now -Wl,-z,noexecstack
+# Security hardening flags (production-grade)
+HARDENING_FLAGS = -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE
+HARDENING_LDFLAGS = -Wl,-z,relro,-z,now -Wl,-z,noexecstack -pie
+
+# Additional security flags for extra hardening
+EXTRA_HARDENING_FLAGS = -Wformat -Wformat-security -Werror=format-security
 
 # Build configurations
 CFLAGS_DEBUG = $(CFLAGS_BASE) -g -O0 $(HARDENING_FLAGS)
-CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG $(HARDENING_FLAGS)
+CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG $(HARDENING_FLAGS) $(EXTRA_HARDENING_FLAGS)
 
 # Default to debug build
 CFLAGS ?= $(CFLAGS_DEBUG)
@@ -44,8 +68,10 @@ hardened:
 	@echo "Building RAZORFS (Hardened Release - Security Optimized)..."
 	@$(MAKE) clean
 	@$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_RELEASE)"
-	@strip $(TARGET)
+	@$(STRIP) $(TARGET)
 	@echo "✅ Hardened build complete (stripped symbols)"
+	@echo "Security features:"
+	@command -v checksec >/dev/null 2>&1 && checksec --file=$(TARGET) || echo "  (install checksec to verify security features)"
 
 $(TARGET): $(OBJECTS) $(FUSE_DIR)/razorfs_mt.c
 	@echo "Building RAZORFS..."
@@ -94,8 +120,20 @@ help:
 	@echo "  make          - Build razorfs (debug mode, default)"
 	@echo "  make debug    - Build with debug symbols (-g -O0)"
 	@echo "  make release  - Build optimized version (-O3)"
-	@echo "  make hardened - Build hardened release (Full RELRO, stack canary, stripped)"
+	@echo "  make hardened - Build hardened release (Full RELRO, PIE, stack canary, stripped)"
 	@echo "  make clean    - Remove build artifacts"
+	@echo ""
+	@echo "Security Features (always enabled):"
+	@echo "  -fstack-protector-strong  - Stack canary protection"
+	@echo "  -D_FORTIFY_SOURCE=2       - Fortified libc functions"
+	@echo "  -fPIE -pie                - Position Independent Executable"
+	@echo "  -Wl,-z,relro,-z,now       - Full RELRO (immediate binding)"
+	@echo "  -Wl,-z,noexecstack        - Non-executable stack"
+	@echo "  -Wformat-security         - Format string vulnerability detection"
+	@echo ""
+	@echo "Cross-Compilation Support:"
+	@echo "  make CC=aarch64-linux-gnu-gcc    - Cross-compile for ARM64"
+	@echo "  make CC=arm-linux-gnueabihf-gcc  - Cross-compile for ARM32"
 	@echo ""
 	@echo "Test Targets:"
 	@echo "  make test              - Run unit and integration tests"
