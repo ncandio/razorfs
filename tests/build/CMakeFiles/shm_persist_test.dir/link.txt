@@ -1,1 +1,0 @@
-/usr/bin/c++  -Wall -Wextra -g CMakeFiles/shm_persist_test.dir/unit/shm_persist_test.cpp.o -o shm_persist_test  librazorfs_lib.a lib/libgtest_main.a lib/libgmock.a -lfuse3 -lpthread /usr/lib/x86_64-linux-gnu/libz.so -lnuma -lrt lib/libgtest.a 

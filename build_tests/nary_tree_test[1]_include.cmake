@@ -1,5 +1,0 @@
-if(EXISTS "/home/nico/WORK_ROOT/RAZOR_repo/build_tests/nary_tree_test[1]_tests.cmake")
-  include("/home/nico/WORK_ROOT/RAZOR_repo/build_tests/nary_tree_test[1]_tests.cmake")
-else()
-  add_test(nary_tree_test_NOT_BUILT nary_tree_test_NOT_BUILT)
-endif()

@@ -1,5 +1,0 @@
-if(EXISTS "/home/nico/WORK_ROOT/RAZOR_repo/build_tests/string_table_test[1]_tests.cmake")
-  include("/home/nico/WORK_ROOT/RAZOR_repo/build_tests/string_table_test[1]_tests.cmake")
-else()
-  add_test(string_table_test_NOT_BUILT string_table_test_NOT_BUILT)
-endif()

@@ -1,2 +1,0 @@
-/usr/bin/ar qc librazorfs_lib.a CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/string_table.c.o CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/nary_tree_mt.c.o CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/shm_persist.c.o CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/compression.c.o CMakeFiles/razorfs_lib.dir/home/nico/WORK_ROOT/RAZOR_repo/src/numa_support.c.o
-/usr/bin/ranlib librazorfs_lib.a

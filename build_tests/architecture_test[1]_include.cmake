@@ -1,5 +1,0 @@
-if(EXISTS "/home/nico/WORK_ROOT/RAZOR_repo/build_tests/architecture_test[1]_tests.cmake")
-  include("/home/nico/WORK_ROOT/RAZOR_repo/build_tests/architecture_test[1]_tests.cmake")
-else()
-  add_test(architecture_test_NOT_BUILT architecture_test_NOT_BUILT)
-endif()

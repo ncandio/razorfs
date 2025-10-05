@@ -1,1 +1,0 @@
-/usr/bin/c++  -Wall -Wextra -g CMakeFiles/compression_test.dir/unit/compression_test.cpp.o -o compression_test  librazorfs_lib.a lib/libgtest_main.a lib/libgmock.a -lfuse3 -lpthread /usr/lib/x86_64-linux-gnu/libz.so -lrt /usr/lib/x86_64-linux-gnu/libnuma.so lib/libgtest.a 
