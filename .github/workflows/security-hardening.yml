@@ -30,6 +30,7 @@ jobs:
 
     - name: Build with security flags
       run: |
+        cd tests
         mkdir build-secure
         cd build-secure
         cmake .. \
@@ -40,7 +41,7 @@ jobs:
 
     - name: Check binary hardening
       run: |
-        cd build-secure
+        cd tests/build-secure
         # Check if binary has proper hardening flags
         if ! readelf -d razorfs | grep -q "GNU_RELRO\|GNU_STACK\|RUNPATH\|FLAGS_1"; then
           echo "Binary missing hardening features"
@@ -65,7 +66,7 @@ jobs:
 
     - name: Run hardened tests
       run: |
-        cd build-secure
+        cd tests/build-secure
         # Test for buffer overflow vulnerabilities with malformed inputs
-        timeout 30 ./tests/string_table_test || true
-        timeout 30 ./tests/nary_tree_test || true
+        timeout 30 ./string_table_test || true
+        timeout 30 ./nary_tree_test || true
