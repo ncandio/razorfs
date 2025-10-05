@@ -663,7 +663,7 @@ sudo mount -o remount,size=16G /dev/shm
 - ✅ WAL + crash recovery
 - ✅ Extended attributes
 - ✅ Hardlink support
-- ✅ Comprehensive test suite (154+ tests)
+- ✅ Comprehensive test suite (203 tests, 100% passing)
 
 ---
 

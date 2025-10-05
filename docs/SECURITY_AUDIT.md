@@ -279,8 +279,8 @@ gcc -Wall -Wextra -Werror src/*.c
 
 ### Test Coverage
 
-- **Unit Tests:** 154+ tests across 11 suites
-- **Integration Tests:** Filesystem operations
+- **Unit Tests:** 203 tests across 11 suites (199 run, 100% passing)
+- **Integration Tests:** 6 tests (filesystem operations)
 - **Stress Tests:** Multithreading, large files
 - **Coverage:** ~85% line coverage (estimated)
 
