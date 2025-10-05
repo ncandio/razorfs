@@ -327,8 +327,8 @@ if [ "$RUN_COVERAGE" = true ]; then
     log "Generating code coverage report..."
 
     if command -v lcov >/dev/null 2>&1 && command -v genhtml >/dev/null 2>&1; then
-        # Capture coverage data
-        lcov --capture --directory "$BUILD_DIR" --output-file "$RESULTS_DIR/coverage.info" >> "$LOG_FILE" 2>&1
+        # Capture coverage data (ignore mismatch errors from gcov)
+        lcov --capture --directory "$BUILD_DIR" --output-file "$RESULTS_DIR/coverage.info" --ignore-errors mismatch >> "$LOG_FILE" 2>&1
 
         # Filter out system headers and test code
         lcov --remove "$RESULTS_DIR/coverage.info" \
