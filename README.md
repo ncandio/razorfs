@@ -6,8 +6,8 @@
 
 **⚠️ EXPERIMENTAL PROJECT - AI-ASSISTED ENGINEERING**
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/ncandio/razorfs)
-[![Tests](https://img.shields.io/badge/tests-199%2F199%20passing-brightgreen.svg)](https://github.com/ncandio/razorfs)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/ncandio/razorfs/actions)
+[![Tests](https://img.shields.io/badge/tests-199%2F199%20passing-brightgreen.svg)](https://github.com/ncandio/razorfs/actions)
 [![Coverage](https://img.shields.io/badge/coverage-core%20components-blue.svg)](https://github.com/ncandio/razorfs)
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://github.com/ncandio/razorfs)
