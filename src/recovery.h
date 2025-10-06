@@ -74,7 +74,7 @@ struct recovery_ctx {
  * @return 0 on success, -1 on error
  */
 int recovery_init(struct recovery_ctx *ctx, struct wal *wal,
-                  struct nary_tree_mt *tree, struct string_table *strings);
+                  struct nary_tree_mt *tree, struct string_table *strings) __attribute__((unused));
 
 /**
  * Run complete recovery (all three phases)
@@ -82,7 +82,7 @@ int recovery_init(struct recovery_ctx *ctx, struct wal *wal,
  * @param ctx Recovery context
  * @return 0 on success, -1 on error
  */
-int recovery_run(struct recovery_ctx *ctx);
+int recovery_run(struct recovery_ctx *ctx) __attribute__((unused));
 
 /**
  * Analysis phase: scan WAL and build transaction table
@@ -113,7 +113,7 @@ int recovery_undo(struct recovery_ctx *ctx);
  *
  * @param ctx Recovery context
  */
-void recovery_destroy(struct recovery_ctx *ctx);
+void recovery_destroy(struct recovery_ctx *ctx) __attribute__((unused));
 
 /* Utility Functions */
 
@@ -131,7 +131,7 @@ int wal_needs_recovery(const struct wal *wal);
  *
  * @param ctx Recovery context
  */
-void recovery_print_stats(const struct recovery_ctx *ctx);
+void recovery_print_stats(const struct recovery_ctx *ctx) __attribute__((unused));
 
 #ifdef __cplusplus
 }

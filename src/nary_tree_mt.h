@@ -94,7 +94,7 @@ struct nary_mt_stats {
  * Initialize multithreaded tree
  * Returns 0 on success, -1 on failure
  */
-int nary_tree_mt_init(struct nary_tree_mt *tree);
+int nary_tree_mt_init(struct nary_tree_mt *tree) __attribute__((unused));
 
 /**
  * Destroy multithreaded tree and free resources
@@ -181,7 +181,7 @@ int nary_lock_read(struct nary_tree_mt *tree, uint16_t idx);
  * Note: Caller must handle lock failures. Do NOT proceed with
  * operation if lock acquisition fails. Return error to caller.
  */
-int nary_lock_write(struct nary_tree_mt *tree, uint16_t idx);
+int nary_lock_write(struct nary_tree_mt *tree, uint16_t idx) __attribute__((unused));
 
 /**
  * Release lock on node
@@ -215,7 +215,7 @@ void nary_get_mt_stats(struct nary_tree_mt *tree,
  * Validate no deadlocks
  * Returns 0 if healthy, -1 if potential deadlock
  */
-int nary_check_deadlocks(struct nary_tree_mt *tree);
+int nary_check_deadlocks(struct nary_tree_mt *tree) __attribute__((unused));
 
 #ifdef __cplusplus
 }

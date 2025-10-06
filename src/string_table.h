@@ -87,6 +87,6 @@ void string_table_destroy(struct string_table *st);
  */
 void string_table_stats(const struct string_table *st,
                         uint32_t *total_size,
-                        uint32_t *used_size);
+                        uint32_t *used_size) __attribute__((unused));
 
 #endif /* RAZORFS_STRING_TABLE_H */

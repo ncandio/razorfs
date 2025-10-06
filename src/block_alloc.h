@@ -53,14 +53,14 @@ struct block_allocator {
  */
 int block_alloc_init(struct block_allocator *alloc,
                      uint32_t total_blocks,
-                     uint32_t block_size);
+                     uint32_t block_size) __attribute__((unused));
 
 /**
  * Destroy block allocator
  *
  * @param alloc Allocator to destroy
  */
-void block_alloc_destroy(struct block_allocator *alloc);
+void block_alloc_destroy(struct block_allocator *alloc) __attribute__((unused));
 
 /**
  * Allocate contiguous blocks
@@ -90,7 +90,7 @@ int block_free(struct block_allocator *alloc,
  * @param block_num Block number to check
  * @return 1 if allocated, 0 if free, -1 on error
  */
-int block_is_allocated(struct block_allocator *alloc, uint32_t block_num);
+int block_is_allocated(struct block_allocator *alloc, uint32_t block_num) __attribute__((unused));
 
 /**
  * Get block statistics
@@ -103,7 +103,7 @@ int block_is_allocated(struct block_allocator *alloc, uint32_t block_num);
 void block_stats(struct block_allocator *alloc,
                  uint32_t *total,
                  uint32_t *free,
-                 uint32_t *used);
+                 uint32_t *used) __attribute__((unused));
 
 /**
  * Get block address
@@ -152,7 +152,7 @@ ssize_t block_read(struct block_allocator *alloc,
  * @param alloc Allocator
  * @return Fragmentation ratio (0.0 = no fragmentation, 1.0 = max fragmentation)
  */
-double block_fragmentation(struct block_allocator *alloc);
+double block_fragmentation(struct block_allocator *alloc) __attribute__((unused));
 
 #ifdef __cplusplus
 }

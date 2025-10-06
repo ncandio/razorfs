@@ -127,7 +127,7 @@ ssize_t extent_write(struct razorfs_inode *inode,
                      struct block_allocator *alloc,
                      const void *buf,
                      size_t size,
-                     off_t offset);
+                     off_t offset) __attribute__((unused));
 
 /**
  * Read data from file using extents
@@ -144,7 +144,7 @@ ssize_t extent_read(struct razorfs_inode *inode,
                     struct block_allocator *alloc,
                     void *buf,
                     size_t size,
-                    off_t offset);
+                    off_t offset) __attribute__((unused));
 
 /**
  * Truncate file to new size
@@ -157,7 +157,7 @@ ssize_t extent_read(struct razorfs_inode *inode,
  */
 int extent_truncate(struct razorfs_inode *inode,
                     const struct block_allocator *alloc,
-                    off_t new_size);
+                    off_t new_size) __attribute__((unused));
 
 /**
  * Punch hole in file (create sparse region)
@@ -183,7 +183,7 @@ int extent_punch_hole(struct razorfs_inode *inode,
  * @return 0 on success, -errno on error
  */
 int extent_free_all(struct razorfs_inode *inode,
-                    struct block_allocator *alloc);
+                    struct block_allocator *alloc) __attribute__((unused));
 
 /**
  * Get extent count for inode
@@ -193,7 +193,7 @@ int extent_free_all(struct razorfs_inode *inode,
  * @return Number of extents, or -errno on error
  */
 int extent_count(struct razorfs_inode *inode,
-                 struct block_allocator *alloc);
+                 struct block_allocator *alloc) __attribute__((unused));
 
 /**
  * Initialize extent iterator
@@ -205,7 +205,7 @@ int extent_count(struct razorfs_inode *inode,
  */
 int extent_iter_init(struct extent_iterator *iter,
                      struct razorfs_inode *inode,
-                     struct block_allocator *alloc);
+                     struct block_allocator *alloc) __attribute__((unused));
 
 /**
  * Get next extent from iterator
@@ -215,7 +215,7 @@ int extent_iter_init(struct extent_iterator *iter,
  * @return 1 if extent available, 0 if end, -errno on error
  */
 int extent_iter_next(struct extent_iterator *iter,
-                     struct extent *ext);
+                     struct extent *ext) __attribute__((unused));
 
 #ifdef __cplusplus
 }

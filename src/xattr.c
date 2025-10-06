@@ -275,7 +275,7 @@ int xattr_set(struct xattr_pool *pool,
             return -EINVAL;
         }
 
-        struct xattr_entry *entry = &pool->entries[offset];
+        const struct xattr_entry *entry = &pool->entries[offset];
         const char *entry_name = string_table_get(names, entry->name_offset);
 
         if (entry_name && strcmp(entry_name, name) == 0) {
@@ -298,8 +298,10 @@ int xattr_set(struct xattr_pool *pool,
                 return -ENOSPC;
             }
 
-            entry->value_offset = value_offset;
-            entry->value_len = size;
+            /* Update entry - cast to non-const for modification */
+            struct xattr_entry *mod_entry = (struct xattr_entry *)&pool->entries[offset];
+            mod_entry->value_offset = value_offset;
+            mod_entry->value_len = size;
 
             pthread_rwlock_unlock(&values->lock);
             pthread_rwlock_unlock(&pool->lock);
@@ -413,7 +415,7 @@ ssize_t xattr_list(struct xattr_pool *pool,
             return -EINVAL;
         }
 
-        struct xattr_entry *entry = &pool->entries[offset];
+        const struct xattr_entry *entry = &pool->entries[offset];
         const char *entry_name = string_table_get(names, entry->name_offset);
 
         if (entry_name) {

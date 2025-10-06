@@ -420,7 +420,7 @@ int shm_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
     }
 
     /* Read header */
-    struct shm_file_header *hdr = (struct shm_file_header *)addr;
+    const struct shm_file_header *hdr = (const struct shm_file_header *)addr;
 
     /* Validate magic */
     if (hdr->magic != SHM_FILE_MAGIC) {
@@ -459,4 +459,370 @@ void shm_file_data_remove(uint32_t inode) {
     char shm_name[64];
     snprintf(shm_name, sizeof(shm_name), "%s%u", SHM_FILE_PREFIX, inode);
     shm_unlink(shm_name);  /* Ignore errors - file may not have persisted data */
+}
+
+/* === DISK-BACKED PERSISTENCE (Survives Reboot) === */
+
+int disk_tree_exists(void) {
+    struct stat st;
+    return (stat(DISK_TREE_NODES, &st) == 0);
+}
+
+/**
+ * Create data directory if it doesn't exist
+ */
+static int ensure_data_dir(void) {
+    struct stat st;
+    if (stat(DISK_DATA_DIR, &st) == 0) {
+        return 0;  /* Already exists */
+    }
+
+    if (mkdir(DISK_DATA_DIR, 0700) < 0) {
+        if (errno != EEXIST) {
+            perror("mkdir (data dir)");
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int disk_tree_init(struct nary_tree_mt *tree) {
+    if (!tree) return -1;
+
+    /* Ensure data directory exists */
+    if (ensure_data_dir() < 0) {
+        return -1;
+    }
+
+    /* Initialize NUMA support */
+    numa_init();
+    int numa_node = numa_get_current_node();
+
+    int is_new = !disk_tree_exists();
+    int flags = O_RDWR | (is_new ? O_CREAT : 0);
+    size_t shm_size = calculate_shm_size(NARY_MT_INITIAL_CAPACITY);
+
+    /* Open/create disk-backed file for tree nodes */
+    int fd = open(DISK_TREE_NODES, flags, 0600);
+    if (fd < 0) {
+        perror("open (tree nodes)");
+        return -1;
+    }
+
+    /* Set size for new file */
+    if (is_new) {
+        if (ftruncate(fd, shm_size) < 0) {
+            perror("ftruncate (tree nodes)");
+            close(fd);
+            unlink(DISK_TREE_NODES);
+            return -1;
+        }
+    }
+
+    /* Map file to memory */
+    void *addr = mmap(NULL, shm_size, PROT_READ | PROT_WRITE,
+                      MAP_SHARED, fd, 0);
+    close(fd);  /* Can close fd after mmap */
+
+    if (addr == MAP_FAILED) {
+        perror("mmap (tree nodes)");
+        if (is_new) unlink(DISK_TREE_NODES);
+        return -1;
+    }
+
+    /* Bind to NUMA node if available */
+    if (numa_available()) {
+        if (numa_bind_memory(addr, shm_size, numa_node) == 0) {
+            printf("📍 NUMA: Bound disk-backed memory to node %d\n", numa_node);
+        }
+    }
+
+    /* Setup tree structure */
+    struct shm_tree_header *hdr = (struct shm_tree_header *)addr;
+
+    if (is_new) {
+        /* Initialize new disk-backed storage */
+        printf("🆕 Creating new PERSISTENT filesystem (disk-backed)\n");
+
+        hdr->magic = SHM_MAGIC;
+        hdr->version = SHM_VERSION;
+        hdr->capacity = NARY_MT_INITIAL_CAPACITY;
+        hdr->used = 0;
+        hdr->next_inode = 1;
+        hdr->free_count = 0;
+
+        /* Setup pointers */
+        tree->nodes = (struct nary_node_mt *)(hdr + 1);
+        tree->free_list = (uint16_t *)(tree->nodes + hdr->capacity);
+
+        tree->capacity = hdr->capacity;
+        tree->used = 0;
+        tree->next_inode = 1;
+        tree->op_count = 0;
+        tree->free_count = 0;
+
+        /* Create disk-backed string table file */
+        int str_fd = open(DISK_STRING_TABLE, O_RDWR | O_CREAT, 0600);
+        if (str_fd < 0) {
+            perror("open (strings)");
+            munmap(addr, shm_size);
+            unlink(DISK_TREE_NODES);
+            return -1;
+        }
+
+        if (ftruncate(str_fd, STRING_TABLE_SHM_SIZE) < 0) {
+            perror("ftruncate (strings)");
+            close(str_fd);
+            munmap(addr, shm_size);
+            unlink(DISK_TREE_NODES);
+            unlink(DISK_STRING_TABLE);
+            return -1;
+        }
+
+        void *str_buf = mmap(NULL, STRING_TABLE_SHM_SIZE, PROT_READ | PROT_WRITE,
+                             MAP_SHARED, str_fd, 0);
+        close(str_fd);
+
+        if (str_buf == MAP_FAILED) {
+            perror("mmap (strings)");
+            munmap(addr, shm_size);
+            unlink(DISK_TREE_NODES);
+            unlink(DISK_STRING_TABLE);
+            return -1;
+        }
+
+        /* Initialize string table in disk-backed storage */
+        if (string_table_init_shm(&tree->strings, str_buf, STRING_TABLE_SHM_SIZE, 0) != 0) {
+            munmap(str_buf, STRING_TABLE_SHM_SIZE);
+            munmap(addr, shm_size);
+            unlink(DISK_TREE_NODES);
+            unlink(DISK_STRING_TABLE);
+            return -1;
+        }
+
+        /* Initialize tree lock */
+        pthread_rwlockattr_t attr;
+        pthread_rwlockattr_init(&attr);
+        pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+        pthread_rwlock_init(&tree->tree_lock, &attr);
+        pthread_rwlockattr_destroy(&attr);
+
+        /* Create root directory */
+        memset(&tree->nodes[0], 0, sizeof(struct nary_node_mt));
+
+        pthread_rwlockattr_init(&attr);
+        pthread_rwlockattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+        pthread_rwlock_init(&tree->nodes[0].lock, &attr);
+        pthread_rwlockattr_destroy(&attr);
+
+        tree->nodes[0].node.inode = tree->next_inode++;
+        tree->nodes[0].node.parent_idx = NARY_INVALID_IDX;
+        tree->nodes[0].node.num_children = 0;
+        tree->nodes[0].node.mode = S_IFDIR | 0755;
+        tree->nodes[0].node.name_offset = string_table_intern(&tree->strings, "/");
+        tree->nodes[0].node.size = 0;
+        tree->nodes[0].node.mtime = time(NULL);
+
+        for (int i = 0; i < NARY_BRANCHING_FACTOR; i++) {
+            tree->nodes[0].node.children[i] = NARY_INVALID_IDX;
+        }
+
+        tree->used = 1;
+        hdr->used = 1;
+        hdr->next_inode = tree->next_inode;
+
+        printf("💾 Disk-backed storage: %s, %s\n", DISK_TREE_NODES, DISK_STRING_TABLE);
+
+    } else {
+        /* Attach to existing disk-backed storage */
+        printf("♻️  Attaching to existing PERSISTENT filesystem (disk-backed)\n");
+
+        /* Validate magic */
+        if (hdr->magic != SHM_MAGIC) {
+            fprintf(stderr, "Invalid disk storage magic: 0x%x\n", hdr->magic);
+            munmap(addr, shm_size);
+            return -1;
+        }
+
+        /* Setup pointers */
+        tree->nodes = (struct nary_node_mt *)(hdr + 1);
+        tree->free_list = (uint16_t *)(tree->nodes + hdr->capacity);
+
+        tree->capacity = hdr->capacity;
+        tree->used = hdr->used;
+        tree->next_inode = hdr->next_inode;
+        tree->op_count = 0;
+        tree->free_count = hdr->free_count;
+
+        /* Attach to existing string table disk file */
+        int str_fd = open(DISK_STRING_TABLE, O_RDWR, 0600);
+        if (str_fd < 0) {
+            perror("open (strings)");
+            munmap(addr, shm_size);
+            return -1;
+        }
+
+        void *str_buf = mmap(NULL, STRING_TABLE_SHM_SIZE, PROT_READ | PROT_WRITE,
+                             MAP_SHARED, str_fd, 0);
+        close(str_fd);
+
+        if (str_buf == MAP_FAILED) {
+            perror("mmap (strings restore)");
+            munmap(addr, shm_size);
+            return -1;
+        }
+
+        /* Attach to existing string table */
+        if (string_table_init_shm(&tree->strings, str_buf, STRING_TABLE_SHM_SIZE, 1) != 0) {
+            munmap(str_buf, STRING_TABLE_SHM_SIZE);
+            munmap(addr, shm_size);
+            return -1;
+        }
+
+        /* Tree lock is already initialized in disk storage */
+        printf("📊 Restored %u nodes, next inode: %u (from disk)\n", tree->used, tree->next_inode);
+    }
+
+    memset(&tree->stats, 0, sizeof(tree->stats));
+    tree->stats.total_nodes = tree->used;
+
+    return 0;
+}
+
+/* Disk-backed file data operations */
+
+int disk_file_data_save(uint32_t inode, const void *data, size_t size,
+                        size_t data_size, int is_compressed) {
+    if (!data || data_size == 0) return -1;
+
+    /* Ensure data directory exists */
+    if (ensure_data_dir() < 0) {
+        return -1;
+    }
+
+    /* Create file path */
+    char filepath[256];
+    snprintf(filepath, sizeof(filepath), "%s%u", DISK_FILE_PREFIX, inode);
+
+    /* Calculate total size needed */
+    size_t total_size = sizeof(struct shm_file_header) + data_size;
+
+    /* Create/open file */
+    int fd = open(filepath, O_RDWR | O_CREAT, 0600);
+    if (fd < 0) {
+        perror("open (file data)");
+        return -1;
+    }
+
+    /* Set size */
+    if (ftruncate(fd, total_size) < 0) {
+        perror("ftruncate (file data)");
+        close(fd);
+        unlink(filepath);
+        return -1;
+    }
+
+    /* Map memory */
+    void *addr = mmap(NULL, total_size, PROT_READ | PROT_WRITE,
+                      MAP_SHARED, fd, 0);
+    close(fd);
+
+    if (addr == MAP_FAILED) {
+        perror("mmap (file data)");
+        unlink(filepath);
+        return -1;
+    }
+
+    /* Write header */
+    struct shm_file_header *hdr = (struct shm_file_header *)addr;
+    hdr->magic = SHM_FILE_MAGIC;
+    hdr->inode = inode;
+    hdr->size = size;
+    hdr->data_size = data_size;
+    hdr->is_compressed = is_compressed;
+
+    /* Write data */
+    memcpy(hdr + 1, data, data_size);
+
+    /* Sync to disk */
+    msync(addr, total_size, MS_SYNC);
+
+    /* Unmap */
+    munmap(addr, total_size);
+
+    return 0;
+}
+
+int disk_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
+                           size_t *data_size_out, int *is_compressed_out) {
+    if (!data_out || !size_out) return -1;
+
+    /* Create file path */
+    char filepath[256];
+    snprintf(filepath, sizeof(filepath), "%s%u", DISK_FILE_PREFIX, inode);
+
+    /* Try to open existing file */
+    int fd = open(filepath, O_RDONLY, 0);
+    if (fd < 0) {
+        /* File has no persisted data (not an error) */
+        return -1;
+    }
+
+    /* Get size */
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        perror("fstat (file data)");
+        close(fd);
+        return -1;
+    }
+
+    if (st.st_size < (off_t)sizeof(struct shm_file_header)) {
+        fprintf(stderr, "Invalid file data size for inode %u\n", inode);
+        close(fd);
+        return -1;
+    }
+
+    /* Map memory */
+    void *addr = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    close(fd);
+
+    if (addr == MAP_FAILED) {
+        perror("mmap (file data restore)");
+        return -1;
+    }
+
+    /* Read header */
+    const struct shm_file_header *hdr = (const struct shm_file_header *)addr;
+
+    /* Validate magic */
+    if (hdr->magic != SHM_FILE_MAGIC) {
+        fprintf(stderr, "Invalid file data magic for inode %u: 0x%x\n",
+                inode, hdr->magic);
+        munmap(addr, st.st_size);
+        return -1;
+    }
+
+    /* Allocate memory for data */
+    *data_out = malloc(hdr->data_size);
+    if (!*data_out) {
+        munmap(addr, st.st_size);
+        return -1;
+    }
+
+    /* Copy data */
+    memcpy(*data_out, hdr + 1, hdr->data_size);
+    *size_out = hdr->size;
+    if (data_size_out) *data_size_out = hdr->data_size;
+    if (is_compressed_out) *is_compressed_out = hdr->is_compressed;
+
+    /* Unmap */
+    munmap(addr, st.st_size);
+
+    return 0;
+}
+
+void disk_file_data_remove(uint32_t inode) {
+    char filepath[256];
+    snprintf(filepath, sizeof(filepath), "%s%u", DISK_FILE_PREFIX, inode);
+    unlink(filepath);  /* Ignore errors - file may not have persisted data */
 }

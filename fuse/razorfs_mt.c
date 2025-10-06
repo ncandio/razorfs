@@ -22,6 +22,8 @@
 #include "../src/nary_tree_mt.h"
 #include "../src/shm_persist.h"
 #include "../src/compression.h"
+#include "../src/wal.h"
+#include "../src/recovery.h"
 
 /* RENAME flags if not defined */
 #ifndef RENAME_NOREPLACE
@@ -36,6 +38,8 @@
 /* Global multithreaded filesystem state */
 static struct {
     struct nary_tree_mt tree;
+    struct wal wal;                  /* Write-Ahead Log for crash recovery */
+    int wal_enabled;                 /* WAL enabled flag */
 
     /* Thread-safe file content storage */
     struct mt_file_data {
@@ -138,8 +142,8 @@ static void remove_file_data(uint32_t inode) {
 
     pthread_rwlock_unlock(&g_mt_fs.files_lock);
 
-    /* Remove persisted file data from shared memory */
-    shm_file_data_remove(inode);
+    /* Remove persisted file data from disk */
+    disk_file_data_remove(inode);
 }
 
 /* === Helper Functions === */
@@ -379,15 +383,15 @@ static int razorfs_mt_open(const char *path, struct fuse_file_info *fi) {
     /* Store inode in file handle for faster access */
     fi->fh = node.inode;
 
-    /* Try to restore file data from shared memory if not already loaded */
+    /* Try to restore file data from disk if not already loaded */
     if (find_file_data(node.inode) == NULL && node.size > 0) {
         void *data = NULL;
         size_t size = 0;
         size_t data_size = 0;
-        int is_compressed = 0;
+        int is_file_compressed = 0;
 
-        if (shm_file_data_restore(node.inode, &data, &size,
-                                  &data_size, &is_compressed) == 0) {
+        if (disk_file_data_restore(node.inode, &data, &size,
+                                   &data_size, &is_file_compressed) == 0) {
             /* Successfully restored - create file data structure */
             struct mt_file_data *fd = create_file_data(node.inode);
             if (fd) {
@@ -395,8 +399,8 @@ static int razorfs_mt_open(const char *path, struct fuse_file_info *fi) {
                 fd->data = data;
                 fd->size = size;
                 fd->capacity = data_size;
-                fd->is_compressed = is_compressed;
-                fd->uncompressed_size = is_compressed ? size : 0;
+                fd->is_compressed = is_file_compressed;
+                fd->uncompressed_size = is_file_compressed ? size : 0;
                 pthread_rwlock_unlock(&fd->data_lock);
             } else {
                 free(data);  /* Failed to create fd, free the data */
@@ -411,7 +415,9 @@ static int razorfs_mt_read(const char *path, char *buf, size_t size, off_t offse
                            struct fuse_file_info *fi) {
     (void) path;  /* Use fi->fh instead */
 
-    struct mt_file_data *fd = find_file_data(fi->fh);
+    /* Cast to const internally since callbacks can't change the signature */
+    const struct fuse_file_info * const_fi = (const struct fuse_file_info *)fi;
+    struct mt_file_data *fd = find_file_data(const_fi->fh);
     if (!fd) {
         return 0;  /* File has no data yet */
     }
@@ -456,7 +462,9 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
                             off_t offset, struct fuse_file_info *fi) {
     (void) path;
 
-    struct mt_file_data *fd = find_file_data(fi->fh);
+    /* Cast to const internally since callbacks can't change the signature */
+    const struct fuse_file_info * const_fi = (const struct fuse_file_info *)fi;
+    struct mt_file_data *fd = find_file_data(const_fi->fh);
     if (!fd) {
         /* First write to this file */
         fd = create_file_data(fi->fh);
@@ -533,10 +541,10 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
 
     pthread_rwlock_unlock(&fd->data_lock);
 
-    /* Save to shared memory */
+    /* Save to disk */
     if (persist_data) {
-        shm_file_data_save(fi->fh, persist_data, persist_size,
-                          persist_data_size, persist_compressed);
+        disk_file_data_save(fi->fh, persist_data, persist_size,
+                           persist_data_size, persist_compressed);
         free(persist_data);
     }
 
@@ -770,6 +778,14 @@ static void razorfs_mt_destroy(void *private_data) {
 
     printf("💾 Shutting down RAZORFS MT\n");
 
+    /* Checkpoint and destroy WAL */
+    if (g_mt_fs.wal_enabled) {
+        printf("📝 Checkpointing WAL...\n");
+        wal_checkpoint(&g_mt_fs.wal);
+        wal_destroy(&g_mt_fs.wal);
+        printf("✅ WAL closed cleanly\n");
+    }
+
     /* Print final statistics */
     struct nary_mt_stats stats;
     nary_get_mt_stats(&g_mt_fs.tree, &stats);
@@ -807,10 +823,49 @@ int main(int argc, char *argv[]) {
     /* Initialize multithreaded filesystem */
     memset(&g_mt_fs, 0, sizeof(g_mt_fs));
 
-    /* Use shared memory for persistence */
-    if (shm_tree_init(&g_mt_fs.tree) != 0) {
+    /* Initialize WAL for crash recovery */
+    const char *wal_path = "/tmp/razorfs_wal.log";
+    printf("📝 Initializing Write-Ahead Log: %s\n", wal_path);
+
+    if (wal_init_file(&g_mt_fs.wal, wal_path, WAL_DEFAULT_SIZE) == 0) {
+        g_mt_fs.wal_enabled = 1;
+        printf("✅ WAL enabled (crash recovery active)\n");
+
+        /* Check if recovery is needed */
+        if (wal_needs_recovery(&g_mt_fs.wal)) {
+            printf("⚠️  Dirty WAL detected - recovery needed\n");
+            printf("   (Recovery will run after tree initialization)\n");
+        }
+    } else {
+        g_mt_fs.wal_enabled = 0;
+        fprintf(stderr, "⚠️  WAL initialization failed - running without crash recovery\n");
+        fprintf(stderr, "   Data will NOT survive power loss/crashes\n");
+    }
+
+    /* Use DISK-BACKED storage for true persistence (survives reboot) */
+    if (disk_tree_init(&g_mt_fs.tree) != 0) {
         fprintf(stderr, "Failed to initialize persistent tree\n");
+        if (g_mt_fs.wal_enabled) {
+            wal_destroy(&g_mt_fs.wal);
+        }
         return 1;
+    }
+
+    /* Run recovery if needed */
+    if (g_mt_fs.wal_enabled && wal_needs_recovery(&g_mt_fs.wal)) {
+        printf("🔧 Running crash recovery...\n");
+
+        struct recovery_ctx recovery;
+        if (recovery_init(&recovery, &g_mt_fs.wal, &g_mt_fs.tree, &g_mt_fs.tree.strings) == 0) {
+            if (recovery_run(&recovery) == 0) {
+                printf("✅ Recovery completed successfully\n");
+            } else {
+                fprintf(stderr, "⚠️  Recovery failed - filesystem may be inconsistent\n");
+            }
+            recovery_destroy(&recovery);
+        } else {
+            fprintf(stderr, "⚠️  Recovery initialization failed\n");
+        }
     }
 
     /* Initialize file management */
@@ -824,10 +879,15 @@ int main(int argc, char *argv[]) {
         g_mt_fs.file_hash_table[i] = NULL;
     }
 
-    printf("✅ RAZORFS Phase 6 - Persistent Multithreaded Filesystem\n");
+    printf("✅ RAZORFS Phase 6+ - Persistent Multithreaded Filesystem with WAL\n");
     printf("   Node size: %zu bytes (MT + shared memory)\n", sizeof(struct nary_node_mt));
     printf("   Ext4-style per-inode locking enabled\n");
     printf("   Persistence: Shared memory (survives unmount)\n");
+    if (g_mt_fs.wal_enabled) {
+        printf("   Crash Recovery: Enabled (WAL active)\n");
+    } else {
+        printf("   Crash Recovery: ⚠️  DISABLED (no WAL)\n");
+    }
 
     /* Set up FUSE operations */
     razorfs_mt_ops.init = razorfs_mt_init;

@@ -110,6 +110,7 @@ struct wal {
     char *log_buffer;            // Circular log buffer
     size_t buffer_size;          // Total buffer size (excluding header)
     int is_shm;                  // In shared memory?
+    int fd;                      // File descriptor (for disk-backed WAL)
     pthread_mutex_t log_lock;    // Protects log buffer
     pthread_mutex_t tx_lock;     // Protects transaction state
 };
@@ -135,7 +136,7 @@ struct wal_stats {
  * @param size Size of log buffer (default: WAL_DEFAULT_SIZE)
  * @return 0 on success, -1 on error
  */
-int wal_init(struct wal *wal, size_t size);
+int wal_init(struct wal *wal, size_t size) __attribute__((unused));
 
 /**
  * Initialize WAL in shared memory mode
@@ -146,14 +147,32 @@ int wal_init(struct wal *wal, size_t size);
  * @param existing 1 if attaching to existing WAL, 0 if creating new
  * @return 0 on success, -1 on error
  */
-int wal_init_shm(struct wal *wal, void *shm_buffer, size_t size, int existing);
+int wal_init_shm(struct wal *wal, void *shm_buffer, size_t size, int existing) __attribute__((unused));
+
+/**
+ * Initialize WAL with file-backed storage
+ *
+ * @param wal WAL context to initialize
+ * @param filepath Path to WAL file
+ * @param size Size of log buffer (default: WAL_DEFAULT_SIZE)
+ * @return 0 on success, -1 on error
+ */
+int wal_init_file(struct wal *wal, const char *filepath, size_t size);
+
+/**
+ * Check if WAL needs recovery (has uncommitted transactions)
+ *
+ * @param wal WAL context
+ * @return 1 if recovery needed, 0 otherwise
+ */
+int wal_needs_recovery(const struct wal *wal);
 
 /**
  * Destroy WAL and free resources
  *
  * @param wal WAL context
  */
-void wal_destroy(struct wal *wal);
+void wal_destroy(struct wal *wal) __attribute__((unused));
 
 /* Transaction Management */
 
@@ -164,7 +183,7 @@ void wal_destroy(struct wal *wal);
  * @param tx_id Output: assigned transaction ID
  * @return 0 on success, -1 on error
  */
-int wal_begin_tx(struct wal *wal, uint64_t *tx_id);
+int wal_begin_tx(struct wal *wal, uint64_t *tx_id) __attribute__((unused));
 
 /**
  * Commit a transaction
@@ -173,7 +192,7 @@ int wal_begin_tx(struct wal *wal, uint64_t *tx_id);
  * @param tx_id Transaction ID
  * @return 0 on success, -1 on error
  */
-int wal_commit_tx(struct wal *wal, uint64_t tx_id);
+int wal_commit_tx(struct wal *wal, uint64_t tx_id) __attribute__((unused));
 
 /**
  * Abort a transaction
@@ -182,7 +201,7 @@ int wal_commit_tx(struct wal *wal, uint64_t tx_id);
  * @param tx_id Transaction ID
  * @return 0 on success, -1 on error
  */
-int wal_abort_tx(struct wal *wal, uint64_t tx_id);
+int wal_abort_tx(struct wal *wal, uint64_t tx_id) __attribute__((unused));
 
 /* Operation Logging */
 
@@ -195,7 +214,7 @@ int wal_abort_tx(struct wal *wal, uint64_t tx_id);
  * @return 0 on success, -1 on error
  */
 int wal_log_insert(struct wal *wal, uint64_t tx_id,
-                   const struct wal_insert_data *data);
+                   const struct wal_insert_data *data) __attribute__((unused));
 
 /**
  * Log a delete operation
@@ -206,7 +225,7 @@ int wal_log_insert(struct wal *wal, uint64_t tx_id,
  * @return 0 on success, -1 on error
  */
 int wal_log_delete(struct wal *wal, uint64_t tx_id,
-                   const struct wal_delete_data *data);
+                   const struct wal_delete_data *data) __attribute__((unused));
 
 /**
  * Log an update operation
@@ -217,7 +236,7 @@ int wal_log_delete(struct wal *wal, uint64_t tx_id,
  * @return 0 on success, -1 on error
  */
 int wal_log_update(struct wal *wal, uint64_t tx_id,
-                   const struct wal_update_data *data);
+                   const struct wal_update_data *data) __attribute__((unused));
 
 /**
  * Log a write operation
@@ -228,7 +247,7 @@ int wal_log_update(struct wal *wal, uint64_t tx_id,
  * @return 0 on success, -1 on error
  */
 int wal_log_write(struct wal *wal, uint64_t tx_id,
-                  const struct wal_write_data *data);
+                  const struct wal_write_data *data) __attribute__((unused));
 
 /* Checkpoint and Maintenance */
 
@@ -239,7 +258,7 @@ int wal_log_write(struct wal *wal, uint64_t tx_id,
  * @param wal WAL context
  * @return 0 on success, -1 on error
  */
-int wal_checkpoint(struct wal *wal);
+int wal_checkpoint(struct wal *wal) __attribute__((unused));
 
 /**
  * Force WAL to persistent storage (msync)
@@ -247,7 +266,7 @@ int wal_checkpoint(struct wal *wal);
  * @param wal WAL context
  * @return 0 on success, -1 on error
  */
-int wal_flush(struct wal *wal);
+int wal_flush(struct wal *wal) __attribute__((unused));
 
 /* Query and Diagnostics */
 
@@ -265,7 +284,7 @@ size_t wal_available_space(const struct wal *wal);
  * @param wal WAL context
  * @return 1 if valid, 0 otherwise
  */
-int wal_is_valid(const struct wal *wal);
+int wal_is_valid(const struct wal *wal) __attribute__((unused));
 
 /**
  * Get WAL statistics
@@ -273,7 +292,7 @@ int wal_is_valid(const struct wal *wal);
  * @param wal WAL context
  * @param stats Output: statistics structure
  */
-void wal_get_stats(const struct wal *wal, struct wal_stats *stats);
+void wal_get_stats(const struct wal *wal, struct wal_stats *stats) __attribute__((unused));
 
 /* Utility Functions */
 

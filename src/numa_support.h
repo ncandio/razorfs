@@ -37,12 +37,12 @@ int numa_bind_memory(void *addr, size_t len, int node);
 /**
  * Allocate memory on specific NUMA node
  */
-void *numa_alloc_onnode(size_t size, int node);
+void *numa_alloc_onnode(size_t size, int node) __attribute__((unused));
 
 /**
  * Free NUMA-allocated memory
  */
-void numa_free(void *ptr, size_t size);
+void numa_free(void *ptr, size_t size) __attribute__((unused));
 
 /**
  * Check if NUMA is available on this system

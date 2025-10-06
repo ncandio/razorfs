@@ -8,6 +8,9 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <errno.h>
 
 /* CRC32 lookup table */
@@ -184,6 +187,96 @@ int wal_init_shm(struct wal *wal, void *shm_buffer, size_t size, int existing) {
     return 0;
 }
 
+/* Initialize WAL with file-backed storage */
+int wal_init_file(struct wal *wal, const char *filepath, size_t size) {
+    if (!wal || !filepath) return -1;
+    if (size < WAL_MIN_SIZE) size = WAL_DEFAULT_SIZE;
+    if (size > WAL_MAX_SIZE) size = WAL_MAX_SIZE;
+
+    memset(wal, 0, sizeof(*wal));
+
+    size_t total_size = sizeof(struct wal_header) + size;
+
+    /* Open or create WAL file */
+    int fd = open(filepath, O_RDWR | O_CREAT, 0600);
+    if (fd < 0) {
+        return -1;
+    }
+
+    /* Get file size */
+    struct stat st;
+    int existing = 0;
+    if (fstat(fd, &st) == 0 && st.st_size >= (off_t)total_size) {
+        existing = 1;
+    } else {
+        /* Resize file to needed size */
+        if (ftruncate(fd, total_size) != 0) {
+            close(fd);
+            return -1;
+        }
+    }
+
+    /* Memory-map the file */
+    void *addr = mmap(NULL, total_size, PROT_READ | PROT_WRITE,
+                      MAP_SHARED, fd, 0);
+    if (addr == MAP_FAILED) {
+        close(fd);
+        return -1;
+    }
+
+    wal->header = (struct wal_header *)addr;
+    wal->log_buffer = (char *)addr + sizeof(struct wal_header);
+    wal->buffer_size = size;
+    wal->is_shm = 0;
+    wal->fd = fd;
+
+    if (existing) {
+        /* Attach to existing WAL - validate header */
+        if (validate_header(wal->header) != 0) {
+            /* Invalid header - reinitialize */
+            existing = 0;
+        }
+    }
+
+    if (!existing) {
+        /* Create new WAL */
+        memset(addr, 0, total_size);
+        wal->header->magic = WAL_MAGIC;
+        wal->header->version = WAL_VERSION;
+        wal->header->next_tx_id = 1;
+        wal->header->next_lsn = 1;
+        wal->header->head_offset = 0;
+        wal->header->tail_offset = 0;
+        wal->header->checkpoint_lsn = 0;
+        wal->header->entry_count = 0;
+        update_header_checksum(wal->header);
+
+        /* Flush header to disk */
+        if (msync(wal->header, sizeof(struct wal_header), MS_SYNC) != 0) {
+            munmap(addr, total_size);
+            close(fd);
+            return -1;
+        }
+    }
+
+    /* Initialize locks */
+    if (pthread_mutex_init(&wal->log_lock, NULL) != 0) {
+        munmap(addr, total_size);
+        close(fd);
+        return -1;
+    }
+    if (pthread_mutex_init(&wal->tx_lock, NULL) != 0) {
+        pthread_mutex_destroy(&wal->log_lock);
+        munmap(addr, total_size);
+        close(fd);
+        return -1;
+    }
+
+    return 0;
+}
+
+/* Note: wal_needs_recovery is implemented in recovery.c */
+
 /* Destroy WAL and free resources */
 void wal_destroy(struct wal *wal) {
     if (!wal) return;
@@ -191,7 +284,16 @@ void wal_destroy(struct wal *wal) {
     pthread_mutex_destroy(&wal->log_lock);
     pthread_mutex_destroy(&wal->tx_lock);
 
-    if (!wal->is_shm && wal->header) {
+    if (wal->fd >= 0) {
+        /* File-backed WAL - unmap and close */
+        size_t total_size = sizeof(struct wal_header) + wal->buffer_size;
+        if (wal->header) {
+            msync(wal->header, total_size, MS_SYNC);
+            munmap(wal->header, total_size);
+        }
+        close(wal->fd);
+    } else if (!wal->is_shm && wal->header) {
+        /* Heap-backed WAL - free */
         free(wal->header);
     }
 

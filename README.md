@@ -110,8 +110,9 @@ RAZORFS is a FUSE3-based filesystem implementing an n-ary tree structure with ad
   - Only files ≥ 512 bytes
   - Skips if no compression benefit
   - Magic header: 0x525A4350 ("RZCP")
-- **Persistence:** Shared memory storage (/dev/shm)
-  - Survives unmount/remount
+- **Persistence:** File-backed WAL + Shared memory storage
+  - WAL on disk (/tmp/razorfs_wal.log) for metadata operations
+  - Tree nodes in /dev/shm (volatile on reboot)
   - mmap-based allocation
 - **String Table:** Efficient filename storage with deduplication
 
@@ -395,16 +396,41 @@ razorfs/
 
 ## ⚠️ Limitations & Known Issues
 
-### Production Readiness: **BETA**
+### Production Readiness: **EXPERIMENTAL ALPHA**
+
+**⚠️ CRITICAL PERSISTENCE LIMITATIONS:**
+
+RAZORFS has **excellent engineering** (data structures, multithreading, WAL/recovery code) but **limited crash resilience**:
+
+**✅ What Works:**
+- Complete ARIES-style WAL implementation ([src/wal.h](src/wal.h))
+- Full crash recovery code ([src/recovery.h](src/recovery.h))
+- WAL is now integrated into FUSE operations
+- File-backed WAL at /tmp/razorfs_wal.log (survives crashes)
+
+**❌ Critical Limitations:**
+- **Tree nodes in /dev/shm** - This is tmpfs (RAM-based), cleared on reboot
+- **File content in /dev/shm** - All data lost on system reboot
+- **String table in heap memory** - Not persisted at all
+- WAL protects metadata operations but cannot recover data from volatile /dev/shm after reboot
+
+**What This Means:**
+- ✅ Survives process crashes (SIGKILL) if no reboot
+- ✅ WAL replays metadata operations after crash
+- ❌ ALL DATA LOST on system reboot (power loss, kernel panic, shutdown)
+- ❌ Filenames lost even on unmount/remount (heap-based string table)
 
 **Implemented Features (Phase 6+):**
-- ✅ **WAL (Write-Ahead Logging)** - Complete ARIES-style journaling ([src/wal.h](src/wal.h))
-- ✅ **Crash Recovery** - Three-phase recovery: Analysis/Redo/Undo ([src/recovery.h](src/recovery.h))
+- ✅ **WAL (Write-Ahead Logging)** - ARIES-style journaling, file-backed
+- ✅ **Crash Recovery** - Three-phase recovery: Analysis/Redo/Undo
 - ✅ **xattr Support** - Four namespaces with 64KB value support ([src/xattr.h](src/xattr.h))
 - ✅ **Hardlink Support** - Reference counting up to 65,535 links ([src/inode_table.h](src/inode_table.h))
-- ✅ **Shared Memory Persistence** - Now crash-safe with WAL
+- ✅ **Multithreading** - ext4-style per-inode locking
+- ✅ **Compression** - Transparent zlib compression
 
-**Remaining Limitations:**
+**Remaining Gaps for Production Use:**
+- ❌ **No disk-backed storage** - Need to replace /dev/shm with mmap'd files
+- ❌ **No persistent string table** - Filenames not preserved
 - ⚠️  **No mmap support** - Not yet fully implemented
 - ⚠️  **Not optimized for large files (>10MB)** - Currently uses inline data (32 bytes)
 
@@ -413,9 +439,8 @@ razorfs/
 - ✅ Standard operations: create, read, write, mkdir, rmdir, unlink
 - ✅ Multithreading with per-inode locks
 - ✅ Transparent compression (zlib)
-- ✅ Shared memory persistence (/dev/shm)
 - ✅ O(log n) operations
-- ✅ WAL journaling with crash recovery
+- ✅ WAL journaling with crash recovery (newly integrated)
 - ✅ Extended attributes (xattr)
 - ✅ Hardlink support with reference counting
 
@@ -424,23 +449,26 @@ razorfs/
 - ✅ AI-assisted development experimentation
 - ✅ Filesystem algorithm prototyping
 - ✅ Performance benchmarking studies
-- ✅ Small to medium file workloads (<10MB per file)
-- ✅ **Development and testing environments** (with WAL enabled)
-- ⚠️  **Use with caution for non-critical production workloads**
-- ❌ **NOT recommended for mission-critical data** (beta status)
+- ✅ **Temporary/scratch workloads** (data you can afford to lose)
+- ⚠️  **NOT for any production use** - data loss guaranteed on reboot
+- ❌ **NOT for critical data** - /dev/shm is volatile by design
+- ❌ **NOT for persistent storage** - this is a prototype with known data loss issues
 
-### Persistence Model Notes
+### Persistence Reality Check
 **Current Implementation:**
-- Tree nodes are stored in shared memory (`/dev/shm/razorfs_nodes`)
-- String table (filenames) uses heap memory and is **not persisted**
-- On remount, filenames are lost and replaced with placeholder names ("file")
+- Tree nodes: `/dev/shm/razorfs_nodes` (tmpfs - volatile RAM)
+- File content: `/dev/shm/razorfs_data` (tmpfs - volatile RAM)
+- String table: Heap memory (not persisted at all)
+- WAL: `/tmp/razorfs_wal.log` (disk-backed - survives crashes)
 
-**Limitation:** This is a known simplification for the prototype. True persistence requires:
-1. String table in dedicated shared memory segment (`/razorfs_strings`)
-2. Fixed-size string buffer (no `realloc()`)
-3. String table metadata in shared memory header
+**On System Reboot:** ALL data lost (tmpfs is cleared)
+**On Process Crash (no reboot):** WAL replays metadata ops, but only if /dev/shm still exists
 
-**Impact:** Filenames are not preserved across unmount/remount cycles. The filesystem structure (tree) persists, but names are lost.
+**To Fix This:**
+1. Replace /dev/shm with mmap'd files on real filesystem (ext4/xfs/btrfs)
+2. Persist string table to dedicated mmap'd file
+3. Update node allocators to use file-backed mmap instead of shm_open
+4. See [docs/PERSISTENCE_REALITY.md](docs/PERSISTENCE_REALITY.md) for detailed plan
 
 ---
 
@@ -466,12 +494,19 @@ razorfs/
 - ✅ Benchmark suite
 - ✅ Graph generation
 
-### Phase 5: Production Features (Future)
-- ⏳ Production journaling (WAL)
-- ⏳ Crash recovery
+### Phase 5: Production Features (Partial)
+- ✅ WAL journaling (file-backed, ARIES-style)
+- ✅ Crash recovery (integrated into FUSE mount)
+- ❌ Disk-backed storage (still using volatile /dev/shm)
 - ⏳ Extended POSIX compliance
 - ⏳ Performance tuning
 - ⏳ Filesystem check tool (razorfsck)
+
+### Phase 6: True Persistence (Future)
+- ⏳ Replace /dev/shm with mmap'd files on disk
+- ⏳ Persistent string table
+- ⏳ File-backed node allocator
+- ⏳ Full recovery testing with reboot scenarios
 
 ---
 

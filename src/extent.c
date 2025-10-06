@@ -55,7 +55,7 @@ static uint32_t get_inline_extent_count(struct razorfs_inode *inode) {
 }
 
 /* Helper: Load extent tree node */
-static int load_extent_tree(struct block_allocator *alloc,
+static int load_extent_tree(const struct block_allocator *alloc,
                             uint32_t block_num,
                             struct extent_tree_node *node) {
     if (block_num == 0 || block_num == EXTENT_HOLE) {

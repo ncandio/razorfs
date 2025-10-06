@@ -19,10 +19,16 @@
 extern "C" {
 #endif
 
-/* Shared memory region names */
+/* Shared memory region names (volatile - cleared on reboot) */
 #define SHM_TREE_NODES   "/razorfs_nodes"
 #define SHM_STRING_TABLE "/razorfs_strings"
 #define SHM_FILE_PREFIX  "/razorfs_file_"
+
+/* Disk-backed storage paths (persistent - survives reboot) */
+#define DISK_DATA_DIR     "/tmp/razorfs_data"
+#define DISK_TREE_NODES   "/tmp/razorfs_data/nodes.dat"
+#define DISK_STRING_TABLE "/tmp/razorfs_data/strings.dat"
+#define DISK_FILE_PREFIX  "/tmp/razorfs_data/file_"
 
 /* Shared memory tree structure header */
 struct shm_tree_header {
@@ -39,9 +45,17 @@ struct shm_tree_header {
 
 /**
  * Initialize tree from shared memory (attach if exists, create if not)
+ * VOLATILE: Data cleared on reboot
  * Returns 0 on success, -1 on failure
  */
 int shm_tree_init(struct nary_tree_mt *tree);
+
+/**
+ * Initialize tree from disk-backed files (attach if exists, create if not)
+ * PERSISTENT: Data survives reboot
+ * Returns 0 on success, -1 on failure
+ */
+int disk_tree_init(struct nary_tree_mt *tree);
 
 /**
  * Detach from shared memory (data persists)
@@ -51,13 +65,19 @@ void shm_tree_detach(struct nary_tree_mt *tree);
 /**
  * Destroy shared memory (permanently delete)
  */
-void shm_tree_destroy(struct nary_tree_mt *tree);
+void shm_tree_destroy(struct nary_tree_mt *tree) __attribute__((unused));
 
 /**
  * Check if shared memory already exists
  * Returns 1 if exists, 0 if not
  */
 int shm_tree_exists(void);
+
+/**
+ * Check if disk-backed storage already exists
+ * Returns 1 if exists, 0 if not
+ */
+int disk_tree_exists(void);
 
 /**
  * Save file data to shared memory
@@ -94,6 +114,16 @@ int shm_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
  * @param inode Inode number
  */
 void shm_file_data_remove(uint32_t inode);
+
+/**
+ * Disk-backed file data operations (PERSISTENT)
+ * Same interface as shm_* but uses disk files instead
+ */
+int disk_file_data_save(uint32_t inode, const void *data, size_t size,
+                        size_t data_size, int is_compressed);
+int disk_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
+                           size_t *data_size_out, int *is_compressed_out);
+void disk_file_data_remove(uint32_t inode);
 
 #ifdef __cplusplus
 }

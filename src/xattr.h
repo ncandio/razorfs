@@ -102,7 +102,7 @@ int xattr_init(struct xattr_pool *pool,
                struct xattr_value_pool *values,
                const struct string_table *names,
                uint32_t max_entries,
-               uint32_t value_pool_size);
+               uint32_t value_pool_size) __attribute__((unused));
 
 /**
  * Cleanup xattr subsystem
@@ -111,7 +111,7 @@ int xattr_init(struct xattr_pool *pool,
  * @param values Value storage pool
  */
 void xattr_destroy(struct xattr_pool *pool,
-                   struct xattr_value_pool *values);
+                   struct xattr_value_pool *values) __attribute__((unused));
 
 /**
  * Get xattr value
@@ -133,7 +133,7 @@ int xattr_get(struct xattr_pool *pool,
               uint32_t xattr_head,
               const char *name,
               void *value,
-              size_t size);
+              size_t size) __attribute__((unused));
 
 /**
  * Set xattr value
@@ -197,7 +197,7 @@ int xattr_remove(struct xattr_pool *pool,
                  const struct string_table *names,
                  uint32_t *xattr_head,
                  uint16_t *xattr_count,  /* Can be NULL */
-                 const char *name);
+                 const char *name) __attribute__((unused));
 
 /**
  * Free all xattrs for an inode
@@ -211,7 +211,7 @@ int xattr_remove(struct xattr_pool *pool,
 void xattr_free_all(struct xattr_pool *pool,
                     struct xattr_value_pool *values,
                     uint32_t xattr_head,
-                    uint16_t xattr_count);
+                    uint16_t xattr_count) __attribute__((unused));
 
 /* Utility Functions */
 

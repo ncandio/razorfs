@@ -96,14 +96,14 @@ struct inode_table {
  * @param capacity Maximum number of inodes
  * @return 0 on success, -1 on error
  */
-int inode_table_init(struct inode_table *table, uint32_t capacity);
+int inode_table_init(struct inode_table *table, uint32_t capacity) __attribute__((unused));
 
 /**
  * Destroy inode table
  *
  * @param table Inode table to destroy
  */
-void inode_table_destroy(struct inode_table *table);
+void inode_table_destroy(struct inode_table *table) __attribute__((unused));
 
 /**
  * Allocate a new inode
@@ -112,7 +112,7 @@ void inode_table_destroy(struct inode_table *table);
  * @param mode File type and permissions
  * @return Inode number on success, 0 on error
  */
-uint32_t inode_alloc(struct inode_table *table, mode_t mode);
+uint32_t inode_alloc(struct inode_table *table, mode_t mode) __attribute__((unused));
 
 /**
  * Lookup inode by number
@@ -133,7 +133,7 @@ struct razorfs_inode* inode_lookup(struct inode_table *table, uint32_t inode_num
  *         -ENOENT if inode not found
  *         -EMLINK if too many links
  */
-int inode_link(struct inode_table *table, uint32_t inode_num);
+int inode_link(struct inode_table *table, uint32_t inode_num) __attribute__((unused));
 
 /**
  * Decrement link count (for unlink)
@@ -144,7 +144,7 @@ int inode_link(struct inode_table *table, uint32_t inode_num);
  * @return 0 on success, -errno on error
  *         -ENOENT if inode not found
  */
-int inode_unlink(struct inode_table *table, uint32_t inode_num);
+int inode_unlink(struct inode_table *table, uint32_t inode_num) __attribute__((unused));
 
 /**
  * Update inode metadata
@@ -156,7 +156,7 @@ int inode_unlink(struct inode_table *table, uint32_t inode_num);
  * @return 0 on success, -errno on error
  */
 int inode_update(struct inode_table *table, uint32_t inode_num,
-                 uint64_t size, uint32_t mtime);
+                 uint64_t size, uint32_t mtime) __attribute__((unused));
 
 /**
  * Get inode statistics
@@ -169,7 +169,7 @@ int inode_update(struct inode_table *table, uint32_t inode_num,
 void inode_table_stats(struct inode_table *table,
                        uint32_t *total_out,
                        uint32_t *used_out,
-                       uint32_t *free_out);
+                       uint32_t *free_out) __attribute__((unused));
 
 #ifdef __cplusplus
 }
