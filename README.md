@@ -470,6 +470,16 @@ RAZORFS has **excellent engineering** (data structures, multithreading, WAL/reco
 3. Update node allocators to use file-backed mmap instead of shm_open
 4. See [docs/PERSISTENCE_REALITY.md](docs/PERSISTENCE_REALITY.md) for detailed plan
 
+### Update from Recent Testing (October 2025)
+
+Recent testing with the `test_advanced_persistence.sh` suite has confirmed the critical nature of the persistence limitations.
+
+*   **Clean Shutdowns:** The filesystem **successfully** persists data across clean unmount/remount cycles.
+*   **Crash Scenarios:** The filesystem **fails** to persist data in a simulated crash (`kill -9`). This proves the current implementation is **not crash-safe**.
+
+**We are heavily working on improving this core feature.** Future development is focused on implementing a truly durable, crash-safe persistence layer to ensure data integrity and reliability in all scenarios.
+
+
 ---
 
 ## 🗺️ Roadmap
