@@ -588,7 +588,7 @@ int extent_free_all(struct razorfs_inode *inode,
 
 /* Get extent count */
 int extent_count(struct razorfs_inode *inode,
-                 struct block_allocator *alloc) {
+                 const struct block_allocator *alloc) {
     if (!inode || !alloc) {
         return -EINVAL;
     }
