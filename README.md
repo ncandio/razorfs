@@ -579,6 +579,24 @@ Human oversight and validation remain critical.
 
 BSD 3-Clause License
 
+---
+
+## 📝 DISCLAIMER: AI-Assisted Development Approach
+
+RAZORFS was conceived from the decision to guide a project toward developing a filesystem with the appealing features and capabilities described in this README. These goals were designed to be attainable through AI-assisted development methodologies.
+
+The AI-assisted coding procedures employed in this project do not exclude other types of methodologies, nor do they diminish the deliberate act of human code design and architecture. This project represents a hybrid approach where AI tools assist in rapid implementation while human oversight maintains critical design decisions and validation.
+
+We remain undecided about which techniques may be optimal for any given scenario. While supporting the importance of human design and coding practices, we also acknowledge that human-only teams are certainly capable of creating large codebases with millions of lines of code that may accumulate enormous technical debt.
+
+AI-assisted development practices offer the advantage of creating functional prototypes incredibly fast, as demonstrated by this project's development timeline. This approach allows for rapid iteration and experimentation with complex systems that would traditionally require significantly more time and resources.
+
+---
+
+## 📄 License
+
+BSD 3-Clause License
+
 Copyright (c) 2025, Nico Liberato
 All rights reserved.
 
