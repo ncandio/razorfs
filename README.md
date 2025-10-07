@@ -265,6 +265,239 @@ cd testing
 
 ---
 
+## 🔄 Continuous Performance Testing & Optimization
+
+RAZORFS implements a comprehensive continuous testing framework to ensure maximum performance through automated benchmarking, regression detection, and performance optimization workflows.
+
+### Automated Performance Pipeline
+
+The automated testing infrastructure runs benchmark suites on every code change, comparing RAZORFS performance against baseline measurements:
+
+```bash
+# Run continuous performance testing
+./docker_test_infrastructure/benchmark_filesystems.sh
+
+# Or use the enhanced suite with detailed analysis
+./docker_test_infrastructure/generate_enhanced_graphs.sh
+```
+
+### Performance Test Categories
+
+#### 1. **Baseline Performance Tests**
+- **Metadata Operations**: File create/stat/delete (1000 operations)
+- **I/O Throughput**: Sequential read/write (10MB test)
+- **Compression Analysis**: Real-world compression efficiency
+- **NUMA Locality**: Memory access optimization
+- **Persistence Verification**: Mount/unmount data integrity
+
+#### 2. **Scalability Tests**
+- **O(log n) Validation**: Lookup performance across 10-100,000 files
+- **Concurrency Testing**: Multi-threaded file operations
+- **Memory Usage**: Cache efficiency and allocation patterns
+- **Lock Contention**: Thread synchronization performance
+
+#### 3. **Regression Detection**
+- **Performance Baselines**: Historical performance tracking
+- **Threshold Monitoring**: Automatic alerts for performance drops
+- **Statistical Analysis**: Confidence intervals and significance testing
+
+### Continuous Integration Workflow
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Code Change   │───▶│  Automated       │───▶│  Performance    │
+│                 │    │  Build & Test    │    │  Regression     │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+        │                       │                       │
+        ▼                       ▼                       ▼
+ ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+ │  Static Analysis│    │  Dynamic Testing │    │  Performance    │
+ │  (cppcheck,     │    │  (Valgrind,     │    │  Alerting &     │
+ │  CodeQL, etc.)  │    │  Sanitizers)    │    │  Optimization   │
+ └─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### Performance Monitoring Dashboard
+
+The test infrastructure generates comprehensive reports with 5 key visualizations:
+
+#### 1. **Performance Radar Chart**
+- 8-dimensional comparison (compression, NUMA, recovery, threading, etc.)
+- Real-time comparison against ext4, ZFS, ReiserFS
+- Automatic detection of performance regressions
+
+#### 2. **O(log n) Scaling Validation**
+- Logarithmic performance verification across 10-100,000 files
+- Theoretical vs. measured O(log₁₆ n) performance
+- Regression detection with statistical significance
+
+#### 3. **Performance Heatmap**
+- Color-coded matrix of all performance metrics
+- Visual identification of strengths/weaknesses
+- Cross-filesystem performance comparison
+
+#### 4. **Compression Effectiveness**
+- Real-world compression on git archive and custom test data
+- Disk space savings analysis
+- Comparison with native filesystem compression
+
+#### 5. **NUMA Memory Analysis**
+- Memory access latency measurements
+- NUMA optimization scoring (0-100)
+- Cross-node memory access patterns
+
+### Automated Performance Regression Detection
+
+The system automatically detects performance regressions using statistical analysis:
+
+```bash
+# Run regression test suite
+./run_tests.sh --regression-check
+
+# Compare current performance against historical baseline
+./docker_test_infrastructure/benchmark_filesystems.sh --compare-baseline
+```
+
+### Performance Optimization Testing
+
+#### 1. **Cache Optimization Tests**
+- Cache line alignment verification (64-byte nodes)
+- Memory access pattern analysis
+- Cache hit ratio measurements
+
+#### 2. **NUMA Optimization Tests**  
+- Memory locality measurements
+- NUMA node binding validation
+- Cross-node access latency
+
+#### 3. **Concurrency Optimization Tests**
+- Lock contention analysis
+- Thread scalability validation
+- Deadlock detection and prevention
+
+### Docker-Based Testing Infrastructure (Windows Compatible)
+
+The complete test infrastructure runs on Windows using WSL2 + Docker Desktop:
+
+```bash
+# Prerequisites
+sudo apt-get install gnuplot bc wget fuse3 libfuse3-dev docker.io
+sudo usermod -aG docker $USER
+
+# Run comprehensive tests
+cd docker_test_infrastructure/
+./benchmark_filesystems.sh
+
+# Results automatically sync to Windows desktop
+# C:\Users\liber\Desktop\Testing-Razor-FS\benchmarks\
+```
+
+### Custom Test Workflows
+
+#### 1. **Custom Workload Testing**
+```bash
+# Add custom test files
+TEST_FILE_URL="https://your-custom-file.tar.gz" ./benchmark_filesystems.sh
+
+# Custom performance scenarios
+./benchmark_filesystems.sh --custom-workload my_scenario.json
+```
+
+#### 2. **Performance Parameter Tuning**
+```bash
+# Test different branching factors
+./benchmark_filesystems.sh --branching-factor 8  # vs default 16
+
+# Test different compression levels
+./benchmark_filesystems.sh --compression-level 6  # zlib level
+```
+
+#### 3. **Stress Testing**
+```bash
+# Long-running performance tests
+./run_tests.sh --stress-test --duration 3600  # 1 hour test
+
+# High-concurrency testing
+./run_tests.sh --concurrency-level 64  # 64 concurrent operations
+```
+
+### Performance Benchmarking Standards
+
+The testing infrastructure follows industry-standard benchmarking practices:
+
+- **Statistical Significance**: 5+ runs with confidence intervals
+- **Warm-up Periods**: Pre-run operations to eliminate cold-start effects  
+- **Isolation**: Dedicated resources during testing
+- **Reproducibility**: Fixed test data and controlled environment
+- **Monitoring**: Real-time performance metrics and logging
+
+### Performance Optimization Pipeline
+
+#### 1. **Pre-commit Performance Checking**
+```bash
+# Automatically run performance tests before commits
+./run_tests.sh --pre-commit
+```
+
+#### 2. **Performance Gate Checks**
+- Performance must not degrade more than 5% from baseline
+- Memory usage must not increase more than 10%
+- Latency metrics must stay within acceptable ranges
+
+#### 3. **Historical Performance Tracking**
+- Automatic storage of performance results
+- Trend analysis and performance forecasting
+- Comparison against historical baselines
+
+### Integration with CI/CD
+
+```yaml
+# GitHub Actions integration example
+performance-tests:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v3
+    - name: Run Performance Tests
+      run: |
+        cd docker_test_infrastructure
+        ./benchmark_filesystems.sh
+    - name: Upload Performance Reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-reports
+        path: /mnt/c/Users/liber/Desktop/Testing-Razor-FS/benchmarks/
+```
+
+### Performance Reporting and Monitoring
+
+#### 1. **Automated Performance Reports**
+- Daily performance regression tests
+- Weekly comprehensive benchmark comparisons
+- Monthly performance optimization recommendations
+
+#### 2. **Performance Dashboard Access**
+- Web-based performance comparison interface
+- Real-time performance monitoring
+- Performance alerting and notifications
+
+### Performance Optimization Guidelines
+
+To maintain maximum performance:
+
+1. **Always run performance tests before merging**
+2. **Monitor performance metrics in the dashboard**
+3. **Address performance regressions immediately**
+4. **Use the benchmark tool for optimization validation**
+
+```bash
+# Best practice: Run before every merge
+./run_tests.sh --all-tests --performance-check
+```
+
+This comprehensive testing framework ensures RAZORFS maintains optimal performance while preventing performance regressions across all key metrics.
+
+---
+
 ## 🔐 Security Testing & Vulnerability Management
 
 RazorFS implements comprehensive automated security testing to identify and prevent vulnerabilities:
