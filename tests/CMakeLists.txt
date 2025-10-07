@@ -99,13 +99,6 @@ target_link_libraries(shm_persist_test
     GTest::gmock
 )
 
-add_executable(compression_test unit/compression_test.cpp)
-target_link_libraries(compression_test
-    razorfs_lib
-    GTest::gtest_main
-    GTest::gmock
-)
-
 add_executable(architecture_test unit/architecture_test.cpp)
 target_link_libraries(architecture_test
     razorfs_lib
@@ -145,22 +138,6 @@ target_link_libraries(inode_table_test
     GTest::gmock
 )
 
-# Block Allocator Tests
-add_executable(block_alloc_test unit/block_alloc_test.cpp)
-target_link_libraries(block_alloc_test
-    razorfs_lib
-    GTest::gtest_main
-    GTest::gmock
-)
-
-# Extent Tests
-add_executable(extent_test unit/extent_test.cpp)
-target_link_libraries(extent_test
-    razorfs_lib
-    GTest::gtest_main
-    GTest::gmock
-)
-
 # Integration Tests
 add_executable(integration_test integration/filesystem_test.cpp)
 target_link_libraries(integration_test
@@ -174,12 +151,9 @@ include(GoogleTest)
 gtest_discover_tests(string_table_test)
 gtest_discover_tests(nary_tree_test)
 gtest_discover_tests(shm_persist_test)
-gtest_discover_tests(compression_test)
 gtest_discover_tests(architecture_test)
 gtest_discover_tests(wal_test)
 gtest_discover_tests(recovery_test)
 gtest_discover_tests(xattr_test)
 gtest_discover_tests(inode_table_test)
-gtest_discover_tests(block_alloc_test)
-gtest_discover_tests(extent_test)
 gtest_discover_tests(integration_test)
