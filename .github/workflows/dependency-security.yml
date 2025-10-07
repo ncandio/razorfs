@@ -63,12 +63,12 @@ jobs:
         vuln-type: 'os,library'  # Focus on OS and library vulnerabilities
 
     - name: Run Snyk to check for vulnerabilities (only if token exists)
-      uses: snyk/actions/c-cpp-clang@master
+      uses: snyk/actions/snyk-cli@master
       continue-on-error: true  # Continue even if Snyk fails
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
-        args: --sarif-file-output=snyk.sarif --exclude=tests,benchmark,fuzz-build
+        args: code test --sarif-file-output=snyk.sarif --exclude=tests,benchmark,fuzz-build
 
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
