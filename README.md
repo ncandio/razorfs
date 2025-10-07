@@ -552,6 +552,18 @@ RazorFS implements comprehensive automated security testing to identify and prev
 
 ![Feature Radar](readme_graphs/comprehensive_performance_radar.png)
 
+**Graph Legend Explanation:**
+The 8 dimensions represented in the radar chart are:
+
+1. **Compression Efficiency** - How effectively each filesystem compresses data (higher score = better compression)
+2. **NUMA Awareness** - Memory locality optimization on NUMA systems (higher score = better memory placement)
+3. **Recovery Speed** - Time to recover from crashes or unclean shutdowns (higher score = faster recovery)
+4. **Thread Scalability** - Performance under concurrent access patterns (higher score = better multithreading)
+5. **Persistence Reliability** - Data durability across mount/unmount cycles (higher score = more reliable persistence)
+6. **Memory Efficiency** - Cache utilization and memory access patterns (higher score = more efficient memory usage)
+7. **Lock Contention** - Thread synchronization effectiveness (higher score = fewer lock bottlenecks)
+8. **Data Integrity** - Corruption prevention and verification capabilities (higher score = better data integrity)
+
 #### Performance Heatmap
 *Side-by-side comparison across all metrics (Generated with Docker test infrastructure)*
 
@@ -818,11 +830,11 @@ BSD 3-Clause License
 
 RAZORFS was conceived from the decision to guide a project toward developing a filesystem with the appealing features and capabilities described in this README. These goals were designed to be attainable through AI-assisted development methodologies.
 
-The AI-assisted coding procedures employed in this project do not exclude other types of methodologies, nor do they diminish the deliberate act of human code design and architecture. This project represents a hybrid approach where AI tools assist in rapid implementation while human oversight maintains critical design decisions and validation.
+This project represents a hybrid approach where AI tools assist in rapid implementation while human oversight maintains critical design decisions and validation. The AI-assisted coding procedures employed in this project do not exclude other types of methodologies, nor do they diminish the deliberate act of human code design and architecture.
 
-We remain undecided about which techniques may be optimal for any given scenario. While supporting the importance of human design and coding practices, we also acknowledge that human-only teams are certainly capable of creating large codebases with millions of lines of code that may accumulate enormous technical debt.
+We explore the potential of AI-assisted engineering principles combined with human supervision for rapid development and prototyping. This approach allows for rapid iteration and experimentation with complex systems that would traditionally require significantly more time and resources. However, we remain agnostic about which techniques may be optimal for any given scenario, supporting both human-only and hybrid approaches based on project needs.
 
-AI-assisted development practices offer the advantage of creating functional prototypes incredibly fast, as demonstrated by this project's development timeline. This approach allows for rapid iteration and experimentation with complex systems that would traditionally require significantly more time and resources.
+For those interested in understanding how AI tools work under the hood, this [Deep Dive into LLMs like ChatGPT](https://www.youtube.com/watch?v=7xTGNNLPyMI) provides an excellent explanation of what LLMs are, how they are built, and how they "guess" the correct or most reasonable answer depending on the corpus on which they are trained. The video also covers the resources they "know" or for which they are trained to respond, providing valuable context for understanding AI-assisted development.
 
 ---
 
