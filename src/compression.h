@@ -51,28 +51,7 @@ void *compress_data(const void *data, size_t size, size_t *out_size);
  */
 void *decompress_data(const void *data, size_t size, size_t *out_size);
 
-/**
- * Check if data is compressed
- */
-int is_compressed(const void *data, size_t size) __attribute__((unused));
 
-/**
- * Get compression statistics
- */
-struct compression_stats {
-    uint64_t total_reads;
-    uint64_t compressed_reads;
-    uint64_t total_writes;
-    uint64_t compressed_writes;
-    uint64_t bytes_saved;
-};
-
-void get_compression_stats(struct compression_stats *stats) __attribute__((unused));
-
-/**
- * Reset compression statistics (for testing)
- */
-void reset_compression_stats(void) __attribute__((unused));
 
 #ifdef __cplusplus
 }

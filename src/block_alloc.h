@@ -44,25 +44,6 @@ struct block_allocator {
 /* Core Functions */
 
 /**
- * Initialize block allocator
- *
- * @param alloc Allocator to initialize
- * @param total_blocks Total number of blocks
- * @param block_size Size of each block in bytes
- * @return 0 on success, -1 on error
- */
-int block_alloc_init(struct block_allocator *alloc,
-                     uint32_t total_blocks,
-                     uint32_t block_size) __attribute__((unused));
-
-/**
- * Destroy block allocator
- *
- * @param alloc Allocator to destroy
- */
-void block_alloc_destroy(struct block_allocator *alloc) __attribute__((unused));
-
-/**
  * Allocate contiguous blocks
  *
  * @param alloc Allocator
@@ -82,28 +63,6 @@ uint32_t block_alloc(struct block_allocator *alloc, uint32_t num_blocks);
 int block_free(struct block_allocator *alloc,
                uint32_t block_num,
                uint32_t num_blocks);
-
-/**
- * Check if block is allocated
- *
- * @param alloc Allocator
- * @param block_num Block number to check
- * @return 1 if allocated, 0 if free, -1 on error
- */
-int block_is_allocated(struct block_allocator *alloc, uint32_t block_num) __attribute__((unused));
-
-/**
- * Get block statistics
- *
- * @param alloc Allocator
- * @param total Total blocks (output, can be NULL)
- * @param free Free blocks (output, can be NULL)
- * @param used Used blocks (output, can be NULL)
- */
-void block_stats(struct block_allocator *alloc,
-                 uint32_t *total,
-                 uint32_t *free,
-                 uint32_t *used) __attribute__((unused));
 
 /**
  * Get block address

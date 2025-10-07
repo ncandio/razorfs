@@ -14,40 +14,6 @@ static uint32_t hash_inode(uint32_t inode_num, uint32_t capacity) {
     return (inode_num * 2654435761U) % capacity;
 }
 
-/* Initialize inode table */
-int inode_table_init(struct inode_table *table, uint32_t capacity) {
-    if (!table || capacity == 0) return -1;
-
-    memset(table, 0, sizeof(*table));
-
-    /* Allocate inode array */
-    table->inodes = calloc(capacity, sizeof(struct razorfs_inode));
-    if (!table->inodes) {
-        return -1;
-    }
-
-    table->capacity = capacity;
-    table->used = 0;
-    table->next_inode = 1;  /* Inode 0 is invalid */
-    table->free_head = 0;
-
-    /* Allocate hash table (use prime number for better distribution) */
-    table->hash_capacity = 1009;  /* Prime number */
-    table->hash_table = calloc(table->hash_capacity,
-                               sizeof(struct inode_hash_entry *));
-    if (!table->hash_table) {
-        free(table->inodes);
-        return -1;
-    }
-
-    if (pthread_rwlock_init(&table->lock, NULL) != 0) {
-        free(table->hash_table);
-        free(table->inodes);
-        return -1;
-    }
-
-    return 0;
-}
 
 /* Destroy inode table */
 void inode_table_destroy(struct inode_table *table) {

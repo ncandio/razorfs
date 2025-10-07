@@ -393,6 +393,13 @@ razorfs/
 - **Ordering:** Parent locked before child (deadlock prevention)
 - **Granularity:** Fine-grained locks minimize contention
 
+### Memory Layout & Performance
+- **Memory Locality:** Breadth-first layout for sequential access patterns
+- **O(log₁₆ n) Complexity:** 16-way branching reduces tree height and traversal time
+- **Cache Efficiency:** 64-byte aligned nodes optimized for cache line usage
+- **Current Performance:** I/O throughput with foundation for ext4-level performance
+- **Future Tuning:** Performance optimization planned to achieve ext4-level throughput
+
 ---
 
 ## ⚠️ Limitations & Known Issues
