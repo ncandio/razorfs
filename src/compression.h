@@ -51,6 +51,24 @@ void *compress_data(const void *data, size_t size, size_t *out_size);
  */
 void *decompress_data(const void *data, size_t size, size_t *out_size);
 
+/**
+ * Get compression statistics
+ */
+struct compression_stats {
+    uint64_t total_reads;
+    uint64_t compressed_reads;
+    uint64_t total_writes;
+    uint64_t compressed_writes;
+    uint64_t bytes_saved;
+};
+
+void get_compression_stats(struct compression_stats *stats);
+
+/**
+ * Reset compression statistics (for testing)
+ */
+void reset_compression_stats(void);
+
 
 
 #ifdef __cplusplus
