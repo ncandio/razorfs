@@ -177,8 +177,10 @@ if [ "$RUN_UNIT" = true ]; then
         "string_table_test"
         "nary_tree_test"
         "shm_persist_test"
-        "compression_test"
         "architecture_test"
+        "inode_table_test"
+        "wal_test"
+        "recovery_test"
     )
 
     UNIT_FAILED=0

@@ -1,0 +1,312 @@
+name: "Debian-based Persistence Validation"
+
+on:
+  workflow_dispatch:  # Allow manual triggering
+  schedule:
+    # Run weekly on Sunday at 3 AM UTC
+    - cron: '0 3 * * 0'
+
+jobs:
+  debian-persistence-test:
+    runs-on: self-hosted  # Using self-hosted runner with Debian if available, otherwise container
+    container:
+      image: debian:12-slim  # Use Debian 12 (Bookworm) slim image
+      options: --privileged --cap-add=SYS_ADMIN --security-opt apparmor:unconfined
+    timeout-minutes: 45
+
+    steps:
+    - name: Install Git and checkout code
+      run: |
+        apt-get update
+        apt-get install -y git build-essential curl wget gnupg
+        git --version
+        
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    # Install FUSE3 and other dependencies on Debian
+    - name: Install Debian dependencies
+      run: |
+        apt-get update
+        apt-get install -y \
+          build-essential \
+          pkg-config \
+          libfuse3-dev \
+          fuse3 \
+          zlib1g-dev \
+          libgtest-dev \
+          cmake \
+          bc \
+          wget \
+          gnuplot \
+          valgrind \
+          libnuma-dev
+
+    # Build the filesystem
+    - name: Build RazorFS
+      run: |
+        make clean && make release
+        
+    # Create test environment
+    - name: Setup test environment
+      run: |
+        mkdir -p /tmp/razorfs_test
+        mkdir -p /tmp/test_data
+        
+    # Run comprehensive persistence validation
+    - name: Run Persistence Validation Test
+      run: |
+        #!/bin/bash
+        set -e
+        
+        echo "Starting Debian-based persistence validation test..."
+        echo "System info: $(cat /etc/os-release | grep PRETTY_NAME)"
+        echo "Kernel: $(uname -r)"
+        
+        # Test 1: Basic functionality with data persistence
+        echo "=== Test 1: Basic Mount/Write/Unmount/Remount with Data Verification ==="
+        
+        # Mount filesystem
+        timeout 30s ./razorfs /tmp/razorfs_test &
+        sleep 3
+        
+        if ! mountpoint -q /tmp/razorfs_test; then
+          echo "ERROR: Failed to mount filesystem"
+          exit 1
+        fi
+        
+        echo "Filesystem mounted successfully"
+        
+        # Create test data with unique identifiers
+        TIMESTAMP=$(date +%s)
+        echo "Persistent data test - run $TIMESTAMP" > /tmp/razorfs_test/test_file_1.txt
+        echo "$(date): Basic functionality test" >> /tmp/razorfs_test/test_file_1.txt
+        echo "Random content: $(openssl rand -hex 16)" >> /tmp/razorfs_test/test_file_1.txt
+        
+        # Create directory structure
+        mkdir -p /tmp/razorfs_test/subdir_test
+        echo "Subdirectory file content" > /tmp/razorfs_test/subdir_test/file.txt
+        echo "Additional subdir content: $TIMESTAMP" >> /tmp/razorfs_test/subdir_test/file.txt
+        
+        # Verify data was created
+        if [ ! -f "/tmp/razorfs_test/test_file_1.txt" ]; then
+          echo "ERROR: Test file not created"
+          exit 1
+        fi
+        echo "Data created successfully in filesystem"
+        
+        # Unmount filesystem
+        fusermount3 -u /tmp/razorfs_test
+        sleep 2
+        
+        # Remount and verify data persistence
+        timeout 30s ./razorfs /tmp/razorfs_test &
+        sleep 3
+        
+        if ! mountpoint -q /tmp/razorfs_test; then
+          echo "ERROR: Failed to remount filesystem"
+          exit 1
+        fi
+        
+        # Verify data integrity
+        if [ ! -f "/tmp/razorfs_test/test_file_1.txt" ]; then
+          echo "ERROR: Data not persistent after unmount/remount"
+          exit 1
+        fi
+        
+        # Check that the content is correct
+        if ! grep -q "Persistent data test - run $TIMESTAMP" /tmp/razorfs_test/test_file_1.txt; then
+          echo "ERROR: Data content corrupted"
+          exit 1
+        fi
+        
+        if [ ! -f "/tmp/razorfs_test/subdir_test/file.txt" ]; then
+          echo "ERROR: Subdirectory file not persistent"
+          exit 1
+        fi
+        
+        echo "✓ Basic persistence test passed"
+        
+        # Test 2: Crash simulation with SIGKILL
+        echo "=== Test 2: Crash Simulation (SIGKILL) ==="
+        
+        # Add more data before crash simulation
+        CRASH_TIMESTAMP=$(date +%s)
+        echo "Data before simulated crash - $CRASH_TIMESTAMP" > /tmp/razorfs_test/crash_test.txt
+        echo "$(date): Crash simulation test - run $CRASH_TIMESTAMP" >> /tmp/razorfs_test/crash_test.txt
+        mkdir -p /tmp/razorfs_test/crash_dir
+        echo "Crash directory data" > /tmp/razorfs_test/crash_dir/crash_file.txt
+        echo "Additional crash data: $(openssl rand -hex 32)" >> /tmp/razorfs_test/crash_dir/crash_file.txt
+        
+        # Verify data exists before crash
+        if [ ! -f "/tmp/razorfs_test/crash_test.txt" ]; then
+          echo "ERROR: Crash test data not created before crash simulation"
+          exit 1
+        fi
+        
+        # Simulate crash by killing the FUSE process
+        FUSER_PID=$(pgrep -f "razorfs /tmp/razorfs_test" | head -n1)
+        if [ -n "$FUSER_PID" ]; then
+          echo "Simulating crash by killing process $FUSER_PID"
+          kill -9 $FUSER_PID
+          sleep 2
+        fi
+        
+        # Force unmount if still mounted
+        fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+        sleep 3
+        
+        # Remount and verify data recovery
+        timeout 30s ./razorfs /tmp/razorfs_test &
+        sleep 5  # Wait longer after crash simulation
+        
+        if ! mountpoint -q /tmp/razorfs_test; then
+          echo "ERROR: Failed to remount filesystem after crash simulation"
+          exit 1
+        fi
+        
+        # Verify crash test data integrity
+        if [ ! -f "/tmp/razorfs_test/crash_test.txt" ]; then
+          echo "ERROR: Crash test data lost after crash simulation"
+          exit 1
+        fi
+        
+        if ! grep -q "Data before simulated crash - $CRASH_TIMESTAMP" /tmp/razorfs_test/crash_test.txt; then
+          echo "ERROR: Crash test data corrupted"
+          exit 1
+        fi
+        
+        if [ ! -f "/tmp/razorfs_test/crash_dir/crash_file.txt" ]; then
+          echo "ERROR: Crash directory file lost"
+          exit 1
+        fi
+        
+        echo "✓ Crash simulation test passed"
+        
+        # Test 3: Extended I/O stress test
+        echo "=== Test 3: Extended I/O Stress Test ==="
+        
+        # Create multiple files and verify performance under stress
+        for i in {1..5}; do
+          LARGE_DATA_FILE="/tmp/razorfs_test/large_data_${i}.txt"
+          echo "Large data test file $i - $(date)" > "$LARGE_DATA_FILE"
+          
+          # Add substantial content to test I/O performance
+          for j in {1..50}; do
+            echo "Line $j in file $i - Random: $(openssl rand -hex 8)" >> "$LARGE_DATA_FILE"
+          done
+          
+          if [ ! -f "$LARGE_DATA_FILE" ]; then
+            echo "ERROR: Large data file $i not created"
+            exit 1
+          fi
+        done
+        
+        # Verify all data files exist
+        for i in {1..5}; do
+          if [ ! -f "/tmp/razorfs_test/large_data_${i}.txt" ]; then
+            echo "ERROR: Large data file $i missing after creation"
+            exit 1
+          fi
+        done
+        
+        echo "✓ Extended I/O stress test passed"
+        
+        # Test 4: Multiple rapid mount/unmount cycles
+        echo "=== Test 4: Rapid Mount/Unmount Cycles ==="
+        
+        for i in {1..3}; do
+          echo "Rapid cycle $i"
+          
+          # Add data for this cycle
+          echo "Cycle $i data: $(date)" > "/tmp/razorfs_test/cycle_${i}.txt"
+          echo "Additional cycle $i content: $(openssl rand -hex 16)" >> "/tmp/razorfs_test/cycle_${i}.txt"
+          
+          # Verify this cycle's data exists
+          if [ ! -f "/tmp/razorfs_test/cycle_${i}.txt" ]; then
+            echo "ERROR: Cycle $i data not created"
+            exit 1
+          fi
+          
+          # Unmount and remount
+          fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+          sleep 1
+          timeout 30s ./razorfs /tmp/razorfs_test &
+          sleep 2
+          
+          # Verify this cycle's data still exists after remount
+          if [ ! -f "/tmp/razorfs_test/cycle_${i}.txt" ]; then
+            echo "ERROR: Cycle $i data lost during mount cycle"
+            exit 1
+          fi
+        done
+        
+        echo "✓ Rapid mount/unmount cycles test passed"
+        
+        # Final verification
+        echo "=== Final Verification ==="
+        TOTAL_FILES=$(find /tmp/razorfs_test -type f | wc -l)
+        TOTAL_DIRS=$(find /tmp/razorfs_test -type d | wc -l)
+        echo "Total files in filesystem: $TOTAL_FILES"
+        echo "Total directories in filesystem: $TOTAL_DIRS"
+        
+        # Verify presence of all expected files
+        EXPECTED_MIN_FILES=15  # Basic files + crash files + cycle files + large data files
+        if [ $TOTAL_FILES -lt $EXPECTED_MIN_FILES ]; then
+          echo "ERROR: Expected at least $EXPECTED_MIN_FILES files, found $TOTAL_FILES"
+          exit 1
+        fi
+        
+        # Verify specific files exist
+        REQUIRED_FILES=(
+          "/tmp/razorfs_test/test_file_1.txt"
+          "/tmp/razorfs_test/subdir_test/file.txt"
+          "/tmp/razorfs_test/crash_test.txt"
+          "/tmp/razorfs_test/crash_dir/crash_file.txt"
+        )
+        
+        for file in "${REQUIRED_FILES[@]}"; do
+          if [ ! -f "$file" ]; then
+            echo "ERROR: Required file missing: $file"
+            exit 1
+          fi
+        done
+        
+        echo "✓ All persistence tests passed!"
+        echo "Filesystem maintained data integrity under Debian environment with multiple stress scenarios."
+        
+        # Unmount before finishing
+        fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+        sleep 1
+
+    # Cleanup
+    - name: Cleanup
+      if: always()
+      run: |
+        fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+        # If still mounted, force unmount
+        if mountpoint -q /tmp/razorfs_test 2>/dev/null; then
+          umount -l /tmp/razorfs_test 2>/dev/null || true
+        fi
+        rm -rf /tmp/test_data
+        
+    - name: Final check
+      run: |
+        if mountpoint -q /tmp/razorfs_test 2>/dev/null; then
+          echo "ERROR: Filesystem still mounted!"
+          exit 1
+        else
+          echo "Filesystem properly unmounted"
+        fi
+
+    # Generate and archive test reports
+    - name: Archive test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: debian-persistence-test-results
+        path: |
+          /tmp/test_data/
+          *.log
+          !*.tmp

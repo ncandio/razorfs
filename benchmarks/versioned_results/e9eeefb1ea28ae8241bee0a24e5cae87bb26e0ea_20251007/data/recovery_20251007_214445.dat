@@ -1,0 +1,4 @@
+# Filesystem Recovery_Time_ms Success_Rate
+RAZORFS 5186 100
+ext4 2500 95
+ZFS 3200 98

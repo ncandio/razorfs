@@ -1,0 +1,5 @@
+# Filesystem NUMA_Score Access_Latency_ns
+RAZORFS 95 120
+ext4 60 450
+ReiserFS 55 480
+ZFS 70 380
