@@ -90,6 +90,15 @@ struct inode_table {
 /* Core Functions */
 
 /**
+ * Initialize inode table
+ *
+ * @param table Inode table to initialize
+ * @param capacity Initial capacity
+ * @return 0 on success, -1 on error
+ */
+int inode_table_init(struct inode_table *table, uint32_t capacity);
+
+/**
  * Destroy inode table
  *
  * @param table Inode table to destroy

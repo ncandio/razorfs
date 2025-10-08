@@ -8,6 +8,55 @@
 #include <errno.h>
 #include <time.h>
 
+/* Find next prime for hash table size */
+static uint32_t next_prime(uint32_t n) {
+    if (n <= 2) return 2;
+    if (n % 2 == 0) n++;
+    while (1) {
+        int is_prime = 1;
+        for (uint32_t i = 3; i * i <= n; i += 2) {
+            if (n % i == 0) {
+                is_prime = 0;
+                break;
+            }
+        }
+        if (is_prime) return n;
+        n += 2;
+    }
+}
+
+int inode_table_init(struct inode_table *table, uint32_t capacity) {
+    if (!table || capacity == 0) return -1;
+
+    memset(table, 0, sizeof(*table));
+
+    table->inodes = calloc(capacity, sizeof(struct razorfs_inode));
+    if (!table->inodes) {
+        return -1;
+    }
+
+    table->capacity = capacity;
+    table->used = 1;  /* Inode 0 is reserved, 1 is root */
+    table->next_inode = 2;
+    table->free_head = 0; /* 0 indicates no free list */
+
+    if (pthread_rwlock_init(&table->lock, NULL) != 0) {
+        free(table->inodes);
+        return -1;
+    }
+
+    /* Initialize hash table with prime size for better distribution */
+    table->hash_capacity = next_prime(capacity);
+    table->hash_table = calloc(table->hash_capacity, sizeof(struct inode_hash_entry *));
+    if (!table->hash_table) {
+        pthread_rwlock_destroy(&table->lock);
+        free(table->inodes);
+        return -1;
+    }
+
+    return 0;
+}
+
 /* Hash function for inode numbers */
 static uint32_t hash_inode(uint32_t inode_num, uint32_t capacity) {
     /* Simple multiplicative hash */
@@ -95,14 +144,22 @@ uint32_t inode_alloc(struct inode_table *table, mode_t mode) {
 
     pthread_rwlock_wrlock(&table->lock);
 
-    /* Check if table is full */
-    if (table->used >= table->capacity) {
-        pthread_rwlock_unlock(&table->lock);
-        return 0;
+    uint32_t index;
+
+    /* Try to reuse from free list first */
+    if (table->free_head != 0) {
+        index = table->free_head;
+        /* The 'next' pointer is stored in the otherwise unused 'xattr_head' */
+        table->free_head = table->inodes[index].xattr_head;
+    } else {
+        /* If free list is empty, allocate from the end */
+        if (table->used >= table->capacity) {
+            pthread_rwlock_unlock(&table->lock);
+            return 0; /* Table is full */
+        }
+        index = table->used++;
     }
 
-    /* Find free slot */
-    uint32_t index = table->used++;
     uint32_t inode_num = table->next_inode++;
 
     /* Initialize inode */
@@ -196,12 +253,15 @@ int inode_unlink(struct inode_table *table, uint32_t inode_num) {
 
     /* If no more links, free the inode */
     if (inode->nlink == 0) {
+        uint32_t index = hash_lookup(table, inode_num);
+
         /* Remove from hash table */
         hash_remove(table, inode_num);
 
-        /* Mark as free (simple approach: just zero it) */
-        /* TODO: Add to free list for reuse */
+        /* Add to free list for reuse */
         memset(inode, 0, sizeof(*inode));
+        inode->xattr_head = table->free_head; /* Reuse xattr_head as next pointer */
+        table->free_head = index;
     }
 
     pthread_rwlock_unlock(&table->lock);

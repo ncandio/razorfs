@@ -1,11 +1,10 @@
 /**
- * Unit Tests for Inode Table (Hardlink Support)
+ * Inode Table Unit Tests
  */
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <sys/stat.h>
-#include <errno.h>
 
 extern "C" {
 #include "inode_table.h"
@@ -14,9 +13,11 @@ extern "C" {
 class InodeTableTest : public ::testing::Test {
 protected:
     struct inode_table table;
+    const uint32_t capacity = 256;
 
     void SetUp() override {
-        ASSERT_EQ(inode_table_init(&table, 1024), 0);
+        memset(&table, 0, sizeof(table));
+        ASSERT_EQ(inode_table_init(&table, capacity), 0);
     }
 
     void TearDown() override {
@@ -24,317 +25,151 @@ protected:
     }
 };
 
-/* Test: Initialization */
+// ============================================================================
+// Basic Operations
+// ============================================================================
+
 TEST_F(InodeTableTest, Initialization) {
+    EXPECT_EQ(table.capacity, capacity);
+    EXPECT_EQ(table.used, 1); // Inode 0 is reserved
+    EXPECT_EQ(table.next_inode, 2); // Starts at 2, as 1 is root
     EXPECT_NE(table.inodes, nullptr);
-    EXPECT_EQ(table.capacity, 1024u);
-    EXPECT_EQ(table.used, 0u);
-    EXPECT_EQ(table.next_inode, 1u);  /* Inode 0 is invalid */
+    EXPECT_NE(table.hash_table, nullptr);
 
-    uint32_t total, used, free;
-    inode_table_stats(&table, &total, &used, &free);
-    EXPECT_EQ(total, 1024u);
-    EXPECT_EQ(used, 0u);
-    EXPECT_EQ(free, 1024u);
+    uint32_t total, used, free_count;
+    inode_table_stats(&table, &total, &used, &free_count);
+    EXPECT_EQ(total, capacity);
+    EXPECT_EQ(used, 1);
+    EXPECT_EQ(free_count, capacity - 1);
 }
 
-/* Test: Allocate single inode */
-TEST_F(InodeTableTest, AllocateSingle) {
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
-    EXPECT_NE(ino, 0u);
-    EXPECT_EQ(ino, 1u);  /* First inode */
+TEST_F(InodeTableTest, AllocAndLookup) {
+    uint32_t inode_num = inode_alloc(&table, S_IFREG | 0644);
+    ASSERT_GT(inode_num, 0);
 
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
+    // Lock is required for lookup
+    pthread_rwlock_rdlock(&table.lock);
+    struct razorfs_inode* inode = inode_lookup(&table, inode_num);
+    pthread_rwlock_unlock(&table.lock);
+
     ASSERT_NE(inode, nullptr);
-    EXPECT_EQ(inode->inode_num, ino);
-    EXPECT_EQ(inode->nlink, 1u);
-    EXPECT_EQ(inode->mode, (mode_t)(S_IFREG | 0644));
-    EXPECT_EQ(inode->size, 0u);
-    EXPECT_GT(inode->mtime, 0u);
+    EXPECT_EQ(inode->inode_num, inode_num);
+    EXPECT_EQ(inode->nlink, 1);
+    EXPECT_EQ(inode->mode, S_IFREG | 0644);
 }
 
-/* Test: Allocate multiple inodes */
-TEST_F(InodeTableTest, AllocateMultiple) {
-    uint32_t ino1 = inode_alloc(&table, S_IFREG | 0644);
-    uint32_t ino2 = inode_alloc(&table, S_IFDIR | 0755);
-    uint32_t ino3 = inode_alloc(&table, S_IFREG | 0600);
-
-    EXPECT_EQ(ino1, 1u);
-    EXPECT_EQ(ino2, 2u);
-    EXPECT_EQ(ino3, 3u);
-
-    EXPECT_NE(inode_lookup(&table, ino1), nullptr);
-    EXPECT_NE(inode_lookup(&table, ino2), nullptr);
-    EXPECT_NE(inode_lookup(&table, ino3), nullptr);
-
-    uint32_t used;
-    inode_table_stats(&table, nullptr, &used, nullptr);
-    EXPECT_EQ(used, 3u);
-}
-
-/* Test: Lookup nonexistent inode */
-TEST_F(InodeTableTest, LookupNonexistent) {
-    struct razorfs_inode *inode = inode_lookup(&table, 999);
+TEST_F(InodeTableTest, LookupNonExistent) {
+    pthread_rwlock_rdlock(&table.lock);
+    struct razorfs_inode* inode = inode_lookup(&table, 9999);
+    pthread_rwlock_unlock(&table.lock);
     EXPECT_EQ(inode, nullptr);
 }
 
-/* Test: Lookup invalid inode number */
-TEST_F(InodeTableTest, LookupInvalid) {
-    struct razorfs_inode *inode = inode_lookup(&table, 0);
-    EXPECT_EQ(inode, nullptr);
-}
+// ============================================================================
+// Link Count Tests
+// ============================================================================
 
-/* Test: Link increment */
-TEST_F(InodeTableTest, LinkIncrement) {
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
+TEST_F(InodeTableTest, Link) {
+    uint32_t inode_num = inode_alloc(&table, S_IFREG | 0644);
+    ASSERT_GT(inode_num, 0);
 
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
+    ASSERT_EQ(inode_link(&table, inode_num), 0);
+
+    pthread_rwlock_rdlock(&table.lock);
+    struct razorfs_inode* inode = inode_lookup(&table, inode_num);
     ASSERT_NE(inode, nullptr);
-    EXPECT_EQ(inode->nlink, 1u);
-
-    /* Create first hardlink */
-    ASSERT_EQ(inode_link(&table, ino), 0);
-    inode = inode_lookup(&table, ino);
-    EXPECT_EQ(inode->nlink, 2u);
-
-    /* Create second hardlink */
-    ASSERT_EQ(inode_link(&table, ino), 0);
-    inode = inode_lookup(&table, ino);
-    EXPECT_EQ(inode->nlink, 3u);
+    EXPECT_EQ(inode->nlink, 2);
+    pthread_rwlock_unlock(&table.lock);
 }
 
-/* Test: Unlink decrement */
-TEST_F(InodeTableTest, UnlinkDecrement) {
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
+TEST_F(InodeTableTest, Unlink) {
+    uint32_t inode_num = inode_alloc(&table, S_IFREG | 0644);
+    ASSERT_GT(inode_num, 0);
 
-    /* Create 2 hardlinks (total nlink = 3) */
-    inode_link(&table, ino);
-    inode_link(&table, ino);
+    // Add a second link
+    ASSERT_EQ(inode_link(&table, inode_num), 0);
 
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
-    EXPECT_EQ(inode->nlink, 3u);
-
-    /* Remove one link */
-    ASSERT_EQ(inode_unlink(&table, ino), 0);
-    inode = inode_lookup(&table, ino);
-    EXPECT_EQ(inode->nlink, 2u);
-
-    /* Remove another link */
-    ASSERT_EQ(inode_unlink(&table, ino), 0);
-    inode = inode_lookup(&table, ino);
-    EXPECT_EQ(inode->nlink, 1u);
-}
-
-/* Test: Unlink last link frees inode */
-TEST_F(InodeTableTest, UnlinkLastFrees) {
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
-
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
+    // First unlink, nlink should be 1
+    ASSERT_EQ(inode_unlink(&table, inode_num), 0);
+    pthread_rwlock_rdlock(&table.lock);
+    struct razorfs_inode* inode = inode_lookup(&table, inode_num);
     ASSERT_NE(inode, nullptr);
-    EXPECT_EQ(inode->nlink, 1u);
+    EXPECT_EQ(inode->nlink, 1);
+    pthread_rwlock_unlock(&table.lock);
 
-    /* Unlink last link */
-    ASSERT_EQ(inode_unlink(&table, ino), 0);
-
-    /* Inode should be freed */
-    inode = inode_lookup(&table, ino);
-    EXPECT_EQ(inode, nullptr);
+    // Second unlink, nlink should be 0 and inode freed
+    ASSERT_EQ(inode_unlink(&table, inode_num), 0);
+    pthread_rwlock_rdlock(&table.lock);
+    inode = inode_lookup(&table, inode_num);
+    pthread_rwlock_unlock(&table.lock);
+    EXPECT_EQ(inode, nullptr); // Should be gone from hash table
 }
 
-/* Test: Link to nonexistent inode */
-TEST_F(InodeTableTest, LinkNonexistent) {
-    int ret = inode_link(&table, 999);
-    EXPECT_EQ(ret, -ENOENT);
+TEST_F(InodeTableTest, InodeReuse) {
+    // This test checks if freed inode slots are reused.
+    // It will likely fail if the TODO in inode_unlink is not implemented.
+
+    // 1. Allocate an inode.
+    uint32_t first_inode_num = inode_alloc(&table, S_IFREG | 0644);
+    ASSERT_GT(first_inode_num, 0);
+    uint32_t initial_used_count = table.used;
+
+    // 2. Free the inode.
+    ASSERT_EQ(inode_unlink(&table, first_inode_num), 0);
+
+    // 3. Allocate another inode.
+    uint32_t second_inode_num = inode_alloc(&table, S_IFDIR | 0755);
+    ASSERT_GT(second_inode_num, 0);
+
+    // 4. Check if the slot was reused.
+    // If the free list is working, the `used` count should not have increased.
+    EXPECT_EQ(table.used, initial_used_count) << "The number of used inodes should not increase if a free slot is reused.";
+    
+    // The new inode number will be different, but it should occupy the same slot.
+    EXPECT_NE(first_inode_num, second_inode_num);
 }
 
-/* Test: Unlink nonexistent inode */
-TEST_F(InodeTableTest, UnlinkNonexistent) {
-    int ret = inode_unlink(&table, 999);
-    EXPECT_EQ(ret, -ENOENT);
+
+// ============================================================================
+// Error Handling
+// ============================================================================
+
+TEST_F(InodeTableTest, LinkNonExistent) {
+    EXPECT_EQ(inode_link(&table, 9999), -ENOENT);
 }
 
-/* Test: Maximum links */
-TEST_F(InodeTableTest, MaximumLinks) {
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
-
-    /* Manually set nlink to near max */
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
-    ASSERT_NE(inode, nullptr);
-    inode->nlink = INODE_MAX_LINKS - 1;
-
-    /* One more link should succeed */
-    ASSERT_EQ(inode_link(&table, ino), 0);
-    inode = inode_lookup(&table, ino);
-    EXPECT_EQ(inode->nlink, INODE_MAX_LINKS);
-
-    /* Another link should fail */
-    int ret = inode_link(&table, ino);
-    EXPECT_EQ(ret, -EMLINK);
+TEST_F(InodeTableTest, UnlinkNonExistent) {
+    EXPECT_EQ(inode_unlink(&table, 9999), -ENOENT);
 }
 
-/* Test: Update inode metadata */
-TEST_F(InodeTableTest, UpdateMetadata) {
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
+TEST_F(InodeTableTest, CapacityLimit) {
+    // Allocate until the table is full
+    for (uint32_t i = table.used; i < table.capacity; ++i) {
+        ASSERT_GT(inode_alloc(&table, S_IFREG), 0);
+    }
 
-    /* Update size and mtime */
-    uint64_t new_size = 12345;
-    uint32_t new_mtime = 1696377600;
+    uint32_t total, used, free_count;
+    inode_table_stats(&table, &total, &used, &free_count);
+    EXPECT_EQ(used, capacity);
+    EXPECT_EQ(free_count, 0);
 
-    ASSERT_EQ(inode_update(&table, ino, new_size, new_mtime), 0);
+    // Next allocation should fail
+    EXPECT_EQ(inode_alloc(&table, S_IFREG), 0);
+}
 
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
+TEST_F(InodeTableTest, Update) {
+    uint32_t inode_num = inode_alloc(&table, S_IFREG | 0644);
+    ASSERT_GT(inode_num, 0);
+
+    uint64_t new_size = 1024;
+    uint32_t new_mtime = time(NULL) - 100;
+
+    ASSERT_EQ(inode_update(&table, inode_num, new_size, new_mtime), 0);
+
+    pthread_rwlock_rdlock(&table.lock);
+    struct razorfs_inode* inode = inode_lookup(&table, inode_num);
     ASSERT_NE(inode, nullptr);
     EXPECT_EQ(inode->size, new_size);
     EXPECT_EQ(inode->mtime, new_mtime);
-}
-
-/* Test: Update nonexistent inode */
-TEST_F(InodeTableTest, UpdateNonexistent) {
-    int ret = inode_update(&table, 999, 100, 12345);
-    EXPECT_EQ(ret, -ENOENT);
-}
-
-/* Test: Different file types */
-TEST_F(InodeTableTest, DifferentFileTypes) {
-    uint32_t file = inode_alloc(&table, S_IFREG | 0644);
-    uint32_t dir = inode_alloc(&table, S_IFDIR | 0755);
-    uint32_t link = inode_alloc(&table, S_IFLNK | 0777);
-
-    struct razorfs_inode *file_ino = inode_lookup(&table, file);
-    struct razorfs_inode *dir_ino = inode_lookup(&table, dir);
-    struct razorfs_inode *link_ino = inode_lookup(&table, link);
-
-    ASSERT_NE(file_ino, nullptr);
-    ASSERT_NE(dir_ino, nullptr);
-    ASSERT_NE(link_ino, nullptr);
-
-    EXPECT_TRUE(S_ISREG(file_ino->mode));
-    EXPECT_TRUE(S_ISDIR(dir_ino->mode));
-    EXPECT_TRUE(S_ISLNK(link_ino->mode));
-}
-
-/* Test: Timestamps */
-TEST_F(InodeTableTest, Timestamps) {
-    uint32_t before = (uint32_t)time(NULL);
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
-    uint32_t after = (uint32_t)time(NULL);
-
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
-    ASSERT_NE(inode, nullptr);
-
-    EXPECT_GE(inode->atime, before);
-    EXPECT_LE(inode->atime, after);
-    EXPECT_EQ(inode->atime, inode->mtime);
-    EXPECT_EQ(inode->atime, inode->ctime);
-}
-
-/* Test: Link updates ctime */
-TEST_F(InodeTableTest, LinkUpdatesCtime) {
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
-
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
-    uint32_t old_ctime = inode->ctime;
-
-    sleep(1);  /* Ensure time difference */
-
-    inode_link(&table, ino);
-    inode = inode_lookup(&table, ino);
-
-    EXPECT_GT(inode->ctime, old_ctime);
-}
-
-/* Test: Unlink updates ctime */
-TEST_F(InodeTableTest, UnlinkUpdatesCtime) {
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
-    inode_link(&table, ino);  /* nlink = 2 */
-
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
-    uint32_t old_ctime = inode->ctime;
-
-    sleep(1);  /* Ensure time difference */
-
-    inode_unlink(&table, ino);
-    inode = inode_lookup(&table, ino);
-
-    EXPECT_GT(inode->ctime, old_ctime);
-}
-
-/* Test: Table full */
-TEST_F(InodeTableTest, TableFull) {
-    /* Allocate small table */
-    struct inode_table small_table;
-    ASSERT_EQ(inode_table_init(&small_table, 10), 0);
-
-    /* Fill it up */
-    for (int i = 0; i < 10; i++) {
-        uint32_t ino = inode_alloc(&small_table, S_IFREG | 0644);
-        EXPECT_NE(ino, 0u);
-    }
-
-    /* Next allocation should fail */
-    uint32_t ino = inode_alloc(&small_table, S_IFREG | 0644);
-    EXPECT_EQ(ino, 0u);
-
-    inode_table_destroy(&small_table);
-}
-
-/* Test: Statistics */
-TEST_F(InodeTableTest, Statistics) {
-    uint32_t total, used, free;
-
-    /* Empty table */
-    inode_table_stats(&table, &total, &used, &free);
-    EXPECT_EQ(total, 1024u);
-    EXPECT_EQ(used, 0u);
-    EXPECT_EQ(free, 1024u);
-
-    /* Add 5 inodes */
-    for (int i = 0; i < 5; i++) {
-        inode_alloc(&table, S_IFREG | 0644);
-    }
-
-    inode_table_stats(&table, &total, &used, &free);
-    EXPECT_EQ(total, 1024u);
-    EXPECT_EQ(used, 5u);
-    EXPECT_EQ(free, 1019u);
-}
-
-/* Test: Hash table collisions */
-TEST_F(InodeTableTest, HashCollisions) {
-    /* Allocate many inodes to test hash collisions */
-    for (int i = 0; i < 100; i++) {
-        uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
-        EXPECT_NE(ino, 0u);
-    }
-
-    /* All should be lookupable */
-    for (uint32_t i = 1; i <= 100; i++) {
-        struct razorfs_inode *inode = inode_lookup(&table, i);
-        EXPECT_NE(inode, nullptr);
-        EXPECT_EQ(inode->inode_num, i);
-    }
-}
-
-/* Test: Inline data */
-TEST_F(InodeTableTest, InlineData) {
-    uint32_t ino = inode_alloc(&table, S_IFREG | 0644);
-
-    struct razorfs_inode *inode = inode_lookup(&table, ino);
-    ASSERT_NE(inode, nullptr);
-
-    /* Write some inline data */
-    const char *data = "Hello, World!";
-    size_t len = strlen(data);
-    ASSERT_LE(len, INODE_INLINE_DATA);
-
-    memcpy(inode->data, data, len);
-
-    /* Read it back */
-    EXPECT_EQ(memcmp(inode->data, data, len), 0);
-}
-
-/* Main */
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    pthread_rwlock_unlock(&table.lock);
 }

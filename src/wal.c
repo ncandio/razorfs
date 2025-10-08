@@ -142,6 +142,7 @@ int wal_init_shm(struct wal *wal, void *shm_buffer, size_t size, int existing) {
     wal->log_buffer = (char *)shm_buffer + sizeof(struct wal_header);
     wal->buffer_size = size - sizeof(struct wal_header);
     wal->is_shm = 1;
+    wal->fd = -1;
 
     if (existing) {
         /* Attach to existing WAL - validate header */
@@ -162,34 +163,35 @@ int wal_init_shm(struct wal *wal, void *shm_buffer, size_t size, int existing) {
         wal->header->entry_count = 0;
         update_header_checksum(wal->header);
 
+        /* Initialize locks */
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+
+        if (pthread_mutex_init(&wal->log_lock, &attr) != 0) {
+            pthread_mutexattr_destroy(&attr);
+            return -1;
+        }
+        if (pthread_mutex_init(&wal->tx_lock, &attr) != 0) {
+            pthread_mutex_destroy(&wal->log_lock);
+            pthread_mutexattr_destroy(&attr);
+            return -1;
+        }
+
+        pthread_mutexattr_destroy(&attr);
+
         /* Flush header to persistent storage */
         if (msync(wal->header, sizeof(struct wal_header), MS_SYNC) != 0) {
             return -1;
         }
     }
-
-    /* Initialize locks */
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
-
-    if (pthread_mutex_init(&wal->log_lock, &attr) != 0) {
-        pthread_mutexattr_destroy(&attr);
-        return -1;
-    }
-    if (pthread_mutex_init(&wal->tx_lock, &attr) != 0) {
-        pthread_mutex_destroy(&wal->log_lock);
-        pthread_mutexattr_destroy(&attr);
-        return -1;
-    }
-
-    pthread_mutexattr_destroy(&attr);
     return 0;
 }
 
 /* Initialize WAL with file-backed storage */
 int wal_init_file(struct wal *wal, const char *filepath, size_t size) {
     if (!wal || !filepath) return -1;
+    if (size == 0) return -1; // Add this check
     if (size < WAL_MIN_SIZE) size = WAL_DEFAULT_SIZE;
     if (size > WAL_MAX_SIZE) size = WAL_MAX_SIZE;
 
