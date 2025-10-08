@@ -581,6 +581,7 @@ RazorFS implements comprehensive automated security testing to identify and prev
 *Tested on live system - October 2025 (Generated with Docker test infrastructure)*
 
 ![O(log n) Comparison](readme_graphs/ologn_scaling_validation.png)
+*Generated: 2025-10-08 [84493cf] - Docker Infrastructure*
 
 **Key Findings:**
 - **10 files:** 2079μs per lookup
@@ -595,6 +596,7 @@ RazorFS implements comprehensive automated security testing to identify and prev
 *RAZORFS Phase 6 vs ext4, ZFS, ReiserFS across 8 dimensions (Generated with Docker test infrastructure)*
 
 ![Feature Radar](readme_graphs/comprehensive_performance_radar.png)
+*Generated: 2025-10-08 [84493cf] - Docker Infrastructure*
 
 **Graph Legend Explanation:**
 The 8 dimensions represented in the radar chart are:
@@ -612,6 +614,7 @@ The 8 dimensions represented in the radar chart are:
 *Side-by-side comparison across all metrics (Generated with Docker test infrastructure)*
 
 ![Performance Heatmap](readme_graphs/scalability_heatmap.png)
+*Generated: 2025-10-08 [84493cf] - Docker Infrastructure*
 
 ### Measured Performance Metrics
 
@@ -735,8 +738,8 @@ RAZORFS has **excellent engineering** (data structures, multithreading, WAL/reco
 - ✅ **Compression** - Transparent zlib compression
 
 **Remaining Features for Production:**
-- ⚠️ **Disk-backed storage** - Replacing /dev/shm with file-backed persistence (in development)
-- ⚠️ **Persistent string table** - Complete filename persistence (in development)
+- ✅ **Disk-backed storage** - Replacing /dev/shm with file-backed persistence (COMPLETED)
+- ✅ **Persistent string table** - Complete filename persistence (COMPLETED)
 - ⚠️ **Enhanced mmap support** - Optimized memory mapping (planned)
 - ⚠️ **Large file support** - Optimized storage for files >10MB (planned)
 
