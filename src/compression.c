@@ -131,6 +131,7 @@ void *decompress_data(const void *data, size_t size, size_t *out_size) {
 /**
  * Check if data is compressed
  */
+int is_compressed(const void *data, size_t size) __attribute__((unused));
 int is_compressed(const void *data, size_t size) {
     if (!data || size < sizeof(struct compression_header)) {
         return 0;

@@ -14,6 +14,7 @@
 #define BITMAP_CLEAR(bm, block) ((bm)[BITMAP_WORD(block)] &= ~(1U << BITMAP_BIT(block)))
 #define BITMAP_TEST(bm, block)  ((bm)[BITMAP_WORD(block)] & (1U << BITMAP_BIT(block)))
 
+int block_alloc_init(struct block_allocator *alloc, uint32_t total_blocks, uint32_t block_size) __attribute__((unused));
 int block_alloc_init(struct block_allocator *alloc, uint32_t total_blocks, uint32_t block_size) {
     if (!alloc || total_blocks == 0) {
         return -1;
@@ -56,6 +57,7 @@ int block_alloc_init(struct block_allocator *alloc, uint32_t total_blocks, uint3
     return 0;
 }
 
+void block_alloc_destroy(struct block_allocator *alloc) __attribute__((unused));
 void block_alloc_destroy(struct block_allocator *alloc) {
     if (!alloc) return;
 
