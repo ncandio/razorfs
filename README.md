@@ -417,8 +417,8 @@ TEST_FILE_URL="https://your-custom-file.tar.gz" ./benchmark_filesystems.sh
 # Long-running performance tests
 ./run_tests.sh --stress-test --duration 3600  # 1 hour test
 
-# High-concurrency testing
-./run_tests.sh --concurrency-level 64  # 64 concurrent operations
+# Available test options
+./run_tests.sh --help  # Show all available options
 ```
 
 ### Performance Benchmarking Standards
