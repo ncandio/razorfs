@@ -30,6 +30,9 @@
 #define RENAME_NOREPLACE (1 << 0)
 #endif
 
+/* Forward declarations */
+static void sync_string_table(void);
+
 /* File data hash table size */
 #define FILE_HASH_TABLE_SIZE 1024
 /* Compression threshold - only compress files larger than this */
