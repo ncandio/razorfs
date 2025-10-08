@@ -80,6 +80,26 @@ int shm_tree_exists(void);
 int disk_tree_exists(void);
 
 /**
+ * Initialize string table persistence to disk
+ * Creates/persists string table to disk file
+ *
+ * @param st String table to persist
+ * @param filepath Path to persistence file
+ * @return 0 on success, -1 on failure
+ */
+int disk_string_table_save(const struct string_table *st, const char *filepath);
+
+/**
+ * Load string table from disk persistence
+ * Loads string table from disk file
+ *
+ * @param st String table to load into
+ * @param filepath Path to persistence file
+ * @return 0 on success, -1 on failure
+ */
+int disk_string_table_load(struct string_table *st, const char *filepath);
+
+/**
  * Save file data to shared memory
  * Creates/updates /dev/shm/razorfs_file_<inode>
  *

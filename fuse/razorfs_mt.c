@@ -276,6 +276,9 @@ static int razorfs_mt_mkdir(const char *path, mode_t mode) {
         return -EEXIST;  /* Or ENOSPC if full */
     }
 
+    /* Sync string table to ensure persistence */
+    sync_string_table();
+
     return 0;
 }
 
@@ -334,6 +337,9 @@ static int razorfs_mt_create(const char *path, mode_t mode, struct fuse_file_inf
 
     /* Set file handle to inode for subsequent operations */
     fi->fh = node.inode;
+
+    /* Sync string table to ensure persistence */
+    sync_string_table();
 
     return 0;
 }
@@ -700,7 +706,12 @@ static int razorfs_mt_rename(const char *from, const char *to, unsigned int flag
     node.name_offset = string_table_intern(&g_mt_fs.tree.strings, to_name);
     node.mtime = time(NULL);
 
-    return nary_update_node_mt(&g_mt_fs.tree, from_idx, &node);
+    int result = nary_update_node_mt(&g_mt_fs.tree, from_idx, &node);
+
+    /* Sync string table to ensure persistence */
+    sync_string_table();
+
+    return result;
 }
 
 static int razorfs_mt_utimens(const char *path, const struct timespec tv[2],
@@ -752,6 +763,13 @@ static struct fuse_operations razorfs_mt_ops = {
     .rename     = razorfs_mt_rename,
     .utimens    = razorfs_mt_utimens,
 };
+
+/* Helper function to periodically sync string table to disk */
+static void sync_string_table(void) {
+    if (disk_string_table_save(&g_mt_fs.tree.strings, DISK_STRING_TABLE) != 0) {
+        fprintf(stderr, "Warning: Failed to sync string table to disk\n");
+    }
+}
 
 /* === Initialization and Cleanup === */
 

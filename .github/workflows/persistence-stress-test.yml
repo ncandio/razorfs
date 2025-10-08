@@ -1,0 +1,196 @@
+name: "Persistence Stress Test"
+
+on:
+  workflow_dispatch:  # Allow manual triggering
+  schedule:
+    # Run daily at 2 AM UTC (optional)
+    - cron: '0 2 * * *'
+
+jobs:
+  persistence-stress-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    # Install dependencies
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libfuse3-dev fuse3 pkg-config zlib1g-dev bc
+        sudo apt-get install -y valgrind gdb
+        
+    # Build the filesystem
+    - name: Build RazorFS
+      run: |
+        make clean && make release
+        
+    # Create test directories
+    - name: Setup test environment
+      run: |
+        mkdir -p /tmp/razorfs_test
+        mkdir -p /tmp/test_data
+        
+    # Run comprehensive persistence test
+    - name: Run Comprehensive Persistence Test
+      run: |
+        #!/bin/bash
+        set -e
+        
+        echo "Starting comprehensive persistence test..."
+        
+        # Test 1: Basic mount/unmount cycle with data verification
+        echo "=== Test 1: Basic Mount/Unmount with Data Persistence ==="
+        
+        # Mount filesystem
+        timeout 30s ./razorfs /tmp/razorfs_test &
+        sleep 3
+        
+        if ! mountpoint -q /tmp/razorfs_test; then
+          echo "ERROR: Failed to mount filesystem"
+          exit 1
+        fi
+        
+        # Create test data
+        echo "Creating test data..."
+        echo "Persistent data test - cycle 1" > /tmp/razorfs_test/test_file_1.txt
+        echo "$(date): Basic functionality test" >> /tmp/razorfs_test/test_file_1.txt
+        mkdir -p /tmp/razorfs_test/subdir_test
+        echo "Subdirectory file" > /tmp/razorfs_test/subdir_test/file.txt
+        
+        # Verify data was created
+        if [ ! -f "/tmp/razorfs_test/test_file_1.txt" ]; then
+          echo "ERROR: Test file not created"
+          exit 1
+        fi
+        
+        echo "Data created successfully in filesystem"
+        
+        # Unmount filesystem
+        fusermount3 -u /tmp/razorfs_test
+        sleep 2
+        
+        # Remount and verify data persistence
+        timeout 30s ./razorfs /tmp/razorfs_test &
+        sleep 3
+        
+        if ! mountpoint -q /tmp/razorfs_test; then
+          echo "ERROR: Failed to remount filesystem"
+          exit 1
+        fi
+        
+        # Verify data integrity
+        if [ ! -f "/tmp/razorfs_test/test_file_1.txt" ]; then
+          echo "ERROR: Data not persistent after unmount/remount"
+          exit 1
+        fi
+        
+        # Check that the content is correct
+        if ! grep -q "Persistent data test - cycle 1" /tmp/razorfs_test/test_file_1.txt; then
+          echo "ERROR: Data content corrupted"
+          exit 1
+        fi
+        
+        echo "✓ Basic persistence test passed"
+        
+        # Test 2: Crash simulation with SIGKILL
+        echo "=== Test 2: Crash Simulation (SIGKILL) ==="
+        
+        # Add more data before crash simulation
+        echo "Data before simulated crash" > /tmp/razorfs_test/crash_test.txt
+        echo "$(date): Crash simulation test" >> /tmp/razorfs_test/crash_test.txt
+        mkdir -p /tmp/razorfs_test/crash_dir
+        echo "Crash directory data" > /tmp/razorfs_test/crash_dir/crash_file.txt
+        
+        # Simulate crash by killing the FUSE process
+        FUSER_PID=$(pgrep -f "razorfs /tmp/razorfs_test" | head -n1)
+        if [ -n "$FUSER_PID" ]; then
+          echo "Simulating crash by killing process $FUSER_PID"
+          sudo kill -9 $FUSER_PID
+          sleep 2
+        fi
+        
+        # Force unmount if still mounted
+        fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+        sleep 3
+        
+        # Remount and verify data recovery
+        timeout 30s ./razorfs /tmp/razorfs_test &
+        sleep 5  # Wait longer after crash simulation
+        
+        if ! mountpoint -q /tmp/razorfs_test; then
+          echo "ERROR: Failed to remount filesystem after crash simulation"
+          exit 1
+        fi
+        
+        # Verify crash test data integrity
+        if [ ! -f "/tmp/razorfs_test/crash_test.txt" ]; then
+          echo "ERROR: Data lost after crash simulation"
+          exit 1
+        fi
+        
+        if ! grep -q "Data before simulated crash" /tmp/razorfs_test/crash_test.txt; then
+          echo "ERROR: Crash test data corrupted"
+          exit 1
+        fi
+        
+        echo "✓ Crash simulation test passed"
+        
+        # Test 3: Multiple rapid mount/unmount cycles
+        echo "=== Test 3: Rapid Mount/Unmount Cycles ==="
+        
+        for i in {1..5}; do
+          echo "Rapid cycle $i"
+          
+          # Add data for this cycle
+          echo "Cycle $i data: $(date)" > "/tmp/razorfs_test/cycle_${i}.txt"
+          
+          # Unmount and remount
+          fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+          sleep 1
+          timeout 30s ./razorfs /tmp/razorfs_test &
+          sleep 2
+          
+          # Verify this cycle's data exists
+          if [ ! -f "/tmp/razorfs_test/cycle_${i}.txt" ]; then
+            echo "ERROR: Cycle $i data lost"
+            exit 1
+          fi
+        done
+        
+        echo "✓ Rapid mount/unmount cycles test passed"
+        
+        # Final verification
+        echo "=== Final Verification ==="
+        ls -laR /tmp/razorfs_test/
+        
+        # Count total files to verify all data is there
+        TOTAL_FILES=$(find /tmp/razorfs_test -type f | wc -l)
+        echo "Total files in filesystem: $TOTAL_FILES"
+        
+        if [ $TOTAL_FILES -lt 6 ]; then  # We should have at least 6 files (test_file_1.txt, crash_test.txt, cycle_1.txt through cycle_5.txt)
+          echo "ERROR: Some data appears to be missing. Expected at least 6 files, found $TOTAL_FILES"
+          exit 1
+        fi
+        
+        echo "✓ All persistence tests passed! Filesystem maintained data integrity across crashes and cycles."
+        
+        # Unmount before finishing
+        fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+
+    # Cleanup
+    - name: Cleanup
+      if: always()
+      run: |
+        fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+        sudo umount -l /tmp/razorfs_test 2>/dev/null || true
+        
+    - name: Final check
+      run: |
+        if mountpoint -q /tmp/razorfs_test 2>/dev/null; then
+          echo "ERROR: Filesystem still mounted!"
+          exit 1
+        else
+          echo "Filesystem properly unmounted"
+        fi

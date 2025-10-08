@@ -1,0 +1,140 @@
+name: "Power Outage Stress Test"
+
+on:
+  workflow_dispatch:  # Allow manual triggering
+  schedule:
+    # Run daily at 2 AM UTC (optional)
+    - cron: '0 2 * * *'
+
+jobs:
+  power-outage-stress-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    # Install dependencies
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libfuse3-dev fuse3 pkg-config zlib1g-dev
+        sudo apt-get install -y stress-ng  # For system stress testing
+        
+    # Build the filesystem
+    - name: Build RazorFS
+      run: |
+        make clean && make release
+        
+    # Create test directories
+    - name: Setup test environment
+      run: |
+        mkdir -p /tmp/razorfs_test
+        mkdir -p /tmp/power_cycle_data
+        
+    # Run extensive power outage simulation
+    - name: Run Power Cycle Stress Test
+      run: |
+        #!/bin/bash
+        set -e
+        
+        # Total test duration (in seconds)
+        TEST_DURATION=120  # 2 minutes
+        CYCLE_INTERVAL=10  # 10 seconds between cycles
+        START_TIME=$(date +%s)
+        END_TIME=$((START_TIME + TEST_DURATION))
+        
+        echo "Starting power outage stress test for $TEST_DURATION seconds..."
+        
+        cycle_count=0
+        while [ $(date +%s) -lt $END_TIME ]; do
+          cycle_count=$((cycle_count + 1))
+          echo "=== Power Cycle $cycle_count at $(date) ==="
+          
+          # Mount filesystem
+          echo "Mounting filesystem..."
+          timeout 30s ./razorfs /tmp/razorfs_test &
+          sleep 2
+          
+          # Verify mount succeeded
+          if mountpoint -q /tmp/razorfs_test; then
+            echo "Filesystem mounted successfully"
+          else
+            echo "ERROR: Failed to mount filesystem"
+            exit 1
+          fi
+          
+          # Create some test data
+          echo "Creating test data..."
+          TEST_FILE="/tmp/razorfs_test/stress_test_$(date +%s).txt"
+          dd if=/dev/urandom of="$TEST_FILE" bs=1024 count=100 2>/dev/null
+          echo "Test file created: $(basename $TEST_FILE)"
+          echo "Current date/time: $(date)" >> "$TEST_FILE"
+          
+          # Create directory structure
+          mkdir -p "/tmp/razorfs_test/dir_$(date +%s)"
+          SUB_FILE="/tmp/razorfs_test/dir_$(date +%s)/subfile_$(date +%s).txt"
+          echo "Subdirectory contents" > "$SUB_FILE"
+          
+          # Perform I/O operations
+          echo "Performing I/O operations..."
+          ls -laR /tmp/razorfs_test/
+          df -h /tmp/razorfs_test/
+          
+          # Simulate random power outage by force-killing the process
+          echo "Simulating power outage..."
+          FUSER_PID=$(pgrep -f "razorfs /tmp/razorfs_test" | head -n1)
+          if [ -n "$FUSER_PID" ]; then
+            echo "Killing FUSE process $FUSER_PID (simulated power failure)"
+            sudo kill -9 $FUSER_PID 2>/dev/null || true
+          fi
+          
+          # Wait for process to be definitely gone
+          sleep 1
+          
+          # Unmount if still mounted (shouldn't be after kill)
+          fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+          sleep 2
+          
+          # Verify unmount
+          if mountpoint -q /tmp/razorfs_test 2>/dev/null; then
+            echo "WARNING: Filesystem still mounted, force unmounting..."
+            sudo umount -l /tmp/razorfs_test 2>/dev/null || true
+          fi
+          
+          # Wait before next cycle
+          sleep $CYCLE_INTERVAL
+        done
+        
+        echo "Completed $cycle_count power cycles"
+        
+        # Final test: remount and verify data integrity
+        echo "Final verification - remounting filesystem..."
+        timeout 30s ./razorfs /tmp/razorfs_test &
+        sleep 3
+        
+        if mountpoint -q /tmp/razorfs_test; then
+          echo "SUCCESS: Filesystem re-mounted successfully after stress test"
+          ls -laR /tmp/razorfs_test/
+          echo "Stress test completed successfully"
+        else
+          echo "ERROR: Could not remount filesystem after stress test"
+          exit 1
+        fi
+
+    # Unmount after final test
+    - name: Cleanup mount
+      run: |
+        fusermount3 -u /tmp/razorfs_test 2>/dev/null || true
+        sudo umount -l /tmp/razorfs_test 2>/dev/null || true
+
+    # Upload logs if test completed
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: power-outage-test-logs
+        path: |
+          /tmp/power_cycle_data/
+          *.log
+          !/dev/null
