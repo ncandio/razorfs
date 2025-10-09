@@ -45,6 +45,7 @@ static void init_node_mt(struct nary_node_mt *node, uint32_t inode,
                         uint32_t parent_idx, const char *name,
                         struct string_table *strings, uint16_t mode);
 
+int nary_tree_mt_init(struct nary_tree_mt *tree) __attribute__((unused));
 int nary_tree_mt_init(struct nary_tree_mt *tree) {
     if (!tree) return -1;
 
@@ -481,6 +482,7 @@ int nary_lock_read(struct nary_tree_mt *tree, uint16_t idx) {
     return pthread_rwlock_rdlock(&tree->nodes[idx].lock);
 }
 
+int nary_lock_write(struct nary_tree_mt *tree, uint16_t idx) __attribute__((unused));
 int nary_lock_write(struct nary_tree_mt *tree, uint16_t idx) {
     if (!tree || idx >= tree->used) return -1;
     return pthread_rwlock_wrlock(&tree->nodes[idx].lock);
@@ -505,6 +507,7 @@ void nary_get_mt_stats(struct nary_tree_mt *tree,
     stats->avg_lock_time_ns = 0;
 }
 
+int nary_check_deadlocks(struct nary_tree_mt *tree) __attribute__((unused));
 int nary_check_deadlocks(struct nary_tree_mt *tree) {
     /* Lock ordering prevents deadlocks */
     (void)tree;

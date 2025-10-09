@@ -14,6 +14,11 @@ int xattr_init(struct xattr_pool *pool,
                struct xattr_value_pool *values,
                const struct string_table *names,
                uint32_t max_entries,
+               uint32_t value_pool_size) __attribute__((unused));
+int xattr_init(struct xattr_pool *pool,
+               struct xattr_value_pool *values,
+               const struct string_table *names,
+               uint32_t max_entries,
                uint32_t value_pool_size) {
     if (!pool || !values || !names) return -1;
 
@@ -55,6 +60,8 @@ int xattr_init(struct xattr_pool *pool,
 }
 
 /* Cleanup xattr subsystem */
+void xattr_destroy(struct xattr_pool *pool,
+                   struct xattr_value_pool *values) __attribute__((unused));
 void xattr_destroy(struct xattr_pool *pool,
                    struct xattr_value_pool *values) {
     if (!pool || !values) return;
@@ -180,6 +187,13 @@ int xattr_get(struct xattr_pool *pool,
               uint32_t xattr_head,
               const char *name,
               void *value,
+              size_t size) __attribute__((unused));
+int xattr_get(struct xattr_pool *pool,
+              struct xattr_value_pool *values,
+              const struct string_table *names,
+              uint32_t xattr_head,
+              const char *name,
+              void *value,
               size_t size) {
     if (!pool || !values || !names || !name) return -EINVAL;
 
@@ -238,6 +252,15 @@ int xattr_get(struct xattr_pool *pool,
 }
 
 /* Set xattr value */
+int xattr_set(struct xattr_pool *pool,
+              struct xattr_value_pool *values,
+              struct string_table *names,
+              uint32_t *xattr_head,
+              uint16_t *xattr_count,
+              const char *name,
+              const void *value,
+              size_t size,
+              int flags) __attribute__((unused));
 int xattr_set(struct xattr_pool *pool,
               struct xattr_value_pool *values,
               struct string_table *names,
@@ -373,6 +396,11 @@ ssize_t xattr_list(struct xattr_pool *pool,
                    const struct string_table *names,
                    uint32_t xattr_head,
                    char *list,
+                   size_t size) __attribute__((unused));
+ssize_t xattr_list(struct xattr_pool *pool,
+                   const struct string_table *names,
+                   uint32_t xattr_head,
+                   char *list,
                    size_t size) {
     if (!pool || !names) return -EINVAL;
 
@@ -439,6 +467,12 @@ int xattr_remove(struct xattr_pool *pool,
                  const struct string_table *names,
                  uint32_t *xattr_head,
                  uint16_t *xattr_count,
+                 const char *name) __attribute__((unused));
+int xattr_remove(struct xattr_pool *pool,
+                 struct xattr_value_pool *values,
+                 const struct string_table *names,
+                 uint32_t *xattr_head,
+                 uint16_t *xattr_count,
                  const char *name) {
     if (!pool || !values || !names || !xattr_head || !name) {
         return -EINVAL;
@@ -499,6 +533,10 @@ int xattr_remove(struct xattr_pool *pool,
 }
 
 /* Free all xattrs for an inode */
+void xattr_free_all(struct xattr_pool *pool,
+                    struct xattr_value_pool *values,
+                    uint32_t xattr_head,
+                    uint16_t xattr_count) __attribute__((unused));
 void xattr_free_all(struct xattr_pool *pool,
                     struct xattr_value_pool *values,
                     uint32_t xattr_head,

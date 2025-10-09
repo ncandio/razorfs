@@ -84,6 +84,7 @@ static void update_header_checksum(struct wal_header *header) {
 }
 
 /* Initialize WAL in heap mode */
+int wal_init(struct wal *wal, size_t size) __attribute__((unused));
 int wal_init(struct wal *wal, size_t size) {
     if (!wal) return -1;
     if (size < WAL_MIN_SIZE) size = WAL_DEFAULT_SIZE;
@@ -130,6 +131,7 @@ int wal_init(struct wal *wal, size_t size) {
 }
 
 /* Initialize WAL in shared memory mode */
+int wal_init_shm(struct wal *wal, void *shm_buffer, size_t size, int existing) __attribute__((unused));
 int wal_init_shm(struct wal *wal, void *shm_buffer, size_t size, int existing) {
     if (!wal || !shm_buffer) return -1;
     if (size < sizeof(struct wal_header) + WAL_MIN_SIZE) {
@@ -320,6 +322,7 @@ size_t wal_available_space(const struct wal *wal) {
 }
 
 /* Check if WAL is valid */
+int wal_is_valid(const struct wal *wal) __attribute__((unused));
 int wal_is_valid(const struct wal *wal) {
     if (!wal || !wal->header) return 0;
     return validate_header(wal->header) == 0;
@@ -385,6 +388,7 @@ static int wal_append_entry(struct wal *wal, struct wal_entry *entry,
 }
 
 /* Begin a new transaction */
+int wal_begin_tx(struct wal *wal, uint64_t *tx_id) __attribute__((unused));
 int wal_begin_tx(struct wal *wal, uint64_t *tx_id) {
     if (!wal || !tx_id) return -1;
 
@@ -408,6 +412,7 @@ int wal_begin_tx(struct wal *wal, uint64_t *tx_id) {
 }
 
 /* Commit a transaction */
+int wal_commit_tx(struct wal *wal, uint64_t tx_id) __attribute__((unused));
 int wal_commit_tx(struct wal *wal, uint64_t tx_id) {
     if (!wal) return -1;
 
@@ -431,6 +436,7 @@ int wal_commit_tx(struct wal *wal, uint64_t tx_id) {
 }
 
 /* Abort a transaction */
+int wal_abort_tx(struct wal *wal, uint64_t tx_id) __attribute__((unused));
 int wal_abort_tx(struct wal *wal, uint64_t tx_id) {
     if (!wal) return -1;
 
@@ -448,6 +454,8 @@ int wal_abort_tx(struct wal *wal, uint64_t tx_id) {
 }
 
 /* Log an insert operation */
+int wal_log_insert(struct wal *wal, uint64_t tx_id,
+                   const struct wal_insert_data *data) __attribute__((unused));
 int wal_log_insert(struct wal *wal, uint64_t tx_id,
                    const struct wal_insert_data *data) {
     if (!wal || !data) return -1;
@@ -467,6 +475,8 @@ int wal_log_insert(struct wal *wal, uint64_t tx_id,
 
 /* Log a delete operation */
 int wal_log_delete(struct wal *wal, uint64_t tx_id,
+                   const struct wal_delete_data *data) __attribute__((unused));
+int wal_log_delete(struct wal *wal, uint64_t tx_id,
                    const struct wal_delete_data *data) {
     if (!wal || !data) return -1;
 
@@ -485,6 +495,8 @@ int wal_log_delete(struct wal *wal, uint64_t tx_id,
 
 /* Log an update operation */
 int wal_log_update(struct wal *wal, uint64_t tx_id,
+                   const struct wal_update_data *data) __attribute__((unused));
+int wal_log_update(struct wal *wal, uint64_t tx_id,
                    const struct wal_update_data *data) {
     if (!wal || !data) return -1;
 
@@ -502,6 +514,8 @@ int wal_log_update(struct wal *wal, uint64_t tx_id,
 }
 
 /* Log a write operation */
+int wal_log_write(struct wal *wal, uint64_t tx_id,
+                  const struct wal_write_data *data) __attribute__((unused));
 int wal_log_write(struct wal *wal, uint64_t tx_id,
                   const struct wal_write_data *data) {
     if (!wal || !data) return -1;
@@ -566,6 +580,7 @@ int wal_checkpoint(struct wal *wal) {
 }
 
 /* Force WAL to persistent storage */
+int wal_flush(struct wal *wal) __attribute__((unused));
 int wal_flush(struct wal *wal) {
     if (!wal || !wal->is_shm) return 0;
 
@@ -577,6 +592,7 @@ int wal_flush(struct wal *wal) {
 }
 
 /* Get WAL statistics */
+void wal_get_stats(const struct wal *wal, struct wal_stats *stats) __attribute__((unused));
 void wal_get_stats(const struct wal *wal, struct wal_stats *stats) {
     if (!wal || !stats) return;
 

@@ -120,6 +120,7 @@ int numa_bind_memory(void *addr, size_t len, int node) {
     return -1;
 }
 
+void *numa_alloc_onnode(size_t size, int node) __attribute__((unused));
 void *numa_alloc_onnode(size_t size, int node) {
     if (!g_numa_available || node < 0 || node >= g_numa_nodes) {
         /* Fall back to regular allocation */
@@ -143,6 +144,7 @@ void *numa_alloc_onnode(size_t size, int node) {
     return ptr;
 }
 
+void numa_free(void *ptr, size_t size) __attribute__((unused));
 void numa_free(void *ptr, size_t size) {
     if (!ptr) return;
 

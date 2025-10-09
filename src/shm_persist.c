@@ -34,6 +34,7 @@ int shm_tree_exists(void) {
     return 1;  /* Exists */
 }
 
+int shm_tree_init(struct nary_tree_mt *tree) __attribute__((unused));
 int shm_tree_init(struct nary_tree_mt *tree) {
     if (!tree) return -1;
 
@@ -264,6 +265,7 @@ void shm_tree_detach(struct nary_tree_mt *tree) {
     printf("💾 Filesystem detached - data persists in disk storage\n");
 }
 
+void shm_tree_destroy(struct nary_tree_mt *tree) __attribute__((unused));
 void shm_tree_destroy(struct nary_tree_mt *tree) {
     if (!tree || !tree->nodes) return;
 
@@ -319,6 +321,8 @@ struct shm_file_header {
  * @param is_compressed 1 if data is compressed, 0 otherwise
  * @return 0 on success, -1 on failure
  */
+int shm_file_data_save(uint32_t inode, const void *data, size_t size,
+                        size_t data_size, int is_compressed) __attribute__((unused));
 int shm_file_data_save(uint32_t inode, const void *data, size_t size,
                         size_t data_size, int is_compressed) {
     if (!data || data_size == 0) return -1;
@@ -387,6 +391,8 @@ int shm_file_data_save(uint32_t inode, const void *data, size_t size,
  * @param is_compressed_out Output pointer for compression flag
  * @return 0 on success, -1 if not found or error
  */
+int shm_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
+                           size_t *data_size_out, int *is_compressed_out) __attribute__((unused));
 int shm_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
                            size_t *data_size_out, int *is_compressed_out) {
     if (!data_out || !size_out) return -1;
@@ -461,6 +467,7 @@ int shm_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
  *
  * @param inode Inode number
  */
+void shm_file_data_remove(uint32_t inode) __attribute__((unused));
 void shm_file_data_remove(uint32_t inode) {
     char shm_name[64];
     snprintf(shm_name, sizeof(shm_name), "%s%u", SHM_FILE_PREFIX, inode);

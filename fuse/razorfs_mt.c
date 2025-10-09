@@ -420,6 +420,10 @@ static int razorfs_mt_open(const char *path, struct fuse_file_info *fi) {
     return 0;
 }
 
+/* cppcheck-suppress constParameterCallback - FUSE API requires non-const fi parameter */
+static int razorfs_mt_read(const char *path, char *buf, size_t size, off_t offset,
+                           struct fuse_file_info *fi) __attribute__((unused));
+/* cppcheck-suppress constParameterCallback - FUSE API requires non-const fi parameter */
 static int razorfs_mt_read(const char *path, char *buf, size_t size, off_t offset,
                            struct fuse_file_info *fi) {
     (void) path;  /* Use fi->fh instead */
@@ -467,6 +471,10 @@ static int razorfs_mt_read(const char *path, char *buf, size_t size, off_t offse
     return to_read;
 }
 
+/* cppcheck-suppress constParameterCallback - FUSE API requires non-const fi parameter */
+static int razorfs_mt_write(const char *path, const char *buf, size_t size,
+                            off_t offset, struct fuse_file_info *fi) __attribute__((unused));
+/* cppcheck-suppress constParameterCallback - FUSE API requires non-const fi parameter */
 static int razorfs_mt_write(const char *path, const char *buf, size_t size,
                             off_t offset, struct fuse_file_info *fi) {
     (void) path;

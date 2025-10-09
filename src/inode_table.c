@@ -298,6 +298,10 @@ int inode_update(struct inode_table *table, uint32_t inode_num,
 void inode_table_stats(struct inode_table *table,
                        uint32_t *total_out,
                        uint32_t *used_out,
+                       uint32_t *free_out) __attribute__((unused));
+void inode_table_stats(struct inode_table *table,
+                       uint32_t *total_out,
+                       uint32_t *used_out,
                        uint32_t *free_out) {
     if (!table) return;
 

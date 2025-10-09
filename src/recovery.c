@@ -464,6 +464,7 @@ int recovery_run(struct recovery_ctx *ctx) {
 }
 
 /* Print recovery statistics */
+void recovery_print_stats(const struct recovery_ctx *ctx) __attribute__((unused));
 void recovery_print_stats(const struct recovery_ctx *ctx) {
     if (!ctx) return;
 
