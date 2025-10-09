@@ -1,0 +1,4 @@
+# Storage_Type Small_File Medium_File Large_File
+Local 2 15 120
+S3 45 180 1200
+Hybrid 5 25 150

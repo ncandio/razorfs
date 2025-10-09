@@ -1,0 +1,5 @@
+# File_Size Upload_Time_ms Throughput_Mbps Cost_Efficiency
+1MB 45 180 0.0001
+10MB 180 450 0.0003
+100MB 1200 670 0.0015
+1GB 8500 950 0.0085

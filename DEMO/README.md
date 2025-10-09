@@ -1,0 +1,52 @@
+#!/bin/bash
+# RAZORFS S3 Integration Demo
+# Demonstrates RAZORFS with S3 backend storage capabilities
+
+echo "==================================================="
+echo "   RAZORFS S3 Integration Demonstration"
+echo "==================================================="
+
+echo ""
+echo "This demo showcases RAZORFS extended capabilities:"
+echo "1. S3-compatible cloud storage backend"
+echo "2. Progressive data size performance testing" 
+echo "3. Hybrid local+S3 storage comparison"
+echo "4. Professional performance visualization"
+
+echo ""
+echo "---------------------------------------------------"
+echo "DEMO COMPONENTS:"
+echo "---------------------------------------------------"
+echo "📁 DEMO/s3_integration_demo.sh     - Main demonstration script"
+echo "📊 DEMO/s3_performance_visualization/ - Sample graphs and data"
+echo "📈 DEMO/hybrid_storage_analysis/    - Comparative analysis results"
+echo "📄 DEMO/S3_INTEGRATION_OVERVIEW.md - Technical documentation"
+
+echo ""
+echo "---------------------------------------------------"
+echo "HOW TO RUN THE DEMO:"
+echo "---------------------------------------------------"
+echo "1. Execute the main demo script:"
+echo "   ./DEMO/s3_integration_demo.sh"
+echo ""
+echo "2. View generated results in:"
+echo "   DEMO/s3_performance_visualization/"
+echo ""
+echo "3. Review technical documentation:"
+echo "   cat DEMO/S3_INTEGRATION_OVERVIEW.md"
+
+echo ""
+echo "---------------------------------------------------"
+echo "KEY BENEFITS DEMONSTRATED:"
+echo "---------------------------------------------------"
+echo "✅ Cloud-Native Storage Integration"
+echo "✅ Progressive Performance Testing" 
+echo "✅ Hybrid Storage Optimization"
+echo "✅ Professional Visualization Tools"
+echo "✅ Cost-Benefit Analysis Framework"
+
+echo ""
+echo "==================================================="
+echo "For detailed technical implementation,"
+echo "see: S3_INTEGRATION_OVERVIEW.md"
+echo "==================================================="
