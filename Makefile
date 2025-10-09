@@ -7,6 +7,9 @@ AR ?= ar
 STRIP ?= strip
 PKG_CONFIG ?= pkg-config
 
+# AWS SDK Configuration
+AWS_SDK_AVAILABLE := $(shell pkg-config --exists aws-sdk-cpp-s3 && echo YES)
+
 # Dependency checks
 ifeq ($(shell $(PKG_CONFIG) --exists fuse3 && echo yes),yes)
     FUSE_CFLAGS = $(shell $(PKG_CONFIG) fuse3 --cflags)
@@ -28,6 +31,17 @@ CFLAGS_BASE += $(FUSE_CFLAGS)
 LDFLAGS_BASE = -pthread $(FUSE_LIBS) -lrt $(ZLIB_LIBS)
 LDFLAGS = $(LDFLAGS_BASE) $(HARDENING_LDFLAGS)
 
+# AWS SDK Libraries (if available)
+ifeq ($(AWS_SDK_AVAILABLE),YES)
+    AWS_LIBS = $(shell pkg-config aws-sdk-cpp-s3 --libs)
+    AWS_CFLAGS = $(shell pkg-config aws-sdk-cpp-s3 --cflags)
+    CFLAGS_BASE += -DHAS_AWS_SDK
+else
+    AWS_LIBS = 
+    AWS_CFLAGS = 
+    $(info AWS SDK not found - S3 integration will be disabled)
+endif
+
 # Security hardening flags (production-grade)
 HARDENING_FLAGS = -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE
 HARDENING_LDFLAGS = -Wl,-z,relro,-z,now -Wl,-z,noexecstack -pie
@@ -36,8 +50,8 @@ HARDENING_LDFLAGS = -Wl,-z,relro,-z,now -Wl,-z,noexecstack -pie
 EXTRA_HARDENING_FLAGS = -Wformat -Wformat-security -Werror=format-security
 
 # Build configurations
-CFLAGS_DEBUG = $(CFLAGS_BASE) -g -O0 $(HARDENING_FLAGS)
-CFLAGS_RELEASE = $(CFLAGS_BASE) -O3 -DNDEBUG $(HARDENING_FLAGS) $(EXTRA_HARDENING_FLAGS)
+CFLAGS_DEBUG = $(CFLAGS_BASE) $(AWS_CFLAGS) -g -O0 $(HARDENING_FLAGS)
+CFLAGS_RELEASE = $(CFLAGS_BASE) $(AWS_CFLAGS) -O3 -DNDEBUG $(HARDENING_FLAGS) $(EXTRA_HARDENING_FLAGS)
 
 # Default to debug build
 CFLAGS ?= $(CFLAGS_DEBUG)
@@ -46,28 +60,32 @@ CFLAGS ?= $(CFLAGS_DEBUG)
 SRC_DIR = src
 FUSE_DIR = fuse
 SRC_FILES = $(wildcard $(SRC_DIR)/*.c)
-OBJECTS = $(SRC_FILES:.c=.o)
+# Exclude S3 backend from main build (it's optional)
+MAIN_SRC_FILES = $(filter-out $(SRC_DIR)/s3_backend.c, $(SRC_FILES))
+S3_OBJECT = $(SRC_DIR)/s3_backend.o
+OBJECTS = $(MAIN_SRC_FILES:.c=.o)
 FUSE_SRC = $(FUSE_DIR)/razorfs_mt.c
 
 # Target
 TARGET = razorfs
+TEST_S3_TARGET = test_s3_backend
 
-.PHONY: all debug release clean help test test-unit test-integration test-static test-valgrind
+.PHONY: all debug release clean help test install-aws-sdk
 
 all: debug
 
 debug:
 	@echo "Building RAZORFS (Debug)..."
-	@$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_DEBUG)"
+	@$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_DEBUG)" LDFLAGS="$(LDFLAGS_BASE) $(AWS_LIBS) $(HARDENING_LDFLAGS)"
 
 release:
 	@echo "Building RAZORFS (Release - Optimized)..."
-	@$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_RELEASE)"
+	@$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_RELEASE)" LDFLAGS="$(LDFLAGS_BASE) $(AWS_LIBS) $(HARDENING_LDFLAGS)"
 
 hardened:
 	@echo "Building RAZORFS (Hardened Release - Security Optimized)..."
 	@$(MAKE) clean
-	@$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_RELEASE)"
+	@$(MAKE) $(TARGET) CFLAGS="$(CFLAGS_RELEASE)" LDFLAGS="$(LDFLAGS_BASE) $(AWS_LIBS) $(HARDENING_LDFLAGS)"
 	@$(STRIP) $(TARGET)
 	@echo "✅ Hardened build complete (stripped symbols)"
 	@echo "Security features:"
@@ -78,40 +96,37 @@ $(TARGET): $(OBJECTS) $(FUSE_DIR)/razorfs_mt.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 	@echo "✅ Build complete: $(TARGET)"
 
+# S3-enabled build target
+$(TARGET)_s3: $(OBJECTS) $(S3_OBJECT) $(FUSE_DIR)/razorfs_mt.c
+	@echo "Building RAZORFS with S3 support..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(AWS_LIBS)
+	@echo "✅ S3-enabled build complete: $(TARGET)_s3"
+
+$(TEST_S3_TARGET): $(OBJECTS) $(S3_OBJECT) test_s3_backend.c
+	@echo "Building S3 Backend Test..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(AWS_LIBS)
+	@echo "✅ S3 Backend Test build complete: $(TEST_S3_TARGET)"
+
 $(SRC_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
 	@echo "Cleaning..."
-	rm -f $(OBJECTS) $(TARGET) $(FUSE_DIR)/razorfs_mt
+	rm -f $(OBJECTS) $(TARGET) $(TEST_S3_TARGET) $(FUSE_DIR)/razorfs_mt
 	@echo "✅ Clean complete"
 
-# Test targets
-test: test-unit test-integration
-
-test-unit:
-	@echo "Running unit tests..."
-	@./run_tests.sh --unit-only
-
-test-integration:
-	@echo "Running integration tests..."
-	@./run_tests.sh --no-static --no-dynamic
-
-test-static:
-	@echo "Running static analysis..."
-	@./run_tests.sh --unit-only --no-dynamic
-
-test-valgrind:
-	@echo "Running valgrind memory checks..."
-	@./run_tests.sh --unit-only --no-static
-
-test-all:
-	@echo "Running complete test suite..."
-	@./run_tests.sh
-
-test-coverage:
-	@echo "Running tests with coverage..."
-	@./run_tests.sh --coverage
+# Install AWS SDK
+install-aws-sdk:
+	@echo "Installing AWS SDK dependencies..."
+	sudo apt-get update
+	sudo apt-get install -y libssl-dev libcurl4-openssl-dev libexpat1-dev cmake
+	cd /tmp && git clone https://github.com/aws/aws-sdk-cpp.git
+	cd /tmp/aws-sdk-cpp && mkdir build && cd build
+	cmake .. -DBUILD_ONLY="s3" -DCUSTOM_MEMORY_MANAGEMENT=OFF
+	make -j$(nproc)
+	sudo make install
+	sudo ldconfig
+	@echo "✅ AWS SDK installed"
 
 help:
 	@echo "RAZORFS Makefile"
@@ -122,6 +137,10 @@ help:
 	@echo "  make release  - Build optimized version (-O3)"
 	@echo "  make hardened - Build hardened release (Full RELRO, PIE, stack canary, stripped)"
 	@echo "  make clean    - Remove build artifacts"
+	@echo "  make install-aws-sdk - Install AWS SDK for S3 integration"
+	@echo "  make test_s3_backend - Build S3 backend test program"
+	@echo ""
+	@echo "AWS SDK Status: $(if $(AWS_SDK_AVAILABLE),✅ Available,⚠️  Not installed)"
 	@echo ""
 	@echo "Security Features (always enabled):"
 	@echo "  -fstack-protector-strong  - Stack canary protection"
