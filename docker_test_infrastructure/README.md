@@ -467,3 +467,22 @@ This test infrastructure is part of RAZORFS and follows the same license.
 **Last Updated:** October 2025
 **Maintained by:** RAZORFS Development Team
 **Issues:** Report to https://github.com/ncandio/razorfs/issues
+
+## S3 Persistence Testing
+
+The Docker test infrastructure now includes S3 integration testing to evaluate cloud-based storage performance:
+
+### Features
+- **Progressive Data Upload/Download** - Performance testing across different file sizes
+- **Hybrid Storage Comparison** - Local vs S3 storage performance analysis
+- **Professional Graphs** - Visualizations for documentation
+
+### Running S3 Tests
+```bash
+./docker_test_infrastructure/s3_persistence_test.sh
+```
+
+### Graph Output
+- S3 Upload Performance Comparison
+- Hybrid Storage Performance Analysis
+- Cost Efficiency Evaluation

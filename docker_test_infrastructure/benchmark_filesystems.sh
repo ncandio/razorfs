@@ -476,3 +476,8 @@ if [ -f "/mnt/c/Windows/System32/cmd.exe" ]; then
     WIN_PATH=$(echo "$RESULTS_DIR/BENCHMARK_REPORT_${TIMESTAMP}.md" | sed 's|/mnt/c|C:|')
     /mnt/c/Windows/System32/cmd.exe /c start "" "$WIN_PATH" 2>/dev/null &
 fi
+
+# Run S3 persistence tests as additional validation
+echo -e "
+${YELLOW}[EXTRA]${NC} Running S3 Persistence Tests..."
+"/s3_persistence_test.sh"
