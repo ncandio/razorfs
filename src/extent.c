@@ -156,6 +156,11 @@ int extent_map(struct razorfs_inode *inode,
                const struct block_allocator *alloc,
                uint64_t logical_offset,
                uint32_t *block_num,
+               uint32_t *block_offset) __attribute__((unused));
+int extent_map(struct razorfs_inode *inode,
+               const struct block_allocator *alloc,
+               uint64_t logical_offset,
+               uint32_t *block_num,
                uint32_t *block_offset) {
     if (!inode || !alloc || !block_num || !block_offset) {
         return -EINVAL;
@@ -178,6 +183,11 @@ int extent_map(struct razorfs_inode *inode,
 }
 
 /* Add extent to inode */
+int extent_add(struct razorfs_inode *inode,
+               struct block_allocator *alloc,
+               uint64_t logical_offset,
+               uint32_t block_num,
+               uint32_t num_blocks) __attribute__((unused));
 int extent_add(struct razorfs_inode *inode,
                struct block_allocator *alloc,
                uint64_t logical_offset,

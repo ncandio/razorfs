@@ -25,6 +25,7 @@ static uint32_t next_prime(uint32_t n) {
     }
 }
 
+int inode_table_init(struct inode_table *table, uint32_t capacity) __attribute__((unused));
 int inode_table_init(struct inode_table *table, uint32_t capacity) {
     if (!table || capacity == 0) return -1;
 
@@ -65,6 +66,7 @@ static uint32_t hash_inode(uint32_t inode_num, uint32_t capacity) {
 
 
 /* Destroy inode table */
+void inode_table_destroy(struct inode_table *table) __attribute__((unused));
 void inode_table_destroy(struct inode_table *table) {
     if (!table) return;
 
@@ -139,6 +141,7 @@ static uint32_t hash_lookup(struct inode_table *table, uint32_t inode_num) {
 }
 
 /* Allocate a new inode */
+uint32_t inode_alloc(struct inode_table *table, mode_t mode) __attribute__((unused));
 uint32_t inode_alloc(struct inode_table *table, mode_t mode) {
     if (!table) return 0;
 
@@ -209,6 +212,7 @@ struct razorfs_inode* inode_lookup(struct inode_table *table, uint32_t inode_num
 }
 
 /* Increment link count */
+int inode_link(struct inode_table *table, uint32_t inode_num) __attribute__((unused));
 int inode_link(struct inode_table *table, uint32_t inode_num) {
     if (!table || inode_num == 0) return -EINVAL;
 
@@ -234,6 +238,7 @@ int inode_link(struct inode_table *table, uint32_t inode_num) {
 }
 
 /* Decrement link count */
+int inode_unlink(struct inode_table *table, uint32_t inode_num) __attribute__((unused));
 int inode_unlink(struct inode_table *table, uint32_t inode_num) {
     if (!table || inode_num == 0) return -EINVAL;
 

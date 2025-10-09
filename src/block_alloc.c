@@ -168,6 +168,7 @@ int block_free(struct block_allocator *alloc, uint32_t block_num, uint32_t num_b
     return 0;
 }
 
+int block_is_allocated(struct block_allocator *alloc, uint32_t block_num) __attribute__((unused));
 int block_is_allocated(struct block_allocator *alloc, uint32_t block_num) {
     if (!alloc || block_num >= alloc->total_blocks) {
         return -1;
@@ -184,6 +185,7 @@ int block_is_allocated(struct block_allocator *alloc, uint32_t block_num) {
     return result;
 }
 
+void block_stats(struct block_allocator *alloc, uint32_t *total, uint32_t *free, uint32_t *used) __attribute__((unused));
 void block_stats(struct block_allocator *alloc, uint32_t *total, uint32_t *free, uint32_t *used) {
     if (!alloc) return;
 
@@ -205,6 +207,7 @@ void* block_get_addr(const struct block_allocator *alloc, uint32_t block_num) {
     return (void *)(alloc->storage + ((size_t)block_num * alloc->block_size));
 }
 
+ssize_t block_write(struct block_allocator *alloc, uint32_t block_num, const void *data, size_t size, off_t offset) __attribute__((unused));
 ssize_t block_write(struct block_allocator *alloc, uint32_t block_num, const void *data, size_t size, off_t offset) {
     if (!alloc || block_num >= alloc->total_blocks || !data || size == 0) {
         return -1;
@@ -223,6 +226,7 @@ ssize_t block_write(struct block_allocator *alloc, uint32_t block_num, const voi
     return size;
 }
 
+ssize_t block_read(struct block_allocator *alloc, uint32_t block_num, void *data, size_t size, off_t offset) __attribute__((unused));
 ssize_t block_read(struct block_allocator *alloc, uint32_t block_num, void *data, size_t size, off_t offset) {
     if (!alloc || block_num >= alloc->total_blocks || !data || size == 0) {
         return -1;
@@ -241,6 +245,7 @@ ssize_t block_read(struct block_allocator *alloc, uint32_t block_num, void *data
     return size;
 }
 
+double block_fragmentation(struct block_allocator *alloc) __attribute__((unused));
 double block_fragmentation(struct block_allocator *alloc) {
     if (!alloc || alloc->total_blocks <= 1) {
         return 0.0;

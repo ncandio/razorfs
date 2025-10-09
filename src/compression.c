@@ -144,6 +144,7 @@ int is_compressed(const void *data, size_t size) {
 /**
  * Get compression statistics
  */
+void get_compression_stats(struct compression_stats *stats) __attribute__((unused));
 void get_compression_stats(struct compression_stats *stats) {
     if (stats) {
         *stats = g_stats;
@@ -153,6 +154,7 @@ void get_compression_stats(struct compression_stats *stats) {
 /**
  * Reset compression statistics (for testing)
  */
+void reset_compression_stats(void) __attribute__((unused));
 void reset_compression_stats(void) {
     memset(&g_stats, 0, sizeof(g_stats));
 }
