@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <time.h>
 
 #ifdef HAS_AWS_SDK
 #include <aws/core/Aws.h>
