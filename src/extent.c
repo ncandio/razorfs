@@ -72,7 +72,7 @@ static int load_extent_tree(const struct block_allocator *alloc,
 }
 
 /* Helper: Save extent tree node */
-static int save_extent_tree(const struct block_allocator *alloc,
+static int save_extent_tree(struct block_allocator *alloc,
                             uint32_t block_num,
                             const struct extent_tree_node *node) {
     if (block_num == 0 || block_num == EXTENT_HOLE) {
