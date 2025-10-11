@@ -29,10 +29,22 @@ RAZORFS is an experimental filesystem built using AI-assisted development method
 
 This project embraces **AI-assisted engineering** as a deliberate choice:
 
-- **AI Copilots Used:** Claude Code, and other AI development tools
-- **Human Role:** Architecture decisions, testing validation, production guidance
-- **AI Role:** Code generation, optimization, documentation, test creation
-- **Result:** Rapid prototyping with production-quality patterns
+- **Primary AI Development Model:** Claude Sonnet 4.5 (claude-sonnet-4-5-20250929) via Claude Code
+  - **Development Period:** August 2025 - Present
+  - **Primary Role:** Code generation, architecture implementation, optimization, documentation
+  - **Specialized Capabilities:** Systems programming, filesystem design, concurrent algorithms
+
+- **Supporting AI Models for Quality Assurance:**
+  - **Code Review Agent:** Specialized analysis and security review
+  - **Testing Agent:** Test generation, validation, and coverage analysis
+
+- **Human Role:** Architecture decisions, strategic direction, testing validation, production guidance, final review and approval
+- **AI Role:** Implementation, code generation, optimization, documentation, automated testing, security analysis
+- **Result:** Rapid prototyping with production-quality patterns through human-AI collaboration
+
+**Development Timeline:**
+- **August-October 2025:** Core implementation (Phases 1-6) using Claude Sonnet 4.5
+- All major features developed through iterative AI-assisted development with human oversight
 
 We believe AI-assisted development represents the future of systems programming, combining human expertise with AI capabilities for accelerated innovation.
 
