@@ -248,8 +248,12 @@ Comprehensive Docker-based testing comparing RAZORFS against ext4, reiserfs, and
 
 ### Run Tests (WSL/Linux)
 ```bash
-cd testing
-./run-tests.sh
+# Run all tests with unified runner
+./scripts/run_all_tests.sh
+
+# Or run specific test suites
+./scripts/testing/test_advanced_persistence.sh
+cd tests/shell && ./run-tests.sh
 ```
 
 ### Test Categories
@@ -275,10 +279,10 @@ The automated testing infrastructure runs benchmark suites on every code change,
 
 ```bash
 # Run continuous performance testing
-./docker_test_infrastructure/benchmark_filesystems.sh
+./tests/docker/benchmark_filesystems.sh
 
 # Or use the enhanced suite with detailed analysis
-./docker_test_infrastructure/generate_enhanced_graphs.sh
+./tests/docker/generate_enhanced_graphs.sh
 ```
 
 ### Performance Test Categories
@@ -352,10 +356,10 @@ The system automatically detects performance regressions using statistical analy
 
 ```bash
 # Run regression test suite
-./run_tests.sh --regression-check
+./scripts/testing/run_tests.sh --regression-check
 
 # Compare current performance against historical baseline
-./docker_test_infrastructure/benchmark_filesystems.sh --compare-baseline
+./tests/docker/benchmark_filesystems.sh --compare-baseline
 ```
 
 ### Performance Optimization Testing
@@ -385,7 +389,7 @@ sudo apt-get install gnuplot bc wget fuse3 libfuse3-dev docker.io
 sudo usermod -aG docker $USER
 
 # Run comprehensive tests
-cd docker_test_infrastructure/
+cd tests/docker/
 ./benchmark_filesystems.sh
 
 # Results automatically sync to Windows desktop
@@ -491,7 +495,7 @@ To maintain maximum performance:
 
 ```bash
 # Best practice: Run before every merge
-./run_tests.sh --all-tests --performance-check
+./scripts/run_all_tests.sh
 ```
 
 This comprehensive testing framework ensures RAZORFS maintains optimal performance while preventing performance regressions across all key metrics.
@@ -522,8 +526,8 @@ For example: `Generated: 2025-10-08 [a1b2c3d]`
 - When requested for new feature comparisons
 
 **To update the tags:**
-1. Run the benchmark infrastructure: `./docker_test_infrastructure/benchmark_filesystems.sh`
-2. Or run enhanced generation: `./docker_test_infrastructure/generate_enhanced_graphs.sh`
+1. Run the benchmark infrastructure: `./tests/docker/benchmark_filesystems.sh`
+2. Or run enhanced generation: `./tests/docker/generate_enhanced_graphs.sh`
 3. The generated graphs include the date and commit SHA automatically
 4. Copy the new graphs to `readme_graphs/` directory
 5. Update this README section if needed to reflect current tag information
@@ -642,7 +646,7 @@ The 8 dimensions represented in the radar chart are:
 
 ```
 razorfs/
-├── src/
+├── src/                        # Core implementation
 │   ├── nary_tree_mt.c          # N-ary tree implementation
 │   ├── string_table.c          # Filename storage
 │   ├── shm_persist.c           # Shared memory persistence
@@ -650,11 +654,24 @@ razorfs/
 │   └── compression.c           # Transparent zlib compression
 ├── fuse/
 │   └── razorfs_mt.c            # FUSE3 interface (multithreaded)
-├── testing/
-│   ├── Dockerfile              # Test environment
-│   ├── benchmark.sh            # Benchmark suite
-│   ├── visualize.gnuplot       # Graph generation
-│   └── run-tests.sh            # Master test runner
+├── scripts/                    # Build and test scripts
+│   ├── build/                  # Build scripts
+│   ├── testing/                # Test scripts
+│   ├── automation/             # Automation utilities
+│   └── run_all_tests.sh        # Unified test runner
+├── tests/                      # Test infrastructure
+│   ├── unit/                   # C++ unit tests
+│   ├── integration/            # Integration tests
+│   ├── benchmarks/             # Performance tests
+│   ├── docker/                 # Docker-based benchmarks
+│   └── shell/                  # Shell-based tests
+├── docs/                       # Documentation
+│   ├── architecture/           # Design documents
+│   ├── operations/             # Deployment & testing guides
+│   ├── development/            # Development status
+│   ├── features/               # Feature specifications
+│   └── security/               # Security documentation
+├── demos/                      # Example demonstrations
 ├── Makefile                    # Build system
 └── README.md                   # This file
 ```

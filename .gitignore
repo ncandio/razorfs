@@ -2,12 +2,16 @@
 *.o
 *.a
 razorfs
+razorfs_s3
 razorfsck
 razorfsck_new
+test_s3_simple
+test_s3_backend
 src/*.o
 fuse/*.o
 
 # Test builds and binaries
+build/
 build_tests/
 tests/build/
 tests/results/
@@ -20,6 +24,12 @@ performance_demo
 performance_comparison
 performance_benchmark
 nary_vs_flat_comparison
+
+# Compiled binaries (all patterns)
+tests/benchmarks/performance_*
+tests/benchmarks/test_*
+!tests/benchmarks/*.c
+!tests/benchmarks/*.cpp
 
 # Fuzzing
 fuzz-build/
