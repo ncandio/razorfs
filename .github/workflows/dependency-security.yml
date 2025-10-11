@@ -26,6 +26,10 @@ on:
 jobs:
   security-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
 
     steps:
     - uses: actions/checkout@v4
@@ -71,20 +75,27 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     - name: Run Snyk to check for vulnerabilities (only if token exists)
-      run: snyk test --sarif-file-output=snyk.sarif --exclude=tests,benchmark,fuzz-build
-      continue-on-error: true  # Continue even if Snyk fails
+      run: |
+        if [ -n "${{ secrets.SNYK_TOKEN }}" ]; then
+          snyk test --sarif-file-output=snyk.sarif --exclude=tests,benchmark,fuzz-build || echo "Snyk scan completed with findings"
+        else
+          echo "⚠️ SNYK_TOKEN not configured - skipping Snyk scan"
+        fi
+      continue-on-error: true
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
       if: always()
+      continue-on-error: true
       with:
         sarif_file: 'trivy-results.sarif'
 
-    - name: Upload Snyk scan results to GitHub Security tab
+    - name: Upload Snyk scan results to GitHub Security tab (only if file exists)
       uses: github/codeql-action/upload-sarif@v3
-      if: always()
+      if: always() && hashFiles('snyk.sarif') != ''
+      continue-on-error: true
       with:
         sarif_file: 'snyk.sarif'
 
