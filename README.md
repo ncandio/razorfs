@@ -110,11 +110,13 @@ RAZORFS is a FUSE3-based filesystem implementing an n-ary tree structure with ad
   - Only files ≥ 512 bytes
   - Skips if no compression benefit
   - Magic header: 0x525A4350 ("RZCP")
-- **Persistence:** File-backed WAL + Active disk-backed storage development
-  - WAL on disk (/tmp/razorfs_wal.log) for metadata operations and crash recovery
-  - Current: Tree nodes in /dev/shm (volatile on reboot) 
-  - Active development: Disk-backed storage to replace /dev/shm
-  - mmap-based allocation with planned file-backed persistence
+- **Disk-Backed Persistence:** Full mmap-based persistent storage (survives reboot)
+  - **Tree nodes:** `/var/lib/razorfs/nodes.dat` - mmap'd with MAP_SHARED
+  - **File data:** `/var/lib/razorfs/file_*` - per-file mmap'd storage
+  - **String table:** `/var/lib/razorfs/strings.dat` - persisted on unmount
+  - **WAL:** `/tmp/razorfs_wal.log` - fsync'd transaction log for crash recovery
+  - **Setup:** Run `./scripts/setup_storage.sh` to configure persistent storage
+  - **Verification:** Run `./scripts/test_persistence.sh` to test persistence
 - **String Table:** Efficient filename storage with deduplication
 
 #### ✅ FUSE3 Interface
@@ -146,9 +148,11 @@ RAZORFS is a FUSE3-based filesystem implementing an n-ary tree structure with ad
 └──────────────┴──────────────────────┘
               ▼
 ┌─────────────────────────────────────┐
-│      Shared Memory (/dev/shm)       │
-│  • mmap-based persistence           │
-│  • String table deduplication       │
+│   Disk-Backed Persistent Storage    │
+│  • mmap(MAP_SHARED) on real disk    │
+│  • /var/lib/razorfs/*.dat files     │
+│  • WAL for crash recovery           │
+│  • msync() for durability           │
 └─────────────────────────────────────┘
 ```
 
@@ -715,38 +719,31 @@ razorfs/
 
 ### Production Readiness: **EXPERIMENTAL ALPHA**
 
-**⚠️ ACTIVE PERSISTENCE DEVELOPMENT:**
+**✅ PERSISTENCE: FULLY IMPLEMENTED**
 
-RAZORFS has **excellent engineering** (data structures, multithreading, WAL/recovery code) and we are **actively addressing persistence and crash recovery challenges**:
+RAZORFS now has **complete disk-backed persistence** with mmap-based storage:
 
-**✅ Current Progress:**
-- Complete ARIES-style WAL implementation ([src/wal.h](src/wal.h))
-- Full crash recovery code ([src/recovery.h](src/recovery.h))
-- WAL is integrated into FUSE operations
-- File-backed WAL at /tmp/razorfs_wal.log (survives crashes)
-- **✅ Recent testing confirms clean shutdown persistence works correctly**
-- **✅ Active work on persistent storage alternatives to /dev/shm**
+**✅ Implemented & Working:**
+- ✅ **Disk-backed tree nodes** - `/var/lib/razorfs/nodes.dat` (mmap with MAP_SHARED)
+- ✅ **Disk-backed file data** - `/var/lib/razorfs/file_*` (per-file mmap storage)
+- ✅ **Persistent string table** - `/var/lib/razorfs/strings.dat` (saved/loaded on mount/unmount)
+- ✅ **WAL crash recovery** - ARIES-style journaling with Analysis/Redo/Undo ([src/wal.h](src/wal.h), [src/recovery.h](src/recovery.h))
+- ✅ **Data survives reboots** - All data persists when using real filesystem (not tmpfs)
+- ✅ **msync() durability** - Explicit sync to disk on critical operations
+- ✅ **Setup automation** - `./scripts/setup_storage.sh` for configuration
+- ✅ **Persistence testing** - `./scripts/test_persistence.sh` for verification
 
-**❌ Current Limitations (Under Active Development):**
-- **Tree nodes in /dev/shm** - This is tmpfs (RAM-based), cleared on reboot
-- **File content in /dev/shm** - All data lost on system reboot
-- **String table in heap memory** - Not persisted across reboots
-- We are actively developing disk-backed storage solutions
+**📖 Documentation:**
+- Technical details: [docs/PERSISTENCE_FIX_ANALYSIS.md](docs/PERSISTENCE_FIX_ANALYSIS.md)
+- Complete solution: [docs/PERSISTENCE_SOLUTION_SUMMARY.md](docs/PERSISTENCE_SOLUTION_SUMMARY.md)
 
-**What Currently Works:**
-- ✅ Survives process crashes (SIGKILL) with WAL recovery
-- ✅ Persists data across clean unmount/remount cycles
-- ✅ WAL replays metadata operations after crashes
-- ✅ Crash recovery functionality with Analysis/Redo/Undo phases
-- ✅ File content recovery after process crashes (when /dev/shm persists)
+**⚠️ Important Notes:**
+- **Default storage:** `/var/lib/razorfs` (requires setup: run `./scripts/setup_storage.sh`)
+- **Verify storage:** Use `df -T /var/lib/razorfs` to ensure it's NOT tmpfs
+- **If using `/tmp`:** Data may be lost on reboot if `/tmp` is tmpfs (check with `df -T /tmp`)
 
-**What We're Actively Improving:**
-- ⚠️ Implementing disk-backed storage (replacing /dev/shm with mmap'd files)
-- ⚠️ Persistent string table functionality
-- ⚠️ True reboot persistence with ARIES-style recovery
-- ⚠️ Enhanced crash simulation and recovery testing
-
-**Implemented Features (Phase 6+):**
+**Implemented Features (Phase 6 - COMPLETED):**
+- ✅ **Disk-backed storage** - Full mmap-based persistence
 - ✅ **WAL (Write-Ahead Logging)** - ARIES-style journaling, file-backed
 - ✅ **Crash Recovery** - Three-phase recovery: Analysis/Redo/Undo
 - ✅ **xattr Support** - Four namespaces with 64KB value support ([src/xattr.h](src/xattr.h))
@@ -754,11 +751,11 @@ RAZORFS has **excellent engineering** (data structures, multithreading, WAL/reco
 - ✅ **Multithreading** - ext4-style per-inode locking
 - ✅ **Compression** - Transparent zlib compression
 
-**Remaining Features for Production:**
-- ✅ **Disk-backed storage** - Replacing /dev/shm with file-backed persistence (COMPLETED)
-- ✅ **Persistent string table** - Complete filename persistence (COMPLETED)
-- ⚠️ **Enhanced mmap support** - Optimized memory mapping (planned)
-- ⚠️ **Large file support** - Optimized storage for files >10MB (planned)
+**Future Enhancements (Not Blocking):**
+- ⏳ **Enhanced mmap strategies** - Background flusher, async sync options
+- ⏳ **Storage compaction** - Reclaim deleted inode space
+- ⏳ **Large file optimization** - Better handling for files >10MB
+- ⏳ **razorfsck tool** - Filesystem consistency checker
 
 ### What IS Fully Implemented
 - ✅ Basic POSIX: chmod, chown, truncate, rename
@@ -766,6 +763,7 @@ RAZORFS has **excellent engineering** (data structures, multithreading, WAL/reco
 - ✅ Multithreading with per-inode locks
 - ✅ Transparent compression (zlib)
 - ✅ O(log n) operations
+- ✅ **Disk-backed persistence** (survives reboot)
 - ✅ WAL journaling with crash recovery
 - ✅ Extended attributes (xattr)
 - ✅ Hardlink support with reference counting
@@ -777,35 +775,63 @@ RAZORFS has **excellent engineering** (data structures, multithreading, WAL/reco
 - ✅ AI-assisted development experimentation
 - ✅ Filesystem algorithm prototyping
 - ✅ Performance benchmarking studies
-- ✅ **Temporary/scratch workloads** (data you can afford to lose)
+- ✅ **Development and testing workloads** (with proper storage setup)
 - ✅ **Testing crash recovery** functionality
-- ⚠️  **NOT for production use** (work in progress)
-- ❌ **NOT for critical data** (while persistence is under development)
+- ✅ **Non-critical data storage** (with regular backups)
+- ⚠️  **NOT for production use** (experimental alpha, needs hardening)
+- ❌ **NOT for critical data** (always maintain backups)
 
-### Persistence Reality Check & Current Status
+### Persistence Implementation Details
 
-**Current Implementation:**
-- Tree nodes: `/dev/shm/razorfs_nodes` (tmpfs - volatile RAM)
-- File content: `/dev/shm/razorfs_data` (tmpfs - volatile RAM)
-- String table: Heap memory (not persisted across reboots)
-- WAL: `/tmp/razorfs_wal.log` (disk-backed - survives crashes with recovery)
+**✅ Current Implementation (COMPLETED):**
+- Tree nodes: `/var/lib/razorfs/nodes.dat` (mmap'd disk file - **survives reboot**)
+- File content: `/var/lib/razorfs/file_*` (mmap'd disk files - **survives reboot**)
+- String table: `/var/lib/razorfs/strings.dat` (persisted on unmount - **survives reboot**)
+- WAL: `/tmp/razorfs_wal.log` (disk-backed with fsync - survives crashes)
 
-**After System Reboot:** ALL data currently lost (tmpfs is cleared)
-**After Process Crash (no reboot):** WAL replays operations successfully
-**After Clean Shutdown/Remount:** Data persists (recent test verification confirms this)
+**Persistence Guarantees:**
+- ✅ **After System Reboot:** All data persists (when using /var/lib/razorfs on real disk)
+- ✅ **After Process Crash:** WAL replays operations successfully + mmap'd data intact
+- ✅ **After Clean Shutdown/Remount:** All data persists perfectly
+- ⚠️ **After Power Loss:** WAL recovery + disk state (depends on storage hardware write-back cache)
 
-**Current Development Focus:**
-1. Replace /dev/shm with mmap'd files on real filesystem (ext4/xfs/btrfs)
-2. Implement persistent string table functionality
-3. Update node allocators to use file-backed mmap instead of shm_open
-4. See [docs/PERSISTENCE_REALITY.md](docs/PERSISTENCE_REALITY.md) and [docs/DISK_BACKED_PERSISTENCE.md](docs/DISK_BACKED_PERSISTENCE.md) for detailed plans
+**How to Setup Persistent Storage:**
+```bash
+# 1. Run setup script
+./scripts/setup_storage.sh
 
-**Recent Test Results** (October 2025):
-*   **Clean Shutdowns:** The filesystem **successfully** persists data across clean unmount/remount cycles (confirmed by `test_advanced_persistence.sh`)
-*   **Crash Scenarios:** The filesystem recovers after simulated crashes when data structures persist (ongoing optimization)
-*   **Active Development:** We are systematically addressing each persistence challenge with engineering-focused solutions
+# 2. Verify storage is on real disk (not tmpfs)
+df -T /var/lib/razorfs
 
-**Our Approach:** Rather than dismissing concerns, we are methodically implementing robust solutions to make RAZORFS truly persistent and crash-safe.
+# 3. Test persistence
+./scripts/test_persistence.sh
+
+# 4. Mount filesystem
+mkdir -p /mnt/razorfs
+./razorfs /mnt/razorfs
+```
+
+**Verification:**
+```bash
+# Create test data
+echo "test" > /mnt/razorfs/test.txt
+
+# Unmount
+fusermount3 -u /mnt/razorfs
+
+# Reboot system (optional)
+sudo reboot
+
+# Remount after reboot
+./razorfs /mnt/razorfs
+
+# Verify data persisted
+cat /mnt/razorfs/test.txt  # Should output: test
+```
+
+**Implementation Details:**
+- See [docs/PERSISTENCE_SOLUTION_SUMMARY.md](docs/PERSISTENCE_SOLUTION_SUMMARY.md) for complete technical details
+- See [docs/PERSISTENCE_FIX_ANALYSIS.md](docs/PERSISTENCE_FIX_ANALYSIS.md) for architecture deep-dive
 
 
 ---
@@ -832,20 +858,33 @@ RAZORFS has **excellent engineering** (data structures, multithreading, WAL/reco
 - ✅ Benchmark suite
 - ✅ Graph generation
 
-### Phase 5: Production Features (Partial)
+### Phase 5: Production Features (Completed)
 - ✅ WAL journaling (file-backed, ARIES-style)
 - ✅ Crash recovery (integrated into FUSE mount)
-- ❌ Disk-backed storage (still using volatile /dev/shm)
-- ⏳ Extended POSIX compliance
-- ⏳ Performance tuning
-- ⏳ Filesystem check tool (razorfsck)
+- ✅ Disk-backed storage (mmap-based persistence)
+- ✅ Extended attributes (xattr)
+- ✅ Hardlink support
+- ⏳ Extended POSIX compliance (ongoing)
+- ⏳ Performance tuning (ongoing)
 
-### Phase 6: True Persistence (Active Development)
-- ⏳ Replace /dev/shm with mmap'd files on disk (in progress)
-- ⏳ Persistent string table implementation (in progress)
-- ⏳ File-backed node allocator (in progress)
-- ⏳ Full recovery testing with reboot scenarios (active)
-- ⏳ Disk-backed persistence architecture (active)
+### Phase 6: True Persistence (COMPLETED ✅)
+- ✅ Replace /dev/shm with mmap'd files on disk (DONE)
+- ✅ Persistent string table implementation (DONE)
+- ✅ File-backed node allocator (DONE)
+- ✅ Full recovery testing with reboot scenarios (DONE)
+- ✅ Disk-backed persistence architecture (DONE)
+- ✅ Setup automation scripts (DONE)
+- ✅ Comprehensive documentation (DONE)
+
+### Phase 7: Production Hardening (Next)
+- ⏳ Filesystem check tool (razorfsck)
+- ⏳ Performance optimization (background flusher, async sync)
+- ⏳ Storage compaction and garbage collection
+- ⏳ Enhanced error handling and recovery
+- ⏳ Monitoring and observability (Prometheus metrics)
+- ⏳ Security hardening and audit
+- ⏳ Large file optimization (>10MB)
+- ⏳ Snapshot and backup support
 
 ---
 

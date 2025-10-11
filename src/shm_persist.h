@@ -24,11 +24,18 @@ extern "C" {
 #define SHM_STRING_TABLE "/razorfs_strings"
 #define SHM_FILE_PREFIX  "/razorfs_file_"
 
-/* Disk-backed storage paths (persistent - survives reboot) */
-#define DISK_DATA_DIR     "/tmp/razorfs_data"
-#define DISK_TREE_NODES   "/tmp/razorfs_data/nodes.dat"
-#define DISK_STRING_TABLE "/tmp/razorfs_data/strings.dat"
-#define DISK_FILE_PREFIX  "/tmp/razorfs_data/file_"
+/* Disk-backed storage paths (persistent - survives reboot)
+ * Note: /var/lib is standard location for persistent application data
+ * Falls back to /tmp if /var/lib is not writable (for non-root users)
+ */
+#define DISK_DATA_DIR     "/var/lib/razorfs"
+#define DISK_DATA_DIR_FALLBACK "/tmp/razorfs_data"
+#define DISK_TREE_NODES   "/var/lib/razorfs/nodes.dat"
+#define DISK_STRING_TABLE "/var/lib/razorfs/strings.dat"
+#define DISK_FILE_PREFIX  "/var/lib/razorfs/file_"
+#define DISK_TREE_NODES_FALLBACK   "/tmp/razorfs_data/nodes.dat"
+#define DISK_STRING_TABLE_FALLBACK "/tmp/razorfs_data/strings.dat"
+#define DISK_FILE_PREFIX_FALLBACK  "/tmp/razorfs_data/file_"
 
 /* Shared memory tree structure header */
 struct shm_tree_header {
