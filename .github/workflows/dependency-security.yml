@@ -100,7 +100,18 @@ jobs:
         sarif_file: 'snyk.sarif'
 
     # Static analysis for C/C++ code
-    - name: Run CodeQL Analysis
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: 'c-cpp'
+        queries: security-extended
+
+    - name: Build for CodeQL
+      run: |
+        make clean || true
+        make
+
+    - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
         category: "/c-cpp-security"
