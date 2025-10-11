@@ -4,7 +4,7 @@
 # Tests: Compression, Backup/Recovery, NUMA, Persistence
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 RESULTS_DIR="/mnt/c/Users/liber/Desktop/Testing-Razor-FS/benchmarks"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 TEST_FILE_URL="https://github.com/git/git/archive/refs/tags/v2.43.0.tar.gz"
@@ -68,9 +68,17 @@ test_compression() {
 
     # Measure disk usage
     if [ "$fs_name" = "RAZORFS" ]; then
-        # For RAZORFS, check shared memory usage
-        local disk_usage=$(du -sb /dev/shm/razorfs_* 2>/dev/null | awk '{sum+=$1} END {print sum}')
+        # For RAZORFS, check disk-backed storage (persistent) or fallback to shared memory
+        local disk_usage=0
+        if [ -d "/var/lib/razorfs" ]; then
+            disk_usage=$(du -sb /var/lib/razorfs/file_* 2>/dev/null | awk '{sum+=$1} END {print sum}')
+        elif [ -d "/tmp/razorfs_data" ]; then
+            disk_usage=$(du -sb /tmp/razorfs_data/file_* 2>/dev/null | awk '{sum+=$1} END {print sum}')
+        else
+            disk_usage=$(du -sb /dev/shm/razorfs_* 2>/dev/null | awk '{sum+=$1} END {print sum}')
+        fi
         disk_usage=$((disk_usage / 1024 / 1024))
+        [ "$disk_usage" -eq 0 ] && disk_usage=1  # Avoid division by zero
     else
         local disk_usage=$(du -sm "$mount_point/$TEST_FILE_NAME" | awk '{print $1}')
     fi

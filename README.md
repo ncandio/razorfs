@@ -540,13 +540,14 @@ For example: `Generated: 2025-10-08 [a1b2c3d]`
 
 | Graph File | Last Generated | Commit SHA | Generation Method |
 |------------|----------------|------------|-------------------|
-| comprehensive_performance_radar.png | 2025-10-08 | 84493cf | Docker Infrastructure |
-| ologn_scaling_validation.png | 2025-10-08 | 84493cf | Docker Infrastructure |
-| scalability_heatmap.png | 2025-10-08 | 84493cf | Docker Infrastructure |
-| compression_effectiveness.png | 2025-10-08 | 84493cf | Docker Infrastructure |
-| memory_numa_analysis.png | 2025-10-08 | 84493cf | Docker Infrastructure |
+| comprehensive_performance_radar.png | 2025-10-11 | db3b65f | Docker Infrastructure |
+| ologn_scaling_validation.png | 2025-10-11 | db3b65f | Docker Infrastructure |
+| scalability_heatmap.png | 2025-10-11 | db3b65f | Docker Infrastructure |
+| compression_effectiveness.png | 2025-10-11 | db3b65f | Docker Infrastructure |
+| memory_numa_analysis.png | 2025-10-11 | db3b65f | Docker Infrastructure |
 
-Note: Manual execution of the Docker infrastructure is required to update these tags and graphs.
+**Note about Graph Updates:**
+Performance graphs are periodically regenerated following significant feature implementations or architectural improvements. This ensures that benchmark results accurately reflect the current state of RAZORFS. The testing infrastructure automatically captures the date and commit SHA for full reproducibility and traceability of all performance measurements.
 
 ---
 
@@ -995,3 +996,28 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **Built with AI-Assisted Engineering 🤖 + Human Expertise 👨‍💻**
 
 *This project demonstrates that AI copilots can accelerate systems programming while maintaining code quality through human oversight and validation.*
+
+---
+
+## ⚠️ **IMPORTANT DISCLAIMER - EXPERIMENTAL ALPHA SOFTWARE**
+
+> **🟨 WARNING: RAZORFS IS EXPERIMENTAL ALPHA SOFTWARE 🟨**
+>
+> This filesystem is **NOT PRODUCTION-READY** and should be considered an **experimental research project**.
+>
+> **Implementation Status:**
+> - ✅ **Implemented:** N-ary tree, FUSE3 interface, compression, NUMA support, multithreading, WAL journaling, crash recovery, disk-backed persistence, xattr, hardlinks
+> - ⏳ **Not Implemented/Under Development:** Extended POSIX compliance, production hardening, filesystem check tool (razorfsck), performance optimization for ext4-level throughput, storage compaction, large file optimization (>10MB), snapshot/backup support
+>
+> **Critical Warnings:**
+> - ⚠️ **ALPHA STATUS:** Under active development with potential bugs and instability
+> - ⚠️ **EXPERIMENTAL:** Designed for research, education, and AI-assisted development exploration
+> - ⚠️ **NO WARRANTY:** Provided "AS IS" without guarantees (see BSD-3-Clause License)
+> - ⚠️ **DATA RISK:** Do NOT use for critical data without proper backups
+>
+> **Recommended Use Cases:**
+> - ✅ Filesystem research and algorithm prototyping
+> - ✅ Educational purposes and learning
+> - ✅ AI-assisted development experimentation
+> - ✅ Performance benchmarking studies
+> - ✅ Non-critical testing environments with regular backups
