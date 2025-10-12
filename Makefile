@@ -10,12 +10,17 @@ PKG_CONFIG ?= pkg-config
 # AWS SDK Configuration
 AWS_SDK_AVAILABLE := $(shell pkg-config --exists aws-sdk-cpp-s3 && echo YES)
 
-# Dependency checks
-ifeq ($(shell $(PKG_CONFIG) --exists fuse3 && echo yes),yes)
-    FUSE_CFLAGS = $(shell $(PKG_CONFIG) fuse3 --cflags)
-    FUSE_LIBS = $(shell $(PKG_CONFIG) fuse3 --libs)
+# Conditionally check for FUSE3, unless cleaning or asking for help
+ifneq ($(filter $(MAKECMDGOALS),clean help install-aws-sdk),)
+    FUSE_CFLAGS =
+    FUSE_LIBS =
 else
-    $(error FUSE3 not found. Install with: sudo apt-get install libfuse3-dev)
+    ifeq ($(shell $(PKG_CONFIG) --exists fuse3 && echo yes),yes)
+        FUSE_CFLAGS = $(shell $(PKG_CONFIG) fuse3 --cflags)
+        FUSE_LIBS = $(shell $(PKG_CONFIG) fuse3 --libs)
+    else
+        $(error FUSE3 not found. Install with: sudo apt-get install libfuse3-dev)
+    endif
 endif
 
 ifeq ($(shell $(PKG_CONFIG) --exists zlib && echo yes),yes)
