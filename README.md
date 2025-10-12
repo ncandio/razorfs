@@ -74,11 +74,13 @@ RAZORFS is a FUSE3-based filesystem implementing an n-ary tree structure with ad
 
 RazorFS operates with an intelligent, adaptive performance model based on the hardware it runs on:
 
-1.  **On a Standard (Non-NUMA) System:** The filesystem detects the absence of a NUMA architecture. Its NUMA-specific code remains disabled. It performs like a traditional filesystem, using standard memory allocation without special placement.
+1.  **NUMA Adaptive Optimization - On a Standard (Non-NUMA) System:** The filesystem detects the absence of a NUMA architecture. Its NUMA-specific code remains disabled. It performs like a traditional filesystem, using standard memory allocation without special placement.
 
-2.  **On a NUMA System:** The filesystem detects the NUMA topology. It activates its NUMA optimizations, binding its core metadata structures to the local memory node of the CPU running the process. This minimizes memory access latency, unlocking a higher performance profile specifically tailored for NUMA hardware.
+    **On a NUMA System:** The filesystem detects the NUMA topology. It activates its NUMA optimizations, binding its core metadata structures to the local memory node of the CPU running the process. This minimizes memory access latency, unlocking a higher performance profile specifically tailored for NUMA hardware.
 
-In essence, RazorFS is designed to be universally compatible, offering a baseline performance on standard systems while automatically enabling its high-performance, low-latency mode when it identifies the presence of a NUMA architecture.
+    In essence, RazorFS is designed to be universally compatible, offering a baseline performance on standard systems while automatically enabling its high-performance, low-latency mode when it identifies the presence of a NUMA architecture.
+
+2.  **N-ary Tree Architecture:** The filesystem employs a 16-way branching tree structure instead of traditional binary trees. On small filesystems (under 10,000 files), the performance difference is negligible. However, as the filesystem scales to millions of files, the 16-way branching delivers dramatically faster operations—requiring only ~5 tree levels for 1 million files versus ~20 levels in binary trees. This architecture shines at scale, with cache-aligned contiguous memory layout that minimizes CPU cache misses during tree traversal, making it ideal for large-scale deployments while remaining efficient for everyday use.
 
 ---
 
