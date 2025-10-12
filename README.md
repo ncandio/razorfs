@@ -168,6 +168,21 @@ RAZORFS is a FUSE3-based filesystem implementing an n-ary tree structure with ad
 └─────────────────────────────────────┘
 ```
 
+
+--- 
+
+## 🏛️ ARCHITECTURAL WILL
+
+RazorFS operates with an intelligent, adaptive performance model based on the hardware it runs on:
+
+1.  **On a Standard (Non-NUMA) System:** The filesystem detects the absence of a NUMA architecture. Its NUMA-specific code remains disabled. Consequently, it performs like a traditional filesystem, using standard memory allocation without special placement. Its performance characteristics "collapse" to that of a normal, non-optimized filesystem.
+
+2.  **On a NUMA System:** The filesystem detects the NUMA topology. It "switches" its behavior by activating its NUMA optimizations. It binds its core metadata structures to the local memory node of the CPU running the process. This minimizes memory access latency, unlocking a higher performance profile specifically tailored for NUMA hardware.
+
+In essence, RazorFS is designed to be universally compatible, offering a baseline performance on standard systems while automatically enabling its high-performance, low-latency mode when it identifies the presence of a NUMA architecture.
+
+Non-uniform memory access (NUMA) is a computer memory design used in multiprocessing, where the memory access time depends on the memory location relative to the processor.
+
 ---
 
 ## 🚀 Quick Start
