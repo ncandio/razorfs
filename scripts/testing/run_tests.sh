@@ -35,6 +35,12 @@ while [[ $# -gt 0 ]]; do
             RUN_DYNAMIC=false
             shift
             ;;
+        --integration-only)
+            RUN_UNIT=false
+            RUN_STATIC=false
+            RUN_DYNAMIC=false
+            shift
+            ;;
         --no-static)
             RUN_STATIC=false
             shift
@@ -56,6 +62,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --unit-only       Run only unit tests (skip integration/analysis)"
+            echo "  --integration-only Run only integration tests (skip unit/analysis)"
             echo "  --no-static       Skip static analysis"
             echo "  --no-dynamic      Skip dynamic analysis (valgrind)"
             echo "  --coverage        Generate code coverage report"
@@ -142,7 +149,7 @@ cd "$BUILD_DIR"
 
 # Configure with CMake
 if [ "$RUN_COVERAGE" = true ]; then
-    cmake ../tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage" >> "../$LOG_FILE" 2>&1
+    cmake ../tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage -g -O0 -fno-inline -fno-inline-small-functions" -DCMAKE_C_FLAGS="--coverage -g -O0" >> "../$LOG_FILE" 2>&1
 else
     cmake ../tests -DCMAKE_BUILD_TYPE=Debug >> "../$LOG_FILE" 2>&1
 fi
@@ -250,8 +257,8 @@ if [ "$RUN_STATIC" = true ]; then
         src/*.c src/*.h \
         2> "$RESULTS_DIR/cppcheck_report.txt"
 
-    CPPCHECK_ERRORS=$(grep -c "error:" "$RESULTS_DIR/cppcheck_report.txt" 2>/dev/null || echo "0")
-    CPPCHECK_WARNINGS=$(grep -c "warning:" "$RESULTS_DIR/cppcheck_report.txt" 2>/dev/null || echo "0")
+    CPPCHECK_ERRORS=$(grep "error:" "$RESULTS_DIR/cppcheck_report.txt" 2>/dev/null | wc -l)
+    CPPCHECK_WARNINGS=$(grep "warning:" "$RESULTS_DIR/cppcheck_report.txt" 2>/dev/null | wc -l)
 
     if [ "$CPPCHECK_ERRORS" -eq 0 ]; then
         log_success "  cppcheck: No errors ($CPPCHECK_WARNINGS warnings)"
@@ -308,8 +315,8 @@ if [ "$RUN_DYNAMIC" = true ]; then
             "./$BUILD_DIR/$test" >> "$LOG_FILE" 2>&1
 
         # Check for errors
-        LEAK_ERRORS=$(grep -c "definitely lost:" "$RESULTS_DIR/valgrind_${test}.txt" 2>/dev/null || echo "0")
-        INVALID_ACCESS=$(grep -c "Invalid " "$RESULTS_DIR/valgrind_${test}.txt" 2>/dev/null || echo "0")
+        LEAK_ERRORS=$(grep "definitely lost:" "$RESULTS_DIR/valgrind_${test}.txt" 2>/dev/null | wc -l)
+        INVALID_ACCESS=$(grep "Invalid " "$RESULTS_DIR/valgrind_${test}.txt" 2>/dev/null | wc -l)
 
         if [ "$LEAK_ERRORS" -eq 0 ] && [ "$INVALID_ACCESS" -eq 0 ]; then
             log_success "  $test: No memory leaks or invalid access"
@@ -329,19 +336,32 @@ if [ "$RUN_COVERAGE" = true ]; then
     log "Generating code coverage report..."
 
     if command -v lcov >/dev/null 2>&1 && command -v genhtml >/dev/null 2>&1; then
-        # Capture coverage data (ignore mismatch errors from gcov)
-        lcov --capture --directory "$BUILD_DIR" --output-file "$RESULTS_DIR/coverage.info" --ignore-errors mismatch >> "$LOG_FILE" 2>&1
+        # Create coverage results directory
+        mkdir -p "$RESULTS_DIR/coverage"
+        
+        # Generate coverage data from gcov files using geninfo with proper error handling
+        log "  Running geninfo to capture coverage data..."
+        geninfo --ignore-errors mismatch --rc geninfo_unexecuted_blocks=1 "$BUILD_DIR" \
+            --output-filename "$RESULTS_DIR/coverage.info" >> "$LOG_FILE" 2>&1
 
-        # Filter out system headers and test code
+        # Filter out system headers and test code, with improved error handling for unused patterns
+        log "  Filtering coverage data..."
         lcov --remove "$RESULTS_DIR/coverage.info" \
             '/usr/*' \
             '*/tests/*' \
-            '*/googletest/*' \
-            --output-file "$RESULTS_DIR/coverage_filtered.info" >> "$LOG_FILE" 2>&1
+            '*/test/*' \
+            '*/build_tests/*' \
+            '*/_deps/*' \
+            --output-file "$RESULTS_DIR/coverage_filtered.info" \
+            --ignore-errors unused >> "$LOG_FILE" 2>&1
 
-        # Generate HTML report
+        # Generate HTML report with enhanced options
+        log "  Generating HTML coverage report..."
         genhtml "$RESULTS_DIR/coverage_filtered.info" \
-            --output-directory "$RESULTS_DIR/coverage_html" >> "$LOG_FILE" 2>&1
+            --output-directory "$RESULTS_DIR/coverage_html" \
+            --title "RazorFS Code Coverage" \
+            --show-details \
+            --legend >> "$LOG_FILE" 2>&1
 
         log_success "Coverage report generated: $RESULTS_DIR/coverage_html/index.html"
     else

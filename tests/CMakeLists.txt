@@ -32,6 +32,13 @@ include_directories(
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -D_FILE_OFFSET_BITS=64")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 
+# Check if building for coverage
+if(CMAKE_CXX_FLAGS MATCHES "--coverage")
+    # Coverage-specific flags to minimize unexecuted block warnings
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g --coverage -fno-inline -fno-inline-small-functions -fno-default-inline")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g --coverage -fno-inline -fno-inline-small-functions -fno-default-inline")
+endif()
+
 # Find required libraries
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FUSE3 REQUIRED fuse3)

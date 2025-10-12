@@ -133,6 +133,34 @@ install-aws-sdk:
 	sudo ldconfig
 	@echo "✅ AWS SDK installed"
 
+test:
+	@echo "Running comprehensive test suite..."
+	@./scripts/testing/run_tests.sh
+
+test-unit:
+	@echo "Running unit tests only..."
+	@./scripts/testing/run_tests.sh --unit-only
+
+test-integration:
+	@echo "Running integration tests only..."
+	@./scripts/testing/run_tests.sh --integration-only
+
+test-static:
+	@echo "Running static analysis..."
+	@./scripts/testing/run_tests.sh --unit-only --no-dynamic
+
+test-valgrind:
+	@echo "Running valgrind memory checks..."
+	@./scripts/testing/run_tests.sh --unit-only --no-static
+
+test-all:
+	@echo "Running complete test suite..."
+	@./scripts/testing/run_tests.sh
+
+test-coverage:
+	@echo "Running tests with code coverage..."
+	@./scripts/testing/run_tests.sh --coverage
+
 help:
 	@echo "RAZORFS Makefile"
 	@echo ""
