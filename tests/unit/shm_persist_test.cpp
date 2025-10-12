@@ -251,7 +251,7 @@ TEST_F(ShmPersistTest, InvalidDetach) {
     shm_tree_detach(nullptr);
 }
 
-TEST_F(ShmPersistTest, DISABLED_DoubleDetach) {  // Temporarily disabled due to segfault in shm_tree_destroy implementation
+TEST_F(ShmPersistTest, DISABLED_DoubleDetach) {  // Causes segmentation fault in shm_tree_destroy
     tree = (struct nary_tree_mt*)malloc(sizeof(struct nary_tree_mt));
     ASSERT_NE(tree, nullptr);
     ASSERT_EQ(shm_tree_init(tree), 0);
@@ -268,7 +268,7 @@ TEST_F(ShmPersistTest, DISABLED_DoubleDetach) {  // Temporarily disabled due to 
 // Stress Tests
 // ============================================================================
 
-TEST_F(ShmPersistTest, DISABLED_ManyFilesAcrossRemounts) {  // Temporarily disabled due to file persistence issue in shm implementation
+TEST_F(ShmPersistTest, DISABLED_ManyFilesAcrossRemounts) {  // File persistence bug: only 16/250 files persisted across remounts
     const int BATCH_SIZE = 50;
     const int NUM_REMOUNTS = 5;
 

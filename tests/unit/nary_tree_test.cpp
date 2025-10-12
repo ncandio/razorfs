@@ -196,7 +196,7 @@ TEST_F(NaryTreeTest, ConcurrentReads) {
     EXPECT_EQ(success_count.load(), NUM_READERS * 100);
 }
 
-TEST_F(NaryTreeTest, DISABLED_ConcurrentInserts) {  // Temporarily disabled due to concurrency bug in nary_tree_mt.c
+TEST_F(NaryTreeTest, DISABLED_ConcurrentInserts) {  // Concurrency bug: only 16/100 files successfully inserted
     const int NUM_WRITERS = 5;
     const int INSERTS_PER_WRITER = 20;
     std::atomic<int> success_count(0);
@@ -237,8 +237,7 @@ TEST_F(NaryTreeTest, DISABLED_ConcurrentInserts) {  // Temporarily disabled due 
     }
 }
 
-// Disabled for ThreadSanitizer - intentional stress test with known benign races
-TEST_F(NaryTreeTest, DISABLED_ConcurrentMixedOperations) {
+TEST_F(NaryTreeTest, ConcurrentMixedOperations) {
     // Pre-populate with some files
     for (int i = 0; i < 10; i++) {
         char name[32];
