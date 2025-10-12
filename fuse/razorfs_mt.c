@@ -279,6 +279,20 @@ static int razorfs_mt_mkdir(const char *path, mode_t mode) {
         return -EEXIST;  /* Or ENOSPC if full */
     }
 
+    if (g_mt_fs.wal_enabled) {
+        struct nary_node node;
+        if (nary_read_node_mt(&g_mt_fs.tree, new_idx, &node) == 0) {
+            struct wal_insert_data insert_data = {
+                .parent_idx = parent_idx,
+                .inode = node.inode,
+                .name_offset = node.name_offset,
+                .mode = node.mode,
+                .timestamp = node.mtime,
+            };
+            wal_log_insert(&g_mt_fs.wal, 0, &insert_data);
+        }
+    }
+
     /* Sync string table to ensure persistence */
     sync_string_table();
 
@@ -473,11 +487,26 @@ static int razorfs_mt_read(const char *path, char *buf, size_t size, off_t offse
 
 /* cppcheck-suppress constParameterCallback - FUSE API requires non-const fi parameter */
 static int razorfs_mt_write(const char *path, const char *buf, size_t size,
-                            off_t offset, struct fuse_file_info *fi) __attribute__((unused));
-/* cppcheck-suppress constParameterCallback - FUSE API requires non-const fi parameter */
-static int razorfs_mt_write(const char *path, const char *buf, size_t size,
                             off_t offset, struct fuse_file_info *fi) {
-    (void) path;
+    uint16_t idx = nary_path_lookup_mt(&g_mt_fs.tree, path);
+    if (idx == NARY_INVALID_IDX) {
+        return -ENOENT;
+    }
+
+    /* Calculate required capacity */
+    size_t required = offset + size;
+
+    if (g_mt_fs.wal_enabled) {
+        struct wal_write_data write_data = {
+            .node_idx = idx,
+            .inode = fi->fh,
+            .offset = offset,
+            .length = size,
+            .new_size = required,
+            .data_checksum = wal_crc32(buf, size),
+        };
+        wal_log_write(&g_mt_fs.wal, 0, &write_data);
+    }
 
     /* Cast to const internally since callbacks can't change the signature */
     const struct fuse_file_info * const_fi = (const struct fuse_file_info *)fi;
@@ -504,9 +533,6 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
             fd->uncompressed_size = 0;
         }
     }
-
-    /* Calculate required capacity */
-    size_t required = offset + size;
 
     if (required > fd->capacity) {
         size_t new_capacity = required < 4096 ? 4096 : (required + 4095) & ~4095;
@@ -566,7 +592,6 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
     }
 
     /* Update node size separately */
-    uint16_t idx = nary_path_lookup_mt(&g_mt_fs.tree, path);
     if (idx != NARY_INVALID_IDX) {
         struct nary_node node;
         if (nary_read_node_mt(&g_mt_fs.tree, idx, &node) == 0) {

@@ -99,6 +99,7 @@ struct wal_write_data {
     uint32_t inode;              // Inode number
     uint64_t offset;             // Offset in file
     uint32_t length;             // Data length
+    uint64_t new_size;           // New total size of the file
     uint32_t data_checksum;      // CRC32 of data
 } __attribute__((packed));
 

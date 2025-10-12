@@ -337,12 +337,18 @@ static int wal_append_entry(struct wal *wal, struct wal_entry *entry,
     entry->data_len = data_len;
 
     /* Calculate checksum of entry + data */
-    uint32_t crc = wal_crc32(entry, sizeof(struct wal_entry));
-    if (data_len > 0 && data) {
-        /* Chain CRC for data */
-        crc ^= wal_crc32(data, data_len);
+    size_t checksum_offset = offsetof(struct wal_entry, checksum);
+    size_t temp_buf_size = checksum_offset + data_len;
+    char *temp_buf = malloc(temp_buf_size);
+    if (!temp_buf) {
+        return -1;
     }
-    entry->checksum = crc;
+    memcpy(temp_buf, entry, checksum_offset);
+    if (data_len > 0 && data) {
+        memcpy(temp_buf + checksum_offset, data, data_len);
+    }
+    entry->checksum = wal_crc32(temp_buf, temp_buf_size);
+    free(temp_buf);
 
     pthread_mutex_lock(&wal->log_lock);
 

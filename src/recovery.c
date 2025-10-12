@@ -107,18 +107,22 @@ static struct wal_entry* read_entry_at(const struct wal *wal, uint64_t offset,
 
     struct wal_entry *entry = (struct wal_entry *)(wal->log_buffer + offset);
 
-    /* Validate checksum (make a copy to avoid modifying the WAL) */
-    struct wal_entry entry_copy = *entry;
-    entry_copy.checksum = 0;  // Zero out for CRC calculation
-
-    uint32_t expected = wal_crc32(&entry_copy, sizeof(struct wal_entry));
-    if (entry->data_len > 0) {
-        expected ^= wal_crc32(wal->log_buffer + offset + sizeof(struct wal_entry),
-                             entry->data_len);
+    /* Validate checksum */
+    size_t checksum_offset = offsetof(struct wal_entry, checksum);
+    size_t temp_buf_size = checksum_offset + entry->data_len;
+    char *temp_buf = malloc(temp_buf_size);
+    if (!temp_buf) {
+        return NULL;
     }
+    memcpy(temp_buf, entry, checksum_offset);
+    if (entry->data_len > 0) {
+        memcpy(temp_buf + checksum_offset, wal->log_buffer + offset + sizeof(struct wal_entry), entry->data_len);
+    }
+    uint32_t expected = wal_crc32(temp_buf, temp_buf_size);
+    free(temp_buf);
 
     if (entry->checksum != expected) {
-        return NULL;  // Corrupted
+        return NULL;  /* Corrupted */
     }
 
     /* Extract data if present */
@@ -321,6 +325,21 @@ static int replay_update(struct recovery_ctx *ctx, const struct wal_update_data 
     return 0;
 }
 
+/* Replay write operation */
+static int replay_write(struct recovery_ctx *ctx, const struct wal_entry *entry, const struct wal_write_data *data) {
+    if (data->node_idx >= ctx->tree->used) {
+        return -1;  /* Invalid node */
+    }
+
+    /* Apply update */
+    struct nary_node *node = &ctx->tree->nodes[data->node_idx].node;
+    node->size = data->new_size;
+    node->mtime = entry->timestamp / 1000000;
+
+    ctx->ops_redone++;
+    return 0;
+}
+
 /* Replay a single operation */
 static int replay_operation(struct recovery_ctx *ctx, const struct wal_entry *entry,
                            void *data) {
@@ -337,9 +356,7 @@ static int replay_operation(struct recovery_ctx *ctx, const struct wal_entry *en
             return replay_update(ctx, (struct wal_update_data *)data);
 
         case WAL_OP_WRITE:
-            /* Write operations don't need replay (data already in tree) */
-            ctx->ops_skipped++;
-            return 1;
+            return replay_write(ctx, entry, (struct wal_write_data *)data);
 
         default:
             return 0;
@@ -372,8 +389,8 @@ int recovery_redo(struct recovery_ctx *ctx) {
             }
         }
 
-        /* Only replay if transaction was committed */
-        if (tx && tx->state == TX_COMMITTED) {
+        /* Only replay if transaction was committed or not part of a transaction */
+        if (!tx || tx->state == TX_COMMITTED) {
             if (entry->op_type >= WAL_OP_INSERT && entry->op_type <= WAL_OP_WRITE) {
                 replay_operation(ctx, entry, data);
             }
