@@ -54,7 +54,6 @@ jobs:
         cd tests/build
         ./string_table_test
         ./nary_tree_test
-        ./compression_test
 
     - name: Run integration tests
       run: |

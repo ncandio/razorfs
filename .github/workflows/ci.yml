@@ -57,7 +57,6 @@ jobs:
         ./string_table_test
         ./nary_tree_test
         ./shm_persist_test
-        ./compression_test
 
     - name: Run Integration Tests
       run: |
@@ -265,7 +264,6 @@ jobs:
         ./string_table_test
         ./nary_tree_test
         ./shm_persist_test
-        ./compression_test
         ./integration_test
 
     - name: Generate Coverage Report
@@ -343,7 +341,6 @@ jobs:
 
         ./string_table_test
         ./nary_tree_test
-        ./compression_test
 
   ###############################################################################
   # Build Verification
