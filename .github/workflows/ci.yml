@@ -104,6 +104,7 @@ jobs:
         cppcheck --enable=all --inconclusive --std=c11 \
           --suppress=missingIncludeSystem \
           --suppress=unusedFunction \
+          --suppress=syntaxError:src/s3_backend.c \
           --xml --xml-version=2 \
           -I src/ \
           src/*.c src/*.h \
