@@ -341,7 +341,7 @@ if [ "$RUN_COVERAGE" = true ]; then
         
         # Generate coverage data from gcov files using geninfo with proper error handling
         log "  Running geninfo to capture coverage data..."
-        geninfo --ignore-errors mismatch --rc geninfo_unexecuted_blocks=1 "$BUILD_DIR" \
+        geninfo --ignore-errors mismatch,inconsistent --rc geninfo_unexecuted_blocks=1 "$BUILD_DIR" \
             --output-filename "$RESULTS_DIR/coverage.info" >> "$LOG_FILE" 2>&1
 
         # Filter out system headers and test code, with improved error handling for unused patterns
