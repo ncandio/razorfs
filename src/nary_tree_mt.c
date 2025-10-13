@@ -233,6 +233,25 @@ uint16_t nary_find_child_mt(struct nary_tree_mt *tree,
     return NARY_INVALID_IDX;
 }
 
+uint16_t nary_find_parent_mt(struct nary_tree_mt *tree, uint16_t child_idx) {
+    if (!tree || child_idx >= tree->used) {
+        return NARY_INVALID_IDX;
+    }
+
+    struct nary_node_mt *child_node = &tree->nodes[child_idx];
+
+    /* Lock child for reading to safely access parent_idx */
+    if (pthread_rwlock_rdlock(&child_node->lock) != 0) {
+        return NARY_INVALID_IDX;
+    }
+
+    uint16_t parent_idx = child_node->node.parent_idx;
+
+    pthread_rwlock_unlock(&child_node->lock);
+
+    return parent_idx;
+}
+
 uint16_t nary_insert_mt(struct nary_tree_mt *tree,
                         uint16_t parent_idx,
                         const char *name,

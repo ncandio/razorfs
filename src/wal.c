@@ -557,7 +557,8 @@ int wal_checkpoint(struct wal *wal) {
     };
 
     /* Calculate checksum */
-    entry.checksum = wal_crc32(&entry, sizeof(entry));
+    size_t checksum_offset = offsetof(struct wal_entry, checksum);
+    entry.checksum = wal_crc32(&entry, checksum_offset);
 
     /* Write checkpoint entry at head */
     uint64_t checkpoint_offset = wal->header->head_offset;

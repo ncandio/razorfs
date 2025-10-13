@@ -347,7 +347,7 @@ TEST_F(RecoveryTest, IdempotencyInsert) {
 // NOTE: This test is disabled because it requires proper tree initialization
 // Delete recovery is implicitly tested through integration tests where
 // nodes are properly inserted before deletion
-TEST_F(RecoveryTest, DISABLED_DeleteOperation) {
+TEST_F(RecoveryTest, DeleteOperation) {
     // First insert a file properly
     uint64_t tx_id1;
     ASSERT_EQ(wal_begin_tx(&wal, &tx_id1), 0);
@@ -373,6 +373,8 @@ TEST_F(RecoveryTest, DISABLED_DeleteOperation) {
     delete_data.parent_idx = 0;
     delete_data.inode = 400;
     delete_data.name_offset = name;
+    delete_data.mode = S_IFREG | 0644;
+    delete_data.timestamp = 1000;
     ASSERT_EQ(wal_log_delete(&wal, tx_id2, &delete_data), 0);
     ASSERT_EQ(wal_commit_tx(&wal, tx_id2), 0);
 

@@ -113,6 +113,13 @@ uint16_t nary_find_child_mt(struct nary_tree_mt *tree,
                             const char *name);
 
 /**
+ * Find parent of a given node index
+ *
+ * Locking: Acquires shared lock on the node
+ */
+uint16_t nary_find_parent_mt(struct nary_tree_mt *tree, uint16_t child_idx);
+
+/**
  * Insert new node as child of parent (exclusive write)
  *
  * Locking: Acquires write lock on parent, then child

@@ -56,7 +56,7 @@ TEST_F(WalTest, LogSingleOperation) {
     uint64_t tx_id;
     ASSERT_EQ(wal_begin_tx(&wal, &tx_id), 0);
 
-    struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2, .name_offset = 100, .mode = S_IFREG | 0644 };
+    struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2, .name_offset = 100, .mode = S_IFREG | 0644, .timestamp = 12345 };
     ASSERT_EQ(wal_log_insert(&wal, tx_id, &insert_op), 0);
 
     ASSERT_EQ(wal_commit_tx(&wal, tx_id), 0);
@@ -68,10 +68,10 @@ TEST_F(WalTest, LogMultipleOperations) {
     uint64_t tx_id;
     ASSERT_EQ(wal_begin_tx(&wal, &tx_id), 0);
 
-    struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2 };
+    struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2, .name_offset = 100, .mode = S_IFREG | 0644, .timestamp = 12345 };
     ASSERT_EQ(wal_log_insert(&wal, tx_id, &insert_op), 0);
 
-    struct wal_delete_data delete_op = { .node_idx = 5, .parent_idx = 1 };
+    struct wal_delete_data delete_op = { .node_idx = 5, .parent_idx = 1, .inode = 99, .name_offset = 101, .mode = S_IFREG | 0644, .timestamp = 12345 };
     ASSERT_EQ(wal_log_delete(&wal, tx_id, &delete_op), 0);
 
     ASSERT_EQ(wal_commit_tx(&wal, tx_id), 0);
@@ -85,10 +85,7 @@ TEST_F(WalTest, NeedsRecovery) {
     ASSERT_EQ(wal_init_file(&wal, test_wal_path, WAL_DEFAULT_SIZE), 0);
     EXPECT_FALSE(wal_needs_recovery(&wal));
 
-    // Start a transaction but don't commit it
-    uint64_t tx_id;
-    ASSERT_EQ(wal_begin_tx(&wal, &tx_id), 0);
-    struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2 };
+    struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2, .name_offset = 100, .mode = S_IFREG | 0644, .timestamp = 12345 };
     ASSERT_EQ(wal_log_insert(&wal, tx_id, &insert_op), 0);
     wal_flush(&wal);
 
@@ -109,7 +106,7 @@ TEST_F(WalTest, Checkpoint) {
 
     uint64_t tx_id;
     ASSERT_EQ(wal_begin_tx(&wal, &tx_id), 0);
-    struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2 };
+    struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2, .name_offset = 100, .mode = S_IFREG | 0644, .timestamp = 12345 };
     ASSERT_EQ(wal_log_insert(&wal, tx_id, &insert_op), 0);
     ASSERT_EQ(wal_commit_tx(&wal, tx_id), 0);
 

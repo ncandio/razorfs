@@ -413,6 +413,107 @@ int recovery_redo(struct recovery_ctx *ctx) {
     return 0;
 }
 
+/* Undo a single insert operation */
+static int undo_insert(struct recovery_ctx *ctx, const struct wal_insert_data *data) {
+    /* Find the node by inode - it should exist if insert was applied */
+    for (uint32_t i = 0; i < ctx->tree->used; i++) {
+        if (ctx->tree->nodes[i].node.inode == data->inode) {
+            /* Found it, now delete it */
+            if (nary_delete_mt(ctx->tree, i) == 0) {
+                ctx->ops_undone++;
+                return 0;
+            }
+            return -1; /* Failed to delete */
+        }
+    }
+    return 0; /* Node not found, insert was not applied, so undo is a no-op */
+}
+
+/* Undo a single delete operation */
+static int undo_delete(struct recovery_ctx *ctx, const struct wal_delete_data *data) {
+    /* Re-insert the deleted node */
+    const char *name = string_table_get(ctx->strings, data->name_offset);
+    if (!name) {
+        return -1;
+    }
+
+    uint16_t new_idx = nary_insert_mt(ctx->tree, data->parent_idx, name, data->mode);
+    if (new_idx == NARY_INVALID_IDX) {
+        return -1; /* Failed to re-insert */
+    }
+
+    /* Restore its attributes */
+    struct nary_node *node = &ctx->tree->nodes[new_idx].node;
+    node->inode = data->inode;
+    node->mtime = data->timestamp;
+
+    ctx->ops_undone++;
+    return 0;
+}
+
+/* Undo a single update operation */
+static int undo_update(struct recovery_ctx *ctx, const struct wal_update_data *data) {
+    if (data->node_idx >= ctx->tree->used) {
+        return 0; /* Node doesn't exist, update was not applied */
+    }
+
+    /* Restore old attributes */
+    struct nary_node *node = &ctx->tree->nodes[data->node_idx].node;
+    node->size = data->old_size;
+    node->mtime = data->old_mtime;
+    /* Mode is not changed in update, so no need to restore */
+
+    ctx->ops_undone++;
+    return 0;
+}
+
+/* Undo a single operation */
+static int undo_operation(struct recovery_ctx *ctx, const struct wal_entry *entry, void *data) {
+    if (!data) return -1;
+
+    switch (entry->op_type) {
+        case WAL_OP_INSERT:
+            return undo_insert(ctx, (struct wal_insert_data *)data);
+        case WAL_OP_DELETE:
+            return undo_delete(ctx, (struct wal_delete_data *)data);
+        case WAL_OP_UPDATE:
+            return undo_update(ctx, (struct wal_update_data *)data);
+        /* Writes and other ops are not undone for now */
+        default:
+            return 0;
+    }
+}
+
+/* Read entry at previous offset in WAL (for backward scan) */
+static struct wal_entry* read_prev_entry_at(const struct wal *wal, uint64_t *offset,
+                                            void **data_out) {
+    if (*offset == wal->header->tail_offset) {
+        return NULL; /* Reached the end of the log */
+    }
+
+    /* This is a simplified and potentially slow way to go backward */
+    /* A proper implementation would use prev_lsn pointers in log records */
+    uint64_t current_offset = wal->header->tail_offset;
+    struct wal_entry *prev_entry = NULL;
+    struct wal_entry *current_entry = NULL;
+
+    while (current_offset != *offset) {
+        prev_entry = (struct wal_entry *)(wal->log_buffer + current_offset);
+        uint64_t next_offset = current_offset + sizeof(struct wal_entry) + prev_entry->data_len;
+        if (next_offset >= wal->buffer_size) next_offset = 0;
+
+        if (next_offset == *offset) {
+            /* Found the entry just before the one at *offset */
+            *offset = current_offset;
+            return read_entry_at(wal, current_offset, data_out);
+        }
+        current_offset = next_offset;
+    }
+
+    return NULL; /* Should not happen in a valid log */
+}
+
+
 /* Undo phase: roll back uncommitted transactions */
 int recovery_undo(struct recovery_ctx *ctx) {
     if (!ctx) return -1;
@@ -421,21 +522,48 @@ int recovery_undo(struct recovery_ctx *ctx) {
         printf("[RECOVERY] Starting undo phase...\n");
     }
 
-    /* For now, we simply discard uncommitted transactions */
-    /* Full undo would require storing old values in WAL */
-
-    uint32_t uncommitted = 0;
+    /* Create a set of active transaction IDs for quick lookup */
+    uint64_t active_tx_ids[ctx->tx_count];
+    uint32_t active_tx_count = 0;
     for (uint32_t i = 0; i < ctx->tx_count; i++) {
         if (ctx->tx_table[i].state == TX_ACTIVE) {
-            uncommitted++;
+            active_tx_ids[active_tx_count++] = ctx->tx_table[i].tx_id;
         }
     }
 
-    ctx->ops_undone = uncommitted;
+    if (active_tx_count == 0) {
+        if (ctx->verbose) {
+            printf("[RECOVERY] Undo complete: No active transactions to roll back.\n");
+        }
+        return 0; /* Nothing to do */
+    }
 
-    if (ctx->verbose && uncommitted > 0) {
-        printf("[RECOVERY] Undo complete: %u uncommitted TX discarded\n",
-               uncommitted);
+    /* Scan WAL backwards from head to tail */
+    uint64_t offset = ctx->wal->header->head_offset;
+    while (offset != ctx->wal->header->tail_offset) {
+        void *data = NULL;
+        struct wal_entry *entry = read_prev_entry_at(ctx->wal, &offset, &data);
+        if (!entry) break;
+
+        /* Check if this entry belongs to an active transaction */
+        int is_active = 0;
+        for (uint32_t i = 0; i < active_tx_count; i++) {
+            if (entry->tx_id == active_tx_ids[i]) {
+                is_active = 1;
+                break;
+            }
+        }
+
+        if (is_active) {
+            /* This operation needs to be undone */
+            undo_operation(ctx, entry, data);
+        }
+
+        if (data) free(data);
+    }
+
+    if (ctx->verbose) {
+        printf("[RECOVERY] Undo complete: %u operations rolled back\n", ctx->ops_undone);
     }
 
     return 0;

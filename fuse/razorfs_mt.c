@@ -314,6 +314,19 @@ static int razorfs_mt_rmdir(const char *path) {
         return -ENOTDIR;
     }
 
+    /* Log deletion to WAL before modifying the tree */
+    if (g_mt_fs.wal_enabled) {
+        struct wal_delete_data delete_data = {
+            .node_idx = idx,
+            .parent_idx = nary_find_parent_mt(&g_mt_fs.tree, idx),
+            .inode = node.inode,
+            .name_offset = node.name_offset,
+            .mode = node.mode,
+            .timestamp = node.mtime,
+        };
+        wal_log_delete(&g_mt_fs.wal, 0, &delete_data);
+    }
+
     int result = nary_delete_mt(&g_mt_fs.tree, idx);
     switch (result) {
         case 0:      return 0;
@@ -374,6 +387,19 @@ static int razorfs_mt_unlink(const char *path) {
 
     if (!NARY_IS_FILE(&node)) {
         return -EISDIR;
+    }
+
+    /* Log deletion to WAL before modifying the tree */
+    if (g_mt_fs.wal_enabled) {
+        struct wal_delete_data delete_data = {
+            .node_idx = idx,
+            .parent_idx = nary_find_parent_mt(&g_mt_fs.tree, idx),
+            .inode = node.inode,
+            .name_offset = node.name_offset,
+            .mode = node.mode,
+            .timestamp = node.mtime,
+        };
+        wal_log_delete(&g_mt_fs.wal, 0, &delete_data);
     }
 
     uint32_t inode = node.inode;

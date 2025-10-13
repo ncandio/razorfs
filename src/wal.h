@@ -82,6 +82,8 @@ struct wal_delete_data {
     uint16_t parent_idx;         // Parent node
     uint32_t inode;              // Inode number
     uint32_t name_offset;        // Name for verification
+    uint16_t mode;               // Mode of deleted node
+    uint64_t timestamp;          // Timestamp of deleted node
 } __attribute__((packed));
 
 struct wal_update_data {
