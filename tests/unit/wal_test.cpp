@@ -85,6 +85,9 @@ TEST_F(WalTest, NeedsRecovery) {
     ASSERT_EQ(wal_init_file(&wal, test_wal_path, WAL_DEFAULT_SIZE), 0);
     EXPECT_FALSE(wal_needs_recovery(&wal));
 
+    uint64_t tx_id;
+    ASSERT_EQ(wal_begin_tx(&wal, &tx_id), 0);
+
     struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2, .name_offset = 100, .mode = S_IFREG | 0644, .timestamp = 12345 };
     ASSERT_EQ(wal_log_insert(&wal, tx_id, &insert_op), 0);
     wal_flush(&wal);
