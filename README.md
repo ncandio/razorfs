@@ -82,7 +82,7 @@ RazorFS operates with an intelligent, adaptive performance model based on the ha
 
     In essence, RazorFS is designed to be universally compatible, offering a baseline performance on standard systems while automatically enabling its high-performance, low-latency mode when it identifies the presence of a NUMA architecture.
 
-2.  **N-ary Tree Architecture:** The filesystem employs a 16-way branching tree structure instead of traditional binary trees. On small filesystems (under 10,000 files), the performance difference is negligible. However, as the filesystem scales to millions of files, the 16-way branching delivers dramatically faster operations—requiring only ~5 tree levels for 1 million files versus ~20 levels in binary trees. This architecture shines at scale, with cache-aligned contiguous memory layout that minimizes CPU cache misses during tree traversal, making it ideal for large-scale deployments while remaining efficient for everyday use.
+2.  **N-ary Tree Architecture:** The filesystem employs a 16-way branching tree structure instead of traditional binary trees. On small filesystems (under 10,000 files), the performance difference is negligible. However, as the filesystem scales to millions of files, the 16-way branching delivers dramatically faster operations—requiring only ~5 tree levels for 1 million files versus ~20 levels in binary trees. This architecture shines at scale, with cache-aligned contiguous memory layout that minimizes CPU cache misses during tree traversal, making it ideal for large-scale deployments while remaining efficient for everyday use. The O(log n) complexity is preserved regardless of system topology, ensuring consistent performance scaling across different environments.
 
 3.  **Cache-Friendly Design & Locality Optimization:** RazorFS is specifically engineered to maximize cache efficiency and data locality for improved performance:
 
@@ -91,6 +91,10 @@ RazorFS operates with an intelligent, adaptive performance model based on the ha
     **Spatial Locality:** Related metadata is stored contiguously in memory, improving cache hit rates during sequential operations. The compressed data blocks are organized to optimize for spatial locality, reducing memory access patterns that would cause cache thrashing.
     
     **Temporal Locality:** The filesystem implements intelligent caching strategies that exploit temporal locality by keeping recently accessed metadata and frequently-used data blocks in hot cache regions, reducing the need to access slower memory tiers.
+
+4.  **Consistent Performance Profile:** RazorFS is designed to maintain consistent performance characteristics across different system configurations. When running on non-NUMA systems, the filesystem maintains performance comparable to established filesystems like ext4 while preserving its fundamental O(log n) complexity. This ensures that the filesystem doesn't collapse in performance on standard hardware, instead maintaining the logarithmic scalability benefits while adapting its optimization strategies to the available hardware capabilities.
+
+5.  **Production Hardening Focus:** Although currently under active testing and validation, RazorFS is being developed with a clear path toward production deployment. The system is designed with security and stability in mind, incorporating robust error handling, crash recovery mechanisms, and memory safety practices. The filesystem aims to be hardened for production systems through comprehensive testing, formal verification of critical components, and extensive benchmarking against established filesystems.
 
 ---
 
