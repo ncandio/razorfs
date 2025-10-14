@@ -86,7 +86,7 @@ TEST_F(FilesystemIntegrationTest, CreateAndDeleteFiles) {
     ASSERT_NE(file3, NARY_INVALID_IDX);
 
     // Delete file2
-    EXPECT_EQ(nary_delete_mt(tree, file2), 0);
+    EXPECT_EQ(nary_delete_mt(tree, file2, nullptr, 0), 0);
 
     // Verify file2 gone, others remain
     EXPECT_NE(nary_find_child_mt(tree, dir, "file1.txt"), NARY_INVALID_IDX);
@@ -94,11 +94,11 @@ TEST_F(FilesystemIntegrationTest, CreateAndDeleteFiles) {
     EXPECT_NE(nary_find_child_mt(tree, dir, "file3.txt"), NARY_INVALID_IDX);
 
     // Delete remaining files
-    EXPECT_EQ(nary_delete_mt(tree, file1), 0);
-    EXPECT_EQ(nary_delete_mt(tree, file3), 0);
+    EXPECT_EQ(nary_delete_mt(tree, file1, nullptr, 0), 0);
+    EXPECT_EQ(nary_delete_mt(tree, file3, nullptr, 0), 0);
 
     // Now can delete empty directory
-    EXPECT_EQ(nary_delete_mt(tree, dir), 0);
+    EXPECT_EQ(nary_delete_mt(tree, dir, nullptr, 0), 0);
 }
 
 TEST_F(FilesystemIntegrationTest, PersistenceWorkflow) {
@@ -245,7 +245,7 @@ TEST_F(FilesystemIntegrationTest, SimulateUserWorkflow) {
 
         uint16_t file = nary_find_child_mt(tree, found_docs, filename);
         if (file != NARY_INVALID_IDX) {
-            EXPECT_EQ(nary_delete_mt(tree, file), 0);
+            EXPECT_EQ(nary_delete_mt(tree, file, nullptr, 0), 0);
         }
     }
 

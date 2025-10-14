@@ -95,7 +95,7 @@ TEST_F(NaryTreeTest, DeleteChild) {
                                   S_IFREG | 0644);
     ASSERT_NE(idx, NARY_INVALID_IDX);
 
-    EXPECT_EQ(nary_delete_mt(&tree, idx), 0);
+    EXPECT_EQ(nary_delete_mt(&tree, idx, nullptr, 0), 0);
 
     uint16_t found = nary_find_child_mt(&tree, NARY_ROOT_IDX, "delete_me.txt");
     EXPECT_EQ(found, NARY_INVALID_IDX);
@@ -112,7 +112,7 @@ TEST_F(NaryTreeTest, DeleteNonEmptyDirectory) {
     ASSERT_NE(file_idx, NARY_INVALID_IDX);
 
     // Should fail with ENOTEMPTY
-    EXPECT_EQ(nary_delete_mt(&tree, dir_idx), -ENOTEMPTY);
+    EXPECT_EQ(nary_delete_mt(&tree, dir_idx, nullptr, 0), -ENOTEMPTY);
 }
 
 TEST_F(NaryTreeTest, DeleteEmptyDirectory) {
@@ -120,7 +120,7 @@ TEST_F(NaryTreeTest, DeleteEmptyDirectory) {
                                       S_IFDIR | 0755);
     ASSERT_NE(dir_idx, NARY_INVALID_IDX);
 
-    EXPECT_EQ(nary_delete_mt(&tree, dir_idx), 0);
+    EXPECT_EQ(nary_delete_mt(&tree, dir_idx, nullptr, 0), 0);
 }
 
 // ============================================================================
@@ -303,10 +303,10 @@ TEST_F(NaryTreeTest, InvalidParameters) {
               NARY_INVALID_IDX);
 
     // Delete with null tree
-    EXPECT_EQ(nary_delete_mt(nullptr, 1), -1);
+    EXPECT_EQ(nary_delete_mt(nullptr, 1, nullptr, 0), -1);
 
     // Delete root
-    EXPECT_EQ(nary_delete_mt(&tree, NARY_ROOT_IDX), -1);
+    EXPECT_EQ(nary_delete_mt(&tree, NARY_ROOT_IDX, nullptr, 0), -1);
 }
 
 TEST_F(NaryTreeTest, CapacityLimit) {
