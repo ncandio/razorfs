@@ -337,13 +337,13 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
     return child_idx;
 }
 
-int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx) {
+int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx, struct wal *wal, int wal_enabled) {
     if (!tree || idx >= tree->used || idx == NARY_ROOT_IDX) {
         return -1;
     }
 
     struct nary_node_mt *node = &tree->nodes[idx];
-    uint32_t parent_idx = node->node.parent_idx;
+    uint16_t parent_idx = node->node.parent_idx;
 
     if (parent_idx >= tree->used) {
         return -1;
@@ -367,6 +367,19 @@ int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx) {
         pthread_rwlock_unlock(&node->lock);
         pthread_rwlock_unlock(&parent->lock);
         return -ENOTEMPTY;
+    }
+
+    /* Log deletion to WAL before modifying the tree */
+    if (wal_enabled) {
+        struct wal_delete_data delete_data = {
+            .node_idx = idx,
+            .parent_idx = parent_idx,
+            .inode = node->node.inode,
+            .name_offset = node->node.name_offset,
+            .mode = node->node.mode,
+            .timestamp = node->node.mtime,
+        };
+        wal_log_delete(wal, 0, &delete_data);
     }
 
     /* Remove from parent's children array */
@@ -490,7 +503,25 @@ int nary_update_node_mt(struct nary_tree_mt *tree, uint16_t idx,
     }
 
     /* Update node data */
-    memcpy(&node->node, new_node, sizeof(struct nary_node));
+    pthread_rwlock_unlock(&node->lock);
+    return 0;
+}
+
+int nary_update_size_mtime_mt(struct nary_tree_mt *tree, uint16_t idx, size_t new_size, time_t new_mtime) {
+    if (!tree || idx >= tree->used) {
+        return -1;
+    }
+
+    struct nary_node_mt *node = &tree->nodes[idx];
+
+    /* Lock node for writing */
+    if (pthread_rwlock_wrlock(&node->lock) != 0) {
+        return -1;
+    }
+
+    /* Update size and mtime */
+    node->node.size = new_size;
+    node->node.mtime = new_mtime;
 
     pthread_rwlock_unlock(&node->lock);
     return 0;

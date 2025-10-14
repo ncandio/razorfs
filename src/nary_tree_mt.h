@@ -136,7 +136,7 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
  * Locking: Acquires write lock on parent, then node
  * Order: parent before child (prevents deadlock)
  */
-int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx);
+int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx, struct wal *wal, int wal_enabled);
 
 /**
  * Path lookup (concurrent reads)
@@ -159,6 +159,11 @@ int nary_read_node_mt(struct nary_tree_mt *tree,
 int nary_update_node_mt(struct nary_tree_mt *tree,
                         uint16_t idx,
                         const struct nary_node *new_node);
+
+/**
+ * Atomically update node size and mtime (exclusive lock)
+ */
+int nary_update_size_mtime_mt(struct nary_tree_mt *tree, uint16_t idx, size_t new_size, time_t new_mtime);
 
 /* === Lock Management Helpers === */
 

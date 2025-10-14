@@ -314,20 +314,7 @@ static int razorfs_mt_rmdir(const char *path) {
         return -ENOTDIR;
     }
 
-    /* Log deletion to WAL before modifying the tree */
-    if (g_mt_fs.wal_enabled) {
-        struct wal_delete_data delete_data = {
-            .node_idx = idx,
-            .parent_idx = nary_find_parent_mt(&g_mt_fs.tree, idx),
-            .inode = node.inode,
-            .name_offset = node.name_offset,
-            .mode = node.mode,
-            .timestamp = node.mtime,
-        };
-        wal_log_delete(&g_mt_fs.wal, 0, &delete_data);
-    }
-
-    int result = nary_delete_mt(&g_mt_fs.tree, idx);
+    int result = nary_delete_mt(&g_mt_fs.tree, idx, &g_mt_fs.wal, g_mt_fs.wal_enabled);
     switch (result) {
         case 0:      return 0;
         case -ENOTEMPTY: return -ENOTEMPTY;
@@ -356,12 +343,12 @@ static int razorfs_mt_create(const char *path, mode_t mode, struct fuse_file_inf
     /* Create file data storage */
     struct nary_node node;
     if (nary_read_node_mt(&g_mt_fs.tree, new_idx, &node) != 0) {
-        nary_delete_mt(&g_mt_fs.tree, new_idx);
+        nary_delete_mt(&g_mt_fs.tree, new_idx, &g_mt_fs.wal, g_mt_fs.wal_enabled);
         return -EIO;
     }
 
     if (!create_file_data(node.inode)) {
-        nary_delete_mt(&g_mt_fs.tree, new_idx);
+        nary_delete_mt(&g_mt_fs.tree, new_idx, &g_mt_fs.wal, g_mt_fs.wal_enabled);
         return -ENOMEM;
     }
 
@@ -389,22 +376,9 @@ static int razorfs_mt_unlink(const char *path) {
         return -EISDIR;
     }
 
-    /* Log deletion to WAL before modifying the tree */
-    if (g_mt_fs.wal_enabled) {
-        struct wal_delete_data delete_data = {
-            .node_idx = idx,
-            .parent_idx = nary_find_parent_mt(&g_mt_fs.tree, idx),
-            .inode = node.inode,
-            .name_offset = node.name_offset,
-            .mode = node.mode,
-            .timestamp = node.mtime,
-        };
-        wal_log_delete(&g_mt_fs.wal, 0, &delete_data);
-    }
-
     uint32_t inode = node.inode;
 
-    int result = nary_delete_mt(&g_mt_fs.tree, idx);
+    int result = nary_delete_mt(&g_mt_fs.tree, idx, &g_mt_fs.wal, g_mt_fs.wal_enabled);
     if (result != 0) {
         return -EIO;
     }
@@ -619,12 +593,7 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
 
     /* Update node size separately */
     if (idx != NARY_INVALID_IDX) {
-        struct nary_node node;
-        if (nary_read_node_mt(&g_mt_fs.tree, idx, &node) == 0) {
-            node.size = fd->size;
-            node.mtime = time(NULL);
-            nary_update_node_mt(&g_mt_fs.tree, idx, &node);
-        }
+        nary_update_size_mtime_mt(&g_mt_fs.tree, idx, fd->size, time(NULL));
     }
 
     return size;
