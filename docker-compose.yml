@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  razorfs-cache-bench:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: razorfs-cache-locality-bench
+    privileged: true  # Required for FUSE mounting
+    volumes:
+      - ./benchmarks/results:/app/benchmarks/results
+      - /tmp:/tmp
+    working_dir: /app
+    command: bash /app/run_cache_bench.sh
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
