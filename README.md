@@ -84,6 +84,14 @@ RazorFS operates with an intelligent, adaptive performance model based on the ha
 
 2.  **N-ary Tree Architecture:** The filesystem employs a 16-way branching tree structure instead of traditional binary trees. On small filesystems (under 10,000 files), the performance difference is negligible. However, as the filesystem scales to millions of files, the 16-way branching delivers dramatically faster operations—requiring only ~5 tree levels for 1 million files versus ~20 levels in binary trees. This architecture shines at scale, with cache-aligned contiguous memory layout that minimizes CPU cache misses during tree traversal, making it ideal for large-scale deployments while remaining efficient for everyday use.
 
+3.  **Cache-Friendly Design & Locality Optimization:** RazorFS is specifically engineered to maximize cache efficiency and data locality for improved performance:
+
+    **Cache-Friendly Layout:** All critical data structures are aligned to 64-byte cache lines to prevent false sharing and ensure optimal cache performance. The filesystem employs cache-conscious design principles throughout its architecture to minimize cache misses during tree traversals and metadata operations.
+    
+    **Spatial Locality:** Related metadata is stored contiguously in memory, improving cache hit rates during sequential operations. The compressed data blocks are organized to optimize for spatial locality, reducing memory access patterns that would cause cache thrashing.
+    
+    **Temporal Locality:** The filesystem implements intelligent caching strategies that exploit temporal locality by keeping recently accessed metadata and frequently-used data blocks in hot cache regions, reducing the need to access slower memory tiers.
+
 ---
 
 ## 🚀 Quick Start
