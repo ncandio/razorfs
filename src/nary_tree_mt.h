@@ -10,6 +10,7 @@
 
 #include "nary_tree.h"
 #include "string_table.h"
+#include "wal.h"
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
