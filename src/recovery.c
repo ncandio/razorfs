@@ -279,7 +279,7 @@ static int replay_delete(struct recovery_ctx *ctx, const struct wal_delete_data 
     }
 
     /* Delete node by index */
-    int ret = nary_delete_mt(ctx->tree, data->node_idx);
+    int ret = nary_delete_mt(ctx->tree, data->node_idx, ctx->wal, 0);
     if (ret != 0) {
         return -1;
     }
@@ -419,7 +419,7 @@ static int undo_insert(struct recovery_ctx *ctx, const struct wal_insert_data *d
     for (uint32_t i = 0; i < ctx->tree->used; i++) {
         if (ctx->tree->nodes[i].node.inode == data->inode) {
             /* Found it, now delete it */
-            if (nary_delete_mt(ctx->tree, i) == 0) {
+            if (nary_delete_mt(ctx->tree, i, ctx->wal, 0) == 0) {
                 ctx->ops_undone++;
                 return 0;
             }
