@@ -30,6 +30,9 @@ RUN pip3 install numpy matplotlib
 # Copy source code
 COPY . .
 
+# Ensure readme_graphs directory is available
+RUN mkdir -p /app/readme_graphs
+
 # Build RazorFS
 RUN make clean && make
 

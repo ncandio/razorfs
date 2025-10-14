@@ -78,6 +78,9 @@ The benchmark generates several output files in `./benchmarks/results/`:
 - `cache_locality_heatmap.png` - Performance heatmap
 - `cache_locality_python_report.txt` - Detailed Python analysis
 
+### Additional Analysis
+- `memory_numa_analysis.png` - Memory and NUMA performance characteristics visualization in the `readme_graphs/` directory
+
 ## Key Features
 
 ### Cache Locality Metrics

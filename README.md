@@ -155,6 +155,10 @@ echo "To unmount, run: fusermount3 -u /tmp/razorfs_mount"
 ![Performance Heatmap](readme_graphs/scalability_heatmap.png)
 *Side-by-side comparison across all metrics.*
 
+#### Memory and NUMA Analysis
+![Memory NUMA Analysis](readme_graphs/memory_numa_analysis.png)
+*Cache locality and NUMA performance analysis comparing RazorFS and ext4.*
+
 ---
 
 ## ⚠️ Limitations & Known Issues

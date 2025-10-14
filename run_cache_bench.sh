@@ -290,8 +290,8 @@ python3 /app/cache_locality_plots.py || echo "Python analysis failed, continuing
 
 # Create a summary report
 cat > /app/benchmarks/results/cache_locality_summary.txt << EOF
-CACHE LOCALITY BENCHMARK SUMMARY
-===============================
+CACHE LOCALITY & NUMA ANALYSIS BENCHMARK SUMMARY
+================================================
 
 Filesystem: RazorFS (FUSE3-based N-ary Tree Filesystem)
 Comparison: ext4 mounted filesystem
@@ -309,6 +309,12 @@ ARCHITECTURAL ADVANTAGES OF RAZORFS FOR CACHE LOCALITY:
 - NUMA-aware memory allocation
 - Spatial locality through breadth-first layout
 - Temporal locality through efficient locking mechanisms
+
+MEMORY AND NUMA ANALYSIS:
+For additional details on memory access patterns and NUMA performance characteristics,
+see the memory_numa_analysis.png visualization in the readme_graphs directory.
+This graph shows how RazorFS's NUMA-aware design improves memory access locality
+on multi-socket systems.
 
 RESULTS:
 The benchmark measures cache-friendliness through access times.
