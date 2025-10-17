@@ -265,6 +265,78 @@ TEST_F(ShmPersistTest, DISABLED_DoubleDetach) {  // Causes segmentation fault in
 }
 
 // ============================================================================
+// File Data Persistence Tests
+// ============================================================================
+
+TEST_F(ShmPersistTest, FileDataSaveRestore) {
+    const char *test_data = "Hello, World!";
+    size_t data_size = strlen(test_data) + 1;
+
+    // Save file data (not compressed)
+    ASSERT_EQ(shm_file_data_save(100, test_data, data_size, data_size, 0), 0);
+
+    // Restore file data
+    void *restored_data = nullptr;
+    size_t restored_size = 0;
+    size_t actual_size = 0;
+    int is_compressed = 0;
+    ASSERT_EQ(shm_file_data_restore(100, &restored_data, &restored_size, &actual_size, &is_compressed), 0);
+
+    ASSERT_NE(restored_data, nullptr);
+    EXPECT_EQ(restored_size, data_size);
+    EXPECT_STREQ((const char*)restored_data, test_data);
+
+    free(restored_data);
+}
+
+TEST_F(ShmPersistTest, FileDataRemove) {
+    const char *test_data = "Temporary data";
+    size_t data_size = strlen(test_data) + 1;
+
+    // Save and verify
+    ASSERT_EQ(shm_file_data_save(101, test_data, data_size, data_size, 0), 0);
+    void *restored_data = nullptr;
+    size_t restored_size = 0;
+    size_t actual_size = 0;
+    int is_compressed = 0;
+    ASSERT_EQ(shm_file_data_restore(101, &restored_data, &restored_size, &actual_size, &is_compressed), 0);
+    ASSERT_NE(restored_data, nullptr);
+    free(restored_data);
+
+    // Remove
+    shm_file_data_remove(101);
+
+    // Try to restore - should fail
+    restored_data = nullptr;
+    EXPECT_NE(shm_file_data_restore(101, &restored_data, &restored_size, &actual_size, &is_compressed), 0);
+}
+
+TEST_F(ShmPersistTest, DiskFileDataOperations) {
+    const char *test_data = "Disk persisted content";
+    size_t data_size = strlen(test_data) + 1;
+
+    // Save to disk (not compressed)
+    ASSERT_EQ(disk_file_data_save(200, test_data, data_size, data_size, 0), 0);
+
+    // Restore from disk
+    void *restored_data = nullptr;
+    size_t restored_size = 0;
+    size_t actual_size = 0;
+    int is_compressed = 0;
+    ASSERT_EQ(disk_file_data_restore(200, &restored_data, &restored_size, &actual_size, &is_compressed), 0);
+
+    ASSERT_NE(restored_data, nullptr);
+    EXPECT_EQ(actual_size, data_size);
+    EXPECT_EQ(is_compressed, 0);
+    EXPECT_STREQ((const char*)restored_data, test_data);
+
+    free(restored_data);
+
+    // Cleanup
+    disk_file_data_remove(200);
+}
+
+// ============================================================================
 // Stress Tests
 // ============================================================================
 

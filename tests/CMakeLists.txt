@@ -145,6 +145,14 @@ target_link_libraries(inode_table_test
     GTest::gmock
 )
 
+# NUMA Support Tests
+add_executable(numa_support_test unit/numa_support_test.cpp)
+target_link_libraries(numa_support_test
+    razorfs_lib
+    GTest::gtest_main
+    GTest::gmock
+)
+
 # Integration Tests
 add_executable(integration_test integration/filesystem_test.cpp)
 target_link_libraries(integration_test
@@ -163,4 +171,5 @@ gtest_discover_tests(wal_test)
 gtest_discover_tests(recovery_test)
 gtest_discover_tests(xattr_test)
 gtest_discover_tests(inode_table_test)
+gtest_discover_tests(numa_support_test)
 gtest_discover_tests(integration_test)
