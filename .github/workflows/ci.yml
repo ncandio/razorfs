@@ -51,18 +51,11 @@ jobs:
         cmake .. -DCMAKE_BUILD_TYPE=Debug
         make -j$(nproc)
 
-    - name: Run Unit Tests
-      run: |
-        cd tests/build
-        ./string_table_test
-        ./nary_tree_test
-        ./shm_persist_test
-
-    - name: Run Integration Tests
+    - name: Run All Tests
       run: |
         cd tests/build
         sudo rm -f /dev/shm/razorfs_* || true
-        ./integration_test
+        ctest --output-on-failure
 
     - name: Upload test results
       if: always()
