@@ -106,6 +106,9 @@ RazorFS operates with an intelligent, adaptive performance model based on the ha
 - zlib development libraries
 - Make
 
+### Datacenter Deployment
+RazorFS supports cross-compilation for major datacenter architectures including ARM64 (AWS Graviton, Ampere Altra), PowerPC64LE (IBM POWER9/10), and RISC-V. See [CROSS_COMPILE.md](./CROSS_COMPILE.md) for detailed instructions.
+
 ### Build and Run
 
 Copy and paste this complete script to build and test RAZORFS:
