@@ -1,0 +1,7 @@
+filesystem,operation,time,access_pattern,fs_type
+razorfs (FUSE3),dir_traversal,0.235357497,sequential,cache_friendly
+ext4,dir_traversal,0.191631697,sequential,cache_friendly
+razorfs (FUSE3),read,0.196691697,sequential,cache_friendly
+ext4,read,0.141040498,sequential,cache_friendly
+razorfs (FUSE3),random_access,0.001700200,random,cache_friendly
+ext4,random_access,0.073614999,random,cache_friendly

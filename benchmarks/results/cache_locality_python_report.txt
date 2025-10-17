@@ -1,0 +1,37 @@
+CACHE LOCALITY ANALYSIS REPORT
+============================
+
+FILESYSTEMS COMPARED:
+- RazorFS (FUSE3-based N-ary Tree Filesystem)
+- ext4 (Standard Linux filesystem)
+
+BENCHMARK OPERATIONS:
+- Directory Traversal: Sequential access to directories
+- File Reads: Sequential access to file contents
+- Random Access: Random access to files
+
+ARCHITECTURAL ADVANTAGES OF RAZORFS:
+- 64-byte aligned nodes for cache line optimization
+- 16-way branching for O(log₁₆ n) complexity
+- Contiguous memory layout for tree nodes
+- NUMA-aware memory allocation
+- Spatial and temporal locality optimizations
+
+PERFORMANCE SUMMARY:
+- dir_traversal: ext4 is 1.23x faster than razorfs (FUSE3)
+- read: ext4 is 1.39x faster than razorfs (FUSE3)
+- random_access: razorfs (FUSE3) is 43.30x faster than ext4
+
+
+CONCLUSION:
+The filesystem with lower access times demonstrates better cache locality.
+Cache locality is important because it:
+1. Reduces CPU cache misses
+2. Improves spatial locality (data accessed together is stored together)
+3. Improves temporal locality (frequently accessed data stays in cache)
+4. Reduces memory access latency
+
+NOTES:
+- Results may vary based on system configuration
+- Cache-friendly filesystems show greater benefits with larger datasets
+- RazorFS uses FUSE3 for mounting, which adds userspace overhead but provides flexibility

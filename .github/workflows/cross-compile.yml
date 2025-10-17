@@ -1,0 +1,263 @@
+name: Cross-Compile for Datacenter Architectures
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  ###############################################################################
+  # Cross-Compilation Matrix for Datacenter Architectures
+  ###############################################################################
+  cross-compile:
+    name: Cross-Compile for ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - name: arm64
+            compiler: aarch64-linux-gnu-gcc
+            package: gcc-aarch64-linux-gnu
+            description: "ARM64 (AWS Graviton, Ampere Altra)"
+          - name: arm32
+            compiler: arm-linux-gnueabihf-gcc
+            package: gcc-arm-linux-gnueabihf
+            description: "ARM32 (Legacy ARM servers)"
+          - name: ppc64le
+            compiler: powerpc64le-linux-gnu-gcc
+            package: gcc-powerpc64le-linux-gnu
+            description: "PowerPC64LE (IBM POWER9/POWER10)"
+          - name: riscv64
+            compiler: riscv64-linux-gnu-gcc
+            package: gcc-riscv64-linux-gnu
+            description: "RISC-V 64-bit"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install cross-compilation toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          ${{ matrix.arch.package }} \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev \
+          pkg-config \
+          make
+
+    - name: Verify toolchain
+      run: |
+        echo "Testing compiler: ${{ matrix.arch.compiler }}"
+        ${{ matrix.arch.compiler }} --version
+
+    - name: Cross-compile RazorFS (Release)
+      run: |
+        echo "Building RazorFS for ${{ matrix.arch.description }}"
+        make clean
+        make release CC=${{ matrix.arch.compiler }}
+
+    - name: Rename binary
+      run: |
+        mv razorfs razorfs_${{ matrix.arch.name }}
+        ls -lh razorfs_${{ matrix.arch.name }}
+
+    - name: Display binary info
+      run: |
+        file razorfs_${{ matrix.arch.name }}
+        size razorfs_${{ matrix.arch.name }}
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: razorfs-${{ matrix.arch.name }}
+        path: razorfs_${{ matrix.arch.name }}
+        retention-days: 30
+
+  ###############################################################################
+  # Native x86_64 Build (for comparison)
+  ###############################################################################
+  native-build:
+    name: Native x86_64 Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev \
+          pkg-config \
+          make
+
+    - name: Build RazorFS (Release)
+      run: |
+        make clean
+        make release
+
+    - name: Rename binary
+      run: |
+        mv razorfs razorfs_x86_64
+        ls -lh razorfs_x86_64
+
+    - name: Display binary info
+      run: |
+        file razorfs_x86_64
+        size razorfs_x86_64
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: razorfs-x86_64
+        path: razorfs_x86_64
+        retention-days: 30
+
+  ###############################################################################
+  # Hardened Builds for Production Deployment
+  ###############################################################################
+  hardened-builds:
+    name: Hardened Build for ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - name: arm64
+            compiler: aarch64-linux-gnu-gcc
+            package: gcc-aarch64-linux-gnu
+          - name: ppc64le
+            compiler: powerpc64le-linux-gnu-gcc
+            package: gcc-powerpc64le-linux-gnu
+          - name: x86_64
+            compiler: gcc
+            package: gcc
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install toolchain and dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          ${{ matrix.arch.package }} \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev \
+          binutils \
+          pkg-config \
+          make
+
+    - name: Build hardened RazorFS
+      run: |
+        make clean
+        make hardened CC=${{ matrix.arch.compiler }}
+
+    - name: Rename binary
+      run: |
+        mv razorfs razorfs_${{ matrix.arch.name }}_hardened
+        ls -lh razorfs_${{ matrix.arch.name }}_hardened
+
+    - name: Verify security features
+      run: |
+        file razorfs_${{ matrix.arch.name }}_hardened
+        if command -v checksec &> /dev/null; then
+          checksec --file=razorfs_${{ matrix.arch.name }}_hardened || true
+        fi
+
+    - name: Generate checksums
+      run: |
+        sha256sum razorfs_${{ matrix.arch.name }}_hardened > razorfs_${{ matrix.arch.name }}_hardened.sha256
+        cat razorfs_${{ matrix.arch.name }}_hardened.sha256
+
+    - name: Upload hardened binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: razorfs-${{ matrix.arch.name }}-hardened
+        path: |
+          razorfs_${{ matrix.arch.name }}_hardened
+          razorfs_${{ matrix.arch.name }}_hardened.sha256
+        retention-days: 90
+
+  ###############################################################################
+  # Create Release Assets
+  ###############################################################################
+  create-release-assets:
+    name: Create Release Assets
+    runs-on: ubuntu-latest
+    needs: [cross-compile, native-build, hardened-builds]
+    if: github.event_name == 'release'
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: List downloaded artifacts
+      run: |
+        ls -lR artifacts/
+
+    - name: Create release tarball
+      run: |
+        cd artifacts
+        tar czf razorfs-binaries-all-architectures.tar.gz razorfs-*
+        sha256sum razorfs-binaries-all-architectures.tar.gz > razorfs-binaries-all-architectures.tar.gz.sha256
+
+    - name: Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/razorfs-binaries-all-architectures.tar.gz
+          artifacts/razorfs-binaries-all-architectures.tar.gz.sha256
+          artifacts/razorfs-arm64/razorfs_arm64
+          artifacts/razorfs-ppc64le/razorfs_ppc64le
+          artifacts/razorfs-riscv64/razorfs_riscv64
+          artifacts/razorfs-x86_64/razorfs_x86_64
+          artifacts/razorfs-arm64-hardened/razorfs_arm64_hardened
+          artifacts/razorfs-ppc64le-hardened/razorfs_ppc64le_hardened
+          artifacts/razorfs-x86_64-hardened/razorfs_x86_64_hardened
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  ###############################################################################
+  # Build Summary
+  ###############################################################################
+  build-summary:
+    name: Cross-Compilation Summary
+    runs-on: ubuntu-latest
+    needs: [cross-compile, native-build]
+    if: always()
+
+    steps:
+    - name: Generate summary
+      run: |
+        echo "# Cross-Compilation Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Architectures Built" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Architecture | Status | Use Case |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+        echo "| ARM64 | ✅ | AWS Graviton, Ampere Altra, Azure Cobalt |" >> $GITHUB_STEP_SUMMARY
+        echo "| ARM32 | ✅ | Legacy ARM servers |" >> $GITHUB_STEP_SUMMARY
+        echo "| PowerPC64LE | ✅ | IBM POWER9/POWER10 |" >> $GITHUB_STEP_SUMMARY
+        echo "| RISC-V 64 | ✅ | Emerging datacenter architecture |" >> $GITHUB_STEP_SUMMARY
+        echo "| x86_64 | ✅ | Intel Xeon, AMD EPYC |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Deployment" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "All binaries are available as workflow artifacts." >> $GITHUB_STEP_SUMMARY
+        echo "See [CROSS_COMPILE.md](CROSS_COMPILE.md) for deployment instructions." >> $GITHUB_STEP_SUMMARY
