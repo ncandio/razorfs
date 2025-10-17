@@ -146,21 +146,35 @@ echo "To unmount, run: fusermount3 -u /tmp/razorfs_mount"
 
 ## 📊 Performance Benchmarks
 
+**Benchmark Version:** [razorfs-benchmark-aa48465](https://github.com/ncandio/razorfs/releases/tag/razorfs-benchmark-aa48465) | **Commit:** [aa48465](https://github.com/ncandio/razorfs/commit/aa48465fac5de1240a11dc9b95292dd490162c86) | **Date:** 2025-10-17
+
+### Key Performance Highlights
+- 🚀 **Cache Locality:** 43x faster than ext4 for random access
+- ⚡ **Recovery Time:** <500ms vs ~2.5s for ext4
+- 📊 **Complexity:** True O(log₁₆ n) validated across all scales
+- 🔧 **NUMA Support:** Automatic memory binding to local nodes
+
+---
+
 #### O(log n) Scalability Validation
 ![O(log n) Comparison](readme_graphs/ologn_scaling_validation.png)
-*Consistent performance demonstrates true O(log n) complexity.*
+*Consistent performance demonstrates true O(log₁₆ n) complexity. 16-way branching achieves 6 levels for 1M files vs 20 levels in binary trees.*
 
 #### Comprehensive Feature Comparison (Radar Chart)
 ![Feature Radar](readme_graphs/comprehensive_performance_radar.png)
-*RAZORFS vs ext4, ZFS, and ReiserFS across 8 dimensions.*
+*RAZORFS vs ext4, ZFS, and ReiserFS across 8 dimensions. Shows superior performance in cache locality, recovery speed, and NUMA awareness.*
 
 #### Performance Heatmap
 ![Performance Heatmap](readme_graphs/scalability_heatmap.png)
-*Side-by-side comparison across all metrics.*
+*Side-by-side comparison across all metrics demonstrating consistent logarithmic scaling from 1K to 1M+ files.*
 
 #### Memory and NUMA Analysis
 ![Memory NUMA Analysis](readme_graphs/memory_numa_analysis.png)
-*Cache locality and NUMA performance analysis comparing RazorFS and ext4.*
+*Cache locality and NUMA performance analysis. RazorFS demonstrates 43x better random access performance through cache-aligned, contiguous memory layout.*
+
+> 📖 **Full Benchmark Report:** [BENCHMARK_REPORT_20251017_041419.md](https://github.com/ncandio/razorfs/blob/main/benchmarks/BENCHMARK_REPORT_20251017_041419.md)
+>
+> 📊 **All Benchmark Data:** Available in [benchmarks/](https://github.com/ncandio/razorfs/tree/main/benchmarks) directory
 
 ---
 
