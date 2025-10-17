@@ -254,21 +254,60 @@ jobs:
       run: |
         cd tests/build
         sudo rm -f /dev/shm/razorfs_* || true
-        ctest --output-on-failure
+
+        # Run tests with verbose output and capture results
+        echo "=== Running Tests ==="
+        ctest --output-on-failure --verbose
+        TEST_EXIT_CODE=$?
+
+        echo ""
+        echo "=== Test Execution Complete (exit code: $TEST_EXIT_CODE) ==="
+
+        # Verify .gcda files were updated
+        echo ""
+        echo "=== Checking coverage data files ==="
+        GCDA_COUNT=$(find . -name "*.gcda" | wc -l)
+        echo "Found $GCDA_COUNT .gcda files"
+
+        if [ $GCDA_COUNT -eq 0 ]; then
+          echo "ERROR: No coverage data files generated!"
+          exit 1
+        fi
+
+        # Show recent .gcda files to confirm they were updated
+        echo ""
+        echo "=== Recently modified .gcda files ==="
+        find . -name "*.gcda" -mmin -5 -ls | head -10
+
+        exit $TEST_EXIT_CODE
 
     - name: Generate Coverage Report
       run: |
         mkdir -p tests/results/coverage
-        lcov --capture --directory tests/build --output-file tests/results/coverage.info --ignore-errors mismatch,inconsistent
+
+        echo "=== Capturing coverage data ==="
+        lcov --capture \
+          --directory tests/build \
+          --output-file tests/results/coverage.info \
+          --ignore-errors mismatch,inconsistent \
+          --rc lcov_branch_coverage=0
+
+        echo ""
+        echo "=== Filtering coverage data ==="
         lcov --remove tests/results/coverage.info \
           '/usr/*' \
           '*/tests/*' \
           '*/googletest/*' \
           --output-file tests/results/coverage_filtered.info \
-          --ignore-errors unused
+          --ignore-errors unused \
+          --rc lcov_branch_coverage=0
+
+        echo ""
+        echo "=== Generating HTML report ==="
         genhtml tests/results/coverage_filtered.info \
           --output-directory tests/results/coverage_html \
-          --ignore-errors source
+          --ignore-errors source \
+          --rc lcov_branch_coverage=0
 
     - name: Display Coverage Summary
       run: |
