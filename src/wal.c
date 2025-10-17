@@ -54,6 +54,73 @@ uint64_t wal_timestamp(void) {
     return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
+#define GF2_DIM 32
+
+static uint32_t gf2_matrix_times(const uint32_t *mat, uint32_t vec) {
+    uint32_t sum = 0;
+    int i = 0;
+    while (vec) {
+        if (vec & 1) {
+            sum ^= mat[i];
+        }
+        vec >>= 1;
+        i++;
+    }
+    return sum;
+}
+
+static void gf2_matrix_square(uint32_t *square, const uint32_t *mat) {
+    for (int i = 0; i < GF2_DIM; i++) {
+        square[i] = gf2_matrix_times(mat, mat[i]);
+    }
+}
+
+uint32_t wal_crc32_combine(uint32_t crc1, uint32_t crc2, size_t len2) {
+    if (len2 == 0) {
+        return crc1;
+    }
+
+    uint32_t even[GF2_DIM];
+    uint32_t odd[GF2_DIM];
+
+    // operator for one zero bit
+    odd[0] = 0xEDB88320L;          // CRC-32 polynomial
+    uint32_t row = 1;
+    for (int i = 1; i < GF2_DIM; i++) {
+        odd[i] = row;
+        row <<= 1;
+    }
+
+    // square to get operator for two zero bits
+    gf2_matrix_square(even, odd);
+
+    // square to get operator for four zero bits
+    gf2_matrix_square(odd, even);
+
+    // apply len2 zeros to crc1
+    do {
+        // apply matrix multiplication for each bit of len2
+        gf2_matrix_square(even, odd);
+        if (len2 & 1) {
+            crc1 = gf2_matrix_times(even, crc1);
+        }
+        len2 >>= 1;
+
+        if (len2 == 0) {
+            break;
+        }
+
+        gf2_matrix_square(odd, even);
+        if (len2 & 1) {
+            crc1 = gf2_matrix_times(odd, crc1);
+        }
+        len2 >>= 1;
+    } while (len2 != 0);
+
+    crc1 ^= crc2;
+    return crc1;
+}
+
 /* Calculate header checksum (excluding checksum field itself) */
 static uint32_t calc_header_checksum(const struct wal_header *header) {
     /* Checksum everything except the checksum field */
@@ -335,20 +402,7 @@ static int wal_append_entry(struct wal *wal, struct wal_entry *entry,
 
     size_t entry_size = sizeof(struct wal_entry) + data_len;
     entry->data_len = data_len;
-
-    /* Calculate checksum of entry + data */
-    size_t checksum_offset = offsetof(struct wal_entry, checksum);
-    size_t temp_buf_size = checksum_offset + data_len;
-    char *temp_buf = malloc(temp_buf_size);
-    if (!temp_buf) {
-        return -1;
-    }
-    memcpy(temp_buf, entry, checksum_offset);
-    if (data_len > 0 && data) {
-        memcpy(temp_buf + checksum_offset, data, data_len);
-    }
-    entry->checksum = wal_crc32(temp_buf, temp_buf_size);
-    free(temp_buf);
+    entry->checksum = 0; // Will be calculated in-place later
 
     pthread_mutex_lock(&wal->log_lock);
 
@@ -365,17 +419,32 @@ static int wal_append_entry(struct wal *wal, struct wal_entry *entry,
 
     /* Handle wraparound */
     if (write_offset + entry_size > wal->buffer_size) {
-        /* Wrap to beginning */
+        /* Check if there's enough space at the beginning */
+        if (entry_size > wal->header->tail_offset) {
+            pthread_mutex_unlock(&wal->log_lock);
+            errno = ENOSPC;
+            return -1;
+        }
         write_offset = 0;
-        wal->header->head_offset = 0;
     }
 
-    /* Write entry */
+    /* Write entry and data to log buffer */
     memcpy(wal->log_buffer + write_offset, entry, sizeof(struct wal_entry));
     if (data_len > 0 && data) {
         memcpy(wal->log_buffer + write_offset + sizeof(struct wal_entry),
                data, data_len);
     }
+
+    /* Get a pointer to the entry in the log and calculate checksum in-place */
+    struct wal_entry *entry_in_log = (struct wal_entry *)(wal->log_buffer + write_offset);
+
+    /* Calculate checksum over the entire entry (header + data) */
+    uint32_t checksum = wal_crc32(entry_in_log, sizeof(struct wal_entry));
+    if (data_len > 0) {
+        uint32_t data_checksum = wal_crc32(data, data_len);
+        checksum = wal_crc32_combine(checksum, data_checksum, data_len);
+    }
+    entry_in_log->checksum = checksum;
 
     /* Update header */
     wal->header->head_offset = write_offset + entry_size;
@@ -383,8 +452,8 @@ static int wal_append_entry(struct wal *wal, struct wal_entry *entry,
     wal->header->next_lsn++;
     update_header_checksum(wal->header);
 
-    /* Flush to persistent storage if in shm mode */
-    if (wal->is_shm) {
+    /* Flush to persistent storage if in shm mode or file-backed */
+    if (wal->is_shm || wal->fd >= 0) {
         msync(wal->log_buffer + write_offset, entry_size, MS_SYNC);
         msync(wal->header, sizeof(struct wal_header), MS_SYNC);
     }
@@ -543,46 +612,23 @@ int wal_log_write(struct wal *wal, uint64_t tx_id,
 int wal_checkpoint(struct wal *wal) {
     if (!wal) return -1;
 
-    pthread_mutex_lock(&wal->log_lock);
+    /*
+     * TODO: THIS IS A NO-OP. A real checkpoint is a critical and complex operation
+     * that requires coordination with the main data store. Leaving the existing
+     * implementation would lead to guaranteed data loss.
+     *
+     * A correct implementation MUST:
+     * 1. Force all dirty data from the filesystem cache (the actual file content)
+     *    that is covered by log entries up to the checkpoint LSN to be written
+     *    to the persistent backing store (e.g., using fsync on all modified files).
+     * 2. After and only after the main data is durable, a checkpoint record can be
+     *    written to the WAL.
+     * 3. The WAL tail can then be advanced to reclaim space.
+     *
+     * The original implementation only did step 3, guaranteeing data loss on crash.
+     * This function is disabled until a correct implementation is provided.
+     */
 
-    /* Log checkpoint entry */
-    struct wal_entry entry = {
-        .tx_id = 0,  // Checkpoint has no TX
-        .lsn = wal->header->next_lsn,
-        .op_type = WAL_OP_CHECKPOINT,
-        .data_len = 0,
-        .timestamp = wal_timestamp(),
-        .checksum = 0,
-        .reserved = 0
-    };
-
-    /* Calculate checksum */
-    size_t checksum_offset = offsetof(struct wal_entry, checksum);
-    entry.checksum = wal_crc32(&entry, checksum_offset);
-
-    /* Write checkpoint entry at head */
-    uint64_t checkpoint_offset = wal->header->head_offset;
-    if (checkpoint_offset + sizeof(entry) > wal->buffer_size) {
-        checkpoint_offset = 0;
-    }
-
-    memcpy(wal->log_buffer + checkpoint_offset, &entry, sizeof(entry));
-
-    /* Advance tail to checkpoint (reclaim space) */
-    wal->header->tail_offset = checkpoint_offset;
-    wal->header->checkpoint_lsn = wal->header->next_lsn;
-    wal->header->head_offset = checkpoint_offset + sizeof(entry);
-    wal->header->entry_count = 1;  // Only checkpoint entry remains
-    wal->header->next_lsn++;
-    update_header_checksum(wal->header);
-
-    /* Flush to storage */
-    if (wal->is_shm) {
-        msync(wal->log_buffer + checkpoint_offset, sizeof(entry), MS_SYNC);
-        msync(wal->header, sizeof(struct wal_header), MS_SYNC);
-    }
-
-    pthread_mutex_unlock(&wal->log_lock);
     return 0;
 }
 

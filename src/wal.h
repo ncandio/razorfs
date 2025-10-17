@@ -309,6 +309,11 @@ void wal_get_stats(const struct wal *wal, struct wal_stats *stats) __attribute__
 uint32_t wal_crc32(const void *data, size_t len);
 
 /**
+ * Combine two CRC32 checksums.
+ */
+uint32_t wal_crc32_combine(uint32_t crc1, uint32_t crc2, size_t len2);
+
+/**
  * Get current timestamp in microseconds
  *
  * @return Microseconds since epoch

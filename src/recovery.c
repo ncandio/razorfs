@@ -59,7 +59,7 @@ int recovery_init(struct recovery_ctx *ctx, struct wal *wal,
     }
     ctx->tx_count = 0;
 
-    ctx->verbose = 0;  // Can be enabled for debugging
+    ctx->verbose = 1;  // Can be enabled for debugging
 
     return 0;
 }
@@ -105,23 +105,38 @@ static struct wal_entry* read_entry_at(const struct wal *wal, uint64_t offset,
         return NULL;
     }
 
-    struct wal_entry *entry = (struct wal_entry *)(wal->log_buffer + offset);
-
-    /* Validate checksum */
-    size_t checksum_offset = offsetof(struct wal_entry, checksum);
-    size_t temp_buf_size = checksum_offset + entry->data_len;
-    char *temp_buf = malloc(temp_buf_size);
-    if (!temp_buf) {
+    // Ensure that at least the wal_entry structure can be read without going out of bounds.
+    if (offset + sizeof(struct wal_entry) > wal->buffer_size) {
         return NULL;
     }
-    memcpy(temp_buf, entry, checksum_offset);
-    if (entry->data_len > 0) {
-        memcpy(temp_buf + checksum_offset, wal->log_buffer + offset + sizeof(struct wal_entry), entry->data_len);
-    }
-    uint32_t expected = wal_crc32(temp_buf, temp_buf_size);
-    free(temp_buf);
 
-    if (entry->checksum != expected) {
+    struct wal_entry *entry = (struct wal_entry *)(wal->log_buffer + offset);
+
+    // Validate data_len to prevent reading beyond the buffer if it's corrupted.
+    // This check must happen before using entry->data_len in size calculations or memcpy.
+    if (entry->data_len > wal->buffer_size || // data_len itself is too large
+        offset + sizeof(struct wal_entry) + entry->data_len > wal->buffer_size) {
+        return NULL; // Corrupted data_len or entry extends beyond buffer
+    }
+
+    /* Validate checksum */
+    uint32_t stored_checksum = entry->checksum;
+    entry->checksum = 0;
+
+    uint32_t header_checksum = wal_crc32(entry, sizeof(struct wal_entry));
+    uint32_t expected_checksum;
+
+    if (entry->data_len > 0) {
+        void *data_ptr = wal->log_buffer + offset + sizeof(struct wal_entry);
+        uint32_t data_checksum = wal_crc32(data_ptr, entry->data_len);
+        expected_checksum = wal_crc32_combine(header_checksum, data_checksum, entry->data_len);
+    } else {
+        expected_checksum = header_checksum;
+    }
+
+    entry->checksum = stored_checksum; /* Restore checksum for caller */
+
+    if (entry->checksum != expected_checksum) {
         return NULL;  /* Corrupted */
     }
 
@@ -143,6 +158,12 @@ static struct wal_entry* read_entry_at(const struct wal *wal, uint64_t offset,
 /* Analysis phase: scan WAL and build transaction table */
 int recovery_analysis(struct recovery_ctx *ctx) {
     if (!ctx) return -1;
+
+    if (ctx->verbose) {
+        printf("[RECOVERY] Starting analysis phase...\n");
+    }
+
+
 
     if (ctx->verbose) {
         printf("[RECOVERY] Starting analysis phase...\n");
@@ -347,15 +368,19 @@ static int replay_operation(struct recovery_ctx *ctx, const struct wal_entry *en
 
     switch (entry->op_type) {
         case WAL_OP_INSERT:
+            if (entry->data_len < sizeof(struct wal_insert_data)) return -1; // Corrupted data_len
             return replay_insert(ctx, (struct wal_insert_data *)data);
 
         case WAL_OP_DELETE:
+            if (entry->data_len < sizeof(struct wal_delete_data)) return -1; // Corrupted data_len
             return replay_delete(ctx, (struct wal_delete_data *)data);
 
         case WAL_OP_UPDATE:
+            if (entry->data_len < sizeof(struct wal_update_data)) return -1; // Corrupted data_len
             return replay_update(ctx, (struct wal_update_data *)data);
 
         case WAL_OP_WRITE:
+            if (entry->data_len < sizeof(struct wal_write_data)) return -1; // Corrupted data_len
             return replay_write(ctx, entry, (struct wal_write_data *)data);
 
         default:
@@ -413,18 +438,33 @@ int recovery_redo(struct recovery_ctx *ctx) {
     return 0;
 }
 
-/* Undo a single insert operation */
 static int undo_insert(struct recovery_ctx *ctx, const struct wal_insert_data *data) {
     /* Find the node by inode - it should exist if insert was applied */
     for (uint32_t i = 0; i < ctx->tree->used; i++) {
+        if (ctx->tree->nodes[i].node.inode == 0) {
+            continue; // Skip logically deleted nodes
+        }
         if (ctx->tree->nodes[i].node.inode == data->inode) {
+            if (ctx->verbose) {
+                printf("[RECOVERY] undo_insert: Found node with inode %u at index %u. Attempting delete.\n", data->inode, i);
+            }
             /* Found it, now delete it */
-            if (nary_delete_mt(ctx->tree, i, ctx->wal, 0) == 0) {
+            int delete_ret = nary_delete_mt(ctx->tree, i, ctx->wal, 0);
+            if (delete_ret == 0) {
                 ctx->ops_undone++;
+                if (ctx->verbose) {
+                    printf("[RECOVERY] undo_insert: nary_delete_mt successful. ops_undone: %u\n", ctx->ops_undone);
+                }
                 return 0;
+            }
+            if (ctx->verbose) {
+                printf("[RECOVERY] undo_insert: nary_delete_mt failed with code %d.\n", delete_ret);
             }
             return -1; /* Failed to delete */
         }
+    }
+    if (ctx->verbose) {
+        printf("[RECOVERY] undo_insert: Node with inode %u not found. Skipping undo.\n", data->inode);
     }
     return 0; /* Node not found, insert was not applied, so undo is a no-op */
 }
@@ -470,13 +510,20 @@ static int undo_update(struct recovery_ctx *ctx, const struct wal_update_data *d
 /* Undo a single operation */
 static int undo_operation(struct recovery_ctx *ctx, const struct wal_entry *entry, void *data) {
     if (!data) return -1;
+    if (ctx->verbose) {
+        printf("[RECOVERY] Undoing op_type: %u, tx_id: %lu, lsn: %lu\n",
+               entry->op_type, entry->tx_id, entry->lsn);
+    }
 
     switch (entry->op_type) {
         case WAL_OP_INSERT:
+            if (entry->data_len < sizeof(struct wal_insert_data)) return -1; // Corrupted data_len
             return undo_insert(ctx, (struct wal_insert_data *)data);
         case WAL_OP_DELETE:
+            if (entry->data_len < sizeof(struct wal_delete_data)) return -1; // Corrupted data_len
             return undo_delete(ctx, (struct wal_delete_data *)data);
         case WAL_OP_UPDATE:
+            if (entry->data_len < sizeof(struct wal_update_data)) return -1; // Corrupted data_len
             return undo_update(ctx, (struct wal_update_data *)data);
         /* Writes and other ops are not undone for now */
         default:
@@ -488,29 +535,36 @@ static int undo_operation(struct recovery_ctx *ctx, const struct wal_entry *entr
 static struct wal_entry* read_prev_entry_at(const struct wal *wal, uint64_t *offset,
                                             void **data_out) {
     if (*offset == wal->header->tail_offset) {
-        return NULL; /* Reached the end of the log */
+        return NULL; /* Reached the beginning of the part of the log we are scanning */
     }
 
-    /* This is a simplified and potentially slow way to go backward */
-    /* A proper implementation would use prev_lsn pointers in log records */
     uint64_t current_offset = wal->header->tail_offset;
-    struct wal_entry *prev_entry = NULL;
-    struct wal_entry *current_entry = NULL;
+    uint64_t prev_offset = current_offset;
 
+    // Iterate from the tail until we find the entry whose *next* entry is at *offset
     while (current_offset != *offset) {
-        prev_entry = (struct wal_entry *)(wal->log_buffer + current_offset);
-        uint64_t next_offset = current_offset + sizeof(struct wal_entry) + prev_entry->data_len;
-        if (next_offset >= wal->buffer_size) next_offset = 0;
+        struct wal_entry *entry = (struct wal_entry *)(wal->log_buffer + current_offset);
 
-        if (next_offset == *offset) {
-            /* Found the entry just before the one at *offset */
-            *offset = current_offset;
-            return read_entry_at(wal, current_offset, data_out);
+        // Basic validation to avoid infinite loops on corrupted logs
+        if (entry->data_len > wal->buffer_size ||
+            current_offset + sizeof(struct wal_entry) + entry->data_len > wal->buffer_size) {
+            return NULL; // Corruption
         }
-        current_offset = next_offset;
+
+        prev_offset = current_offset;
+        current_offset += sizeof(struct wal_entry) + entry->data_len;
+
+        if (current_offset >= wal->buffer_size) {
+            current_offset = 0;
+        }
+
+        if (current_offset == wal->header->tail_offset) {
+             return NULL; // Scanned the whole log and didn't find it.
+        }
     }
 
-    return NULL; /* Should not happen in a valid log */
+    *offset = prev_offset;
+    return read_entry_at(wal, prev_offset, data_out);
 }
 
 
@@ -541,6 +595,9 @@ int recovery_undo(struct recovery_ctx *ctx) {
     /* Scan WAL backwards from head to tail */
     uint64_t offset = ctx->wal->header->head_offset;
     while (offset != ctx->wal->header->tail_offset) {
+        if (ctx->verbose) {
+            printf("[RECOVERY] Undo loop: current offset = %lu\n", offset);
+        }
         void *data = NULL;
         struct wal_entry *entry = read_prev_entry_at(ctx->wal, &offset, &data);
         if (!entry) break;
@@ -572,6 +629,10 @@ int recovery_undo(struct recovery_ctx *ctx) {
 /* Run complete recovery */
 int recovery_run(struct recovery_ctx *ctx) {
     if (!ctx) return -1;
+
+    if (ctx->verbose) {
+        printf("[RECOVERY] Starting recovery_run...\n");
+    }
 
     /* Check if recovery needed */
     if (!wal_needs_recovery(ctx->wal)) {

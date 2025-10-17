@@ -104,7 +104,10 @@ void nary_tree_mt_destroy(struct nary_tree_mt *tree) {
 
     /* Destroy all node locks */
     for (uint32_t i = 0; i < tree->used; i++) {
-        pthread_rwlock_destroy(&tree->nodes[i].lock);
+        /* Only destroy lock if node is active (not logically deleted) */
+        if (tree->nodes[i].node.inode != 0) {
+            pthread_rwlock_destroy(&tree->nodes[i].lock);
+        }
     }
 
     pthread_rwlock_destroy(&tree->tree_lock);
@@ -315,15 +318,14 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
     parent = &tree->nodes[parent_idx];
 
     /* Initialize child node */
-    init_node_mt(&tree->nodes[child_idx], tree->next_inode++,
-                 parent_idx, name, &tree->strings, mode);
-
-    /* Release tree-level lock - node allocation complete */
-    pthread_rwlock_unlock(&tree->tree_lock);
+    init_node_mt(&tree->nodes[child_idx], tree->next_inode++, parent_idx, name, &tree->strings, mode);
 
     /* Add to parent's children array */
     parent->node.children[parent->node.num_children++] = child_idx;
     parent->node.mtime = time(NULL);
+
+    /* Release tree-level lock - node allocation and parent modification complete */
+    pthread_rwlock_unlock(&tree->tree_lock);
 
     pthread_rwlock_unlock(&parent->lock);
 
@@ -410,10 +412,16 @@ int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx, struct wal *wal, int
         return -1;
     }
 
-    /* Add to free list */
+    /* Add to free list (protected by tree lock) */
+    if (pthread_rwlock_wrlock(&tree->tree_lock) != 0) {
+        /* This is bad, we have an inconsistent state. */
+        /* For now, we leak the node to avoid further corruption. */
+        return -1; 
+    }
     if (tree->free_count < tree->capacity) {
         tree->free_list[tree->free_count++] = idx;
     }
+    pthread_rwlock_unlock(&tree->tree_lock);
 
     tree->op_count++;
 
@@ -502,7 +510,11 @@ int nary_update_node_mt(struct nary_tree_mt *tree, uint16_t idx,
         return -1;
     }
 
-    /* Update node data */
+    /* Update safe fields: mode, size, mtime */
+    node->node.mode = new_node->mode;
+    node->node.size = new_node->size;
+    node->node.mtime = new_node->mtime;
+
     pthread_rwlock_unlock(&node->lock);
     return 0;
 }

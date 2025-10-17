@@ -47,6 +47,7 @@ static struct {
     /* Thread-safe file content storage */
     struct mt_file_data {
         uint32_t inode;
+        int is_active;               /* Flag to indicate if entry is in use */
         pthread_rwlock_t data_lock;  /* Per-file lock */
         char *data;
         size_t size;
@@ -92,22 +93,43 @@ static struct mt_file_data *find_file_data(uint32_t inode) {
 static struct mt_file_data *create_file_data(uint32_t inode) {
     pthread_rwlock_wrlock(&g_mt_fs.files_lock);
 
-    /* Grow array if needed */
+    /* Try to find an inactive slot to reuse */
+    for (uint32_t i = 0; i < g_mt_fs.file_count; i++) {
+        if (!g_mt_fs.files[i].is_active) {
+            struct mt_file_data *fd = &g_mt_fs.files[i];
+            fd->inode = inode;
+            fd->is_active = 1;
+            fd->data = NULL;
+            fd->size = 0;
+            fd->capacity = 0;
+            fd->is_compressed = 0;
+            fd->uncompressed_size = 0;
+            fd->next = NULL;
+
+            uint32_t hash = hash_inode(inode);
+            fd->next = g_mt_fs.file_hash_table[hash];
+            g_mt_fs.file_hash_table[hash] = fd;
+
+            pthread_rwlock_unlock(&g_mt_fs.files_lock);
+            return fd;
+        }
+    }
+
+    /* If no inactive slot, append a new one. Grow if needed. */
     if (g_mt_fs.file_count >= g_mt_fs.file_capacity) {
         uint32_t new_capacity = g_mt_fs.file_capacity == 0 ? 64 : g_mt_fs.file_capacity * 2;
-        struct mt_file_data *new_files = realloc(g_mt_fs.files,
-                                               new_capacity * sizeof(struct mt_file_data));
+        struct mt_file_data *new_files = realloc(g_mt_fs.files, new_capacity * sizeof(struct mt_file_data));
         if (!new_files) {
             pthread_rwlock_unlock(&g_mt_fs.files_lock);
             return NULL;
         }
-
         g_mt_fs.files = new_files;
         g_mt_fs.file_capacity = new_capacity;
     }
 
-    struct mt_file_data *fd = &g_mt_fs.files[g_mt_fs.file_count++];
+    struct mt_file_data *fd = &g_mt_fs.files[g_mt_fs.file_count];
     fd->inode = inode;
+    fd->is_active = 1;
     pthread_rwlock_init(&fd->data_lock, NULL);
     fd->data = NULL;
     fd->size = 0;
@@ -116,11 +138,11 @@ static struct mt_file_data *create_file_data(uint32_t inode) {
     fd->uncompressed_size = 0;
     fd->next = NULL;
 
-    /* Add to hash table (separate chaining) */
     uint32_t hash = hash_inode(inode);
     fd->next = g_mt_fs.file_hash_table[hash];
     g_mt_fs.file_hash_table[hash] = fd;
 
+    g_mt_fs.file_count++;
     pthread_rwlock_unlock(&g_mt_fs.files_lock);
     return fd;
 }
@@ -132,31 +154,26 @@ static void remove_file_data(uint32_t inode) {
     struct mt_file_data *current = g_mt_fs.file_hash_table[hash];
     struct mt_file_data *prev = NULL;
 
-    /* Find the entry in the chain */
     while (current) {
         if (current->inode == inode) {
-            /* Unlink from the list */
             if (prev) {
                 prev->next = current->next;
             } else {
                 g_mt_fs.file_hash_table[hash] = current->next;
             }
 
-            /* Free the file data itself */
             pthread_rwlock_wrlock(&current->data_lock);
             if (current->data) {
                 free(current->data);
+                current->data = NULL;
             }
+            current->size = 0;
+            current->capacity = 0;
             pthread_rwlock_unlock(&current->data_lock);
-            pthread_rwlock_destroy(&current->data_lock);
 
-            /* Note: We don't shrink the 'files' array here for simplicity.
-             * The entry becomes a dangling pointer, but since we are holding
-             * the files_lock, no other thread can access it. The memory
-             * for the struct itself is not freed, which is a memory leak.
-             * A proper fix would involve a free list for these structs. */
-
-            g_mt_fs.file_count--; // This is not entirely accurate anymore
+            current->is_active = 0;
+            /* Do not decrement file_count, it is a high-water mark.
+               The slot will be reused by create_file_data. */
             break;
         }
         prev = current;
@@ -165,7 +182,6 @@ static void remove_file_data(uint32_t inode) {
 
     pthread_rwlock_unlock(&g_mt_fs.files_lock);
 
-    /* Remove persisted file data from disk */
     disk_file_data_remove(inode);
 }
 
@@ -246,12 +262,15 @@ static int razorfs_mt_readdir(const char *path, void *buf, fuse_fill_dir_t fille
         return -ENOENT;
     }
 
-    struct nary_node dir_node;
-    if (nary_read_node_mt(&g_mt_fs.tree, idx, &dir_node) != 0) {
+    /* Lock the directory node for reading before accessing its data */
+    if (nary_lock_read(&g_mt_fs.tree, idx) != 0) {
         return -EIO;
     }
 
-    if (!NARY_IS_DIR(&dir_node)) {
+    const struct nary_node *dir_node = &g_mt_fs.tree.nodes[idx].node;
+
+    if (!NARY_IS_DIR(dir_node)) {
+        nary_unlock(&g_mt_fs.tree, idx);
         return -ENOTDIR;
     }
 
@@ -259,15 +278,12 @@ static int razorfs_mt_readdir(const char *path, void *buf, fuse_fill_dir_t fille
     filler(buf, ".", NULL, 0, 0);
     filler(buf, "..", NULL, 0, 0);
 
-    /* Use tree's internal access for children - lock parent during read */
-    if (nary_lock_read(&g_mt_fs.tree, idx) != 0) {
-        return -EIO;
-    }
-
-    for (uint16_t i = 0; i < dir_node.num_children; i++) {
-        uint16_t child_idx = dir_node.children[i];
+    /* Iterate over children while holding the lock */
+    for (uint16_t i = 0; i < dir_node->num_children; i++) {
+        uint16_t child_idx = dir_node->children[i];
         if (child_idx == NARY_INVALID_IDX) break;
 
+        /* We need to read child info, but nary_read_node_mt acquires its own lock */
         struct nary_node child_node;
         if (nary_read_node_mt(&g_mt_fs.tree, child_idx, &child_node) == 0) {
             const char *name = string_table_get(&g_mt_fs.tree.strings, child_node.name_offset);
@@ -593,23 +609,12 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
         }
     }
 
-    /* Persist file data to shared memory before unlocking */
-    size_t persist_size = fd->size;
-    size_t persist_data_size = fd->is_compressed ? fd->capacity : fd->size;
-    int persist_compressed = fd->is_compressed;
-    char *persist_data = malloc(persist_data_size);
-    if (persist_data) {
-        memcpy(persist_data, fd->data, persist_data_size);
-    }
+    /* Persist file data to disk WHILE HOLDING THE LOCK */
+    disk_file_data_save(fi->fh, fd->data, fd->size,
+                       fd->is_compressed ? fd->capacity : fd->size,
+                       fd->is_compressed);
 
     pthread_rwlock_unlock(&fd->data_lock);
-
-    /* Save to disk */
-    if (persist_data) {
-        disk_file_data_save(fi->fh, persist_data, persist_size,
-                           persist_data_size, persist_compressed);
-        free(persist_data);
-    }
 
     /* Update node size separately */
     if (idx != NARY_INVALID_IDX) {

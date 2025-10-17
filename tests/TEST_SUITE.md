@@ -56,19 +56,6 @@ Tests for shared memory persistence:
 - `StringTablePersistence` - Filename persistence
 - `DirectoryHierarchyPersistence` - Complex structure survival
 
-#### **compression_test.cpp**
-Tests for transparent zlib compression:
-- ✅ Compress/decompress roundtrip
-- ✅ Compression ratio for various data patterns
-- ✅ Magic header validation (0x525A4350 "RZCP")
-- ✅ Corruption detection
-- ✅ Statistics tracking
-
-**Key Tests:**
-- `HighlyCompressibleData` - Repetitive pattern compression
-- `RandomDataCompression` - Non-compressible data handling
-- `DecompressCorruptedData` - Error detection
-
 #### **architecture_test.cpp** ⭐ NEW
 Tests for core architectural features:
 - ✅ **16-way branching factor** verification
@@ -185,8 +172,7 @@ ctest --output-on-failure
 ./architecture_test
 ./integration_test
 
-# Run specific test by name
-./compression_test --gtest_filter=CompressionTest.CompressSmallData
+
 ```
 
 ## CI/CD Pipeline
