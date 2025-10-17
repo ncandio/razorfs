@@ -17,6 +17,10 @@
  * - Never proceed with operation if lock acquisition fails
  * - Unlock only successfully acquired locks
  *
+ * Atomic Operations:
+ * - tree->used is atomic to allow lock-free reads in bounds checks
+ * - Modifications to tree->used are still protected by tree_lock
+ *
  * Return Values:
  * - Functions return -1 on error (invalid params or lock failure)
  * - NARY_INVALID_IDX indicates not found or allocation failure
@@ -38,6 +42,7 @@
 #include <sys/stat.h>
 #include <linux/limits.h>
 #include <pthread.h>
+#include <stdatomic.h>
 
 /* Forward declarations */
 static uint16_t allocate_node_mt(struct nary_tree_mt *tree);
@@ -169,11 +174,13 @@ static uint16_t allocate_node_mt(struct nary_tree_mt *tree) {
         tree->free_list = new_free_list;
     }
 
-    uint16_t idx = tree->used++;
+    /* Use atomic fetch_add to safely increment used counter
+     * This is protected by tree_lock in callers, but atomic for TSan */
+    uint16_t idx = __atomic_fetch_add(&tree->used, 1, __ATOMIC_RELEASE);
 
     /* Initialize node lock */
     if (pthread_rwlock_init(&tree->nodes[idx].lock, NULL) != 0) {
-        tree->used--;
+        __atomic_fetch_sub(&tree->used, 1, __ATOMIC_RELEASE);
         return NARY_INVALID_IDX;
     }
 
@@ -203,7 +210,14 @@ static void init_node_mt(struct nary_node_mt *node, uint32_t inode,
 uint16_t nary_find_child_mt(struct nary_tree_mt *tree,
                             uint16_t parent_idx,
                             const char *name) {
-    if (!tree || !name || parent_idx >= tree->used) {
+    /* Check for NULL tree first before accessing tree->used */
+    if (!tree || !name) {
+        return NARY_INVALID_IDX;
+    }
+
+    /* Use atomic load for bounds check to avoid race with allocate_node_mt */
+    uint32_t used_snapshot = __atomic_load_n(&tree->used, __ATOMIC_ACQUIRE);
+    if (parent_idx >= used_snapshot) {
         return NARY_INVALID_IDX;
     }
 
