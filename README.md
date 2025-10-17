@@ -161,7 +161,7 @@ echo "To unmount, run: fusermount3 -u /tmp/razorfs_mount"
 *Consistent performance demonstrates true O(log₁₆ n) complexity. 16-way branching achieves 6 levels for 1M files vs 20 levels in binary trees.*
 
 #### Comprehensive Feature Comparison (Radar Chart)
-![Feature Radar](readme_graphs/comprehensive_performance_radar.png)
+![Feature Radar](readme_graphs/razorfs_radar.png)
 *RAZORFS vs ext4, ZFS, and ReiserFS across 8 dimensions. Shows superior performance in cache locality, recovery speed, and NUMA awareness.*
 
 #### Performance Heatmap
