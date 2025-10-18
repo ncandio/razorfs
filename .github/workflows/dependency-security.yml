@@ -40,7 +40,14 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake libfuse-dev libgtest-dev
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          libfuse3-dev \
+          zlib1g-dev \
+          libnuma-dev \
+          libgtest-dev
 
     - name: Build the project (to identify any compiled dependencies)
       run: |
