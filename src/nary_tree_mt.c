@@ -43,6 +43,8 @@
 #include <linux/limits.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <assert.h>
+#include <unistd.h>
 
 /* Forward declarations */
 static uint16_t allocate_node_mt(struct nary_tree_mt *tree);
@@ -135,6 +137,18 @@ void nary_tree_mt_destroy(struct nary_tree_mt *tree) {
 
 static uint16_t allocate_node_mt(struct nary_tree_mt *tree) {
     /* Caller must hold tree_lock for write */
+
+    /* Debug: Verify caller holds write lock (will fail with EBUSY if locked)
+     * Note: This is disabled as it causes false positives. The lock requirement
+     * is documented in the function comment and enforced by code review. */
+    #if 0
+    int lock_test = pthread_rwlock_trywrlock(&tree->tree_lock);
+    if (lock_test == 0) {
+        /* We got the lock, which means caller didn't hold it - this is a bug */
+        pthread_rwlock_unlock(&tree->tree_lock);
+        assert(0 && "allocate_node_mt: caller must hold tree_lock");
+    }
+    #endif
 
     /* Try free list first */
     if (tree->free_count > 0) {
@@ -427,11 +441,22 @@ int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx, struct wal *wal, int
     }
 
     /* Add to free list (protected by tree lock) */
-    if (pthread_rwlock_wrlock(&tree->tree_lock) != 0) {
-        /* This is bad, we have an inconsistent state. */
-        /* For now, we leak the node to avoid further corruption. */
-        return -1; 
+    /* Retry lock acquisition to ensure consistency - this should never fail */
+    int lock_ret;
+    int retry_count = 0;
+    while ((lock_ret = pthread_rwlock_wrlock(&tree->tree_lock)) != 0 && retry_count < 3) {
+        retry_count++;
+        usleep(1000);  /* Wait 1ms before retry */
     }
+
+    if (lock_ret != 0) {
+        /* Lock acquisition failed after retries - this indicates a serious error.
+         * The node is already removed from parent and marked free, so we cannot
+         * safely recover. Log error and leak the node to prevent corruption. */
+        fprintf(stderr, "CRITICAL: nary_delete_mt failed to acquire tree_lock after %d retries\n", retry_count);
+        return -1;
+    }
+
     if (tree->free_count < tree->capacity) {
         tree->free_list[tree->free_count++] = idx;
     }

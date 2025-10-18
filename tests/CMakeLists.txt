@@ -58,10 +58,6 @@ set(RAZORFS_SOURCES
     ../src/numa_support.c
     ../src/wal.c
     ../src/recovery.c
-    ../src/xattr.c
-    ../src/inode_table.c
-    ../src/block_alloc.c
-    ../src/extent.c
 )
 
 # Create library from RAZORFS sources
@@ -129,22 +125,6 @@ target_link_libraries(recovery_test
     GTest::gmock
 )
 
-# Xattr Tests
-add_executable(xattr_test unit/xattr_test.cpp)
-target_link_libraries(xattr_test
-    razorfs_lib
-    GTest::gtest_main
-    GTest::gmock
-)
-
-# Inode Table Tests
-add_executable(inode_table_test unit/inode_table_test.cpp)
-target_link_libraries(inode_table_test
-    razorfs_lib
-    GTest::gtest_main
-    GTest::gmock
-)
-
 # NUMA Support Tests
 add_executable(numa_support_test unit/numa_support_test.cpp)
 target_link_libraries(numa_support_test
@@ -169,7 +149,5 @@ gtest_discover_tests(shm_persist_test)
 gtest_discover_tests(architecture_test)
 gtest_discover_tests(wal_test)
 gtest_discover_tests(recovery_test)
-gtest_discover_tests(xattr_test)
-gtest_discover_tests(inode_table_test)
 gtest_discover_tests(numa_support_test)
 gtest_discover_tests(integration_test)

@@ -524,13 +524,24 @@ static int razorfs_mt_read(const char *path, char *buf, size_t size, off_t offse
 /* cppcheck-suppress constParameterCallback - FUSE API requires non-const fi parameter */
 static int razorfs_mt_write(const char *path, const char *buf, size_t size,
                             off_t offset, struct fuse_file_info *fi) {
+    /* Input validation */
+    if (size == 0) {
+        return 0;  /* Nothing to write */
+    }
+    if (offset < 0) {
+        return -EINVAL;
+    }
+
     uint16_t idx = nary_path_lookup_mt(&g_mt_fs.tree, path);
     if (idx == NARY_INVALID_IDX) {
         return -ENOENT;
     }
 
-    /* Calculate required capacity */
-    size_t required = offset + size;
+    /* Calculate required capacity with overflow check */
+    size_t required;
+    if (__builtin_add_overflow((size_t)offset, size, &required)) {
+        return -EFBIG;  /* File too large */
+    }
 
     if (g_mt_fs.wal_enabled) {
         struct wal_write_data write_data = {

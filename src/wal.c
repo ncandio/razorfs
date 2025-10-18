@@ -328,6 +328,13 @@ int wal_init_file(struct wal *wal, const char *filepath, size_t size) {
             close(fd);
             return -1;
         }
+
+        /* Ensure WAL file is persisted to stable storage */
+        if (fsync(fd) != 0) {
+            munmap(addr, total_size);
+            close(fd);
+            return -1;
+        }
     }
 
     /* Initialize locks */

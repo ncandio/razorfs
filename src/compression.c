@@ -7,9 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
+#include <stdatomic.h>
 
-/* Global stats */
-static struct compression_stats g_stats = {0};
+/* Global stats - use atomics for thread safety */
+static atomic_uint_fast64_t g_total_writes = 0;
+static atomic_uint_fast64_t g_compressed_writes = 0;
+static atomic_uint_fast64_t g_total_reads = 0;
+static atomic_uint_fast64_t g_bytes_saved = 0;
 
 /**
  * Compress data (if beneficial)
@@ -62,10 +66,10 @@ void *compress_data(const void *data, size_t size, size_t *out_size) {
 
     *out_size = total_size;
 
-    /* Update stats */
-    g_stats.total_writes++;
-    g_stats.compressed_writes++;
-    g_stats.bytes_saved += (size - total_size);
+    /* Update stats atomically */
+    atomic_fetch_add_explicit(&g_total_writes, 1, memory_order_relaxed);
+    atomic_fetch_add_explicit(&g_compressed_writes, 1, memory_order_relaxed);
+    atomic_fetch_add_explicit(&g_bytes_saved, (size - total_size), memory_order_relaxed);
 
     return compressed_data;
 }
@@ -121,9 +125,8 @@ void *decompress_data(const void *data, size_t size, size_t *out_size) {
 
     *out_size = decompressed_size;
 
-    /* Update stats */
-    g_stats.total_reads++;
-    g_stats.compressed_reads++;
+    /* Update stats atomically */
+    atomic_fetch_add_explicit(&g_total_reads, 1, memory_order_relaxed);
 
     return output;
 }
@@ -147,7 +150,11 @@ int is_compressed(const void *data, size_t size) {
 void get_compression_stats(struct compression_stats *stats) __attribute__((unused));
 void get_compression_stats(struct compression_stats *stats) {
     if (stats) {
-        *stats = g_stats;
+        stats->total_writes = atomic_load_explicit(&g_total_writes, memory_order_relaxed);
+        stats->compressed_writes = atomic_load_explicit(&g_compressed_writes, memory_order_relaxed);
+        stats->total_reads = atomic_load_explicit(&g_total_reads, memory_order_relaxed);
+        stats->compressed_reads = 0;  /* Not tracked separately */
+        stats->bytes_saved = atomic_load_explicit(&g_bytes_saved, memory_order_relaxed);
     }
 }
 
@@ -156,5 +163,8 @@ void get_compression_stats(struct compression_stats *stats) {
  */
 void reset_compression_stats(void) __attribute__((unused));
 void reset_compression_stats(void) {
-    memset(&g_stats, 0, sizeof(g_stats));
+    atomic_store_explicit(&g_total_writes, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_compressed_writes, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_total_reads, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_bytes_saved, 0, memory_order_relaxed);
 }
