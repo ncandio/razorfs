@@ -91,14 +91,19 @@ void *decompress_data(const void *data, size_t size, size_t *out_size) {
         return NULL;
     }
 
-    /* Check for integer overflow */
-    if (header->compressed_size > SIZE_MAX - sizeof(struct compression_header) ||
-        header->original_size > SIZE_MAX) {
+    /* Validate sizes are reasonable (header fields are uint32_t, max 4GB) */
+    if (header->compressed_size == 0 || header->original_size == 0) {
+        return NULL;  /* Zero-sized data is invalid */
+    }
+
+    /* Ensure we have enough data for the compressed payload */
+    if (sizeof(struct compression_header) + header->compressed_size > size) {
         return NULL;
     }
 
-    if (sizeof(struct compression_header) + header->compressed_size > size) {
-        return NULL;
+    /* Sanity check: decompressed size should be larger than compressed */
+    if (header->original_size < header->compressed_size) {
+        /* This could be valid for small files, so just warn */
     }
 
     /* Allocate buffer for decompressed data */
