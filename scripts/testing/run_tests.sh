@@ -185,7 +185,7 @@ if [ "$RUN_UNIT" = true ]; then
         "nary_tree_test"
         "shm_persist_test"
         "architecture_test"
-        "inode_table_test"
+        "numa_support_test"
         "wal_test"
         "recovery_test"
     )
