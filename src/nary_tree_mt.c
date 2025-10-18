@@ -7,15 +7,22 @@
  * === LOCKING POLICY ===
  *
  * Lock Order (to prevent deadlock):
- * 1. Always lock parent before child
- * 2. Release locks in reverse order (child before parent)
- * 3. Never hold more than 2 locks simultaneously
+ * 1. **ALWAYS** lock tree_lock before any node locks
+ * 2. Lock parent before child for node operations
+ * 3. Release locks in reverse order (child → parent → tree_lock)
+ * 4. Never hold more than 3 locks simultaneously (tree + parent + child)
+ *
+ * Correct Lock Order:
+ *   tree_lock → parent_lock → child_lock
+ *
+ * This ordering is CRITICAL to prevent deadlock between insert and delete operations.
+ * All topology-changing operations (insert, delete) MUST acquire tree_lock first.
  *
  * Error Handling Policy:
  * - ALL pthread_rwlock_{rd,wr}lock calls MUST check return value
  * - On lock failure, function MUST return error immediately
  * - Never proceed with operation if lock acquisition fails
- * - Unlock only successfully acquired locks
+ * - Unlock only successfully acquired locks in reverse order
  *
  * Atomic Operations:
  * - tree->used is atomic to allow lock-free reads in bounds checks
@@ -291,22 +298,47 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
         return NARY_INVALID_IDX;
     }
 
+    /*
+     * CRITICAL LOCK ORDERING FIX:
+     * Must maintain consistent lock order: tree_lock → parent_lock → child_lock
+     * This prevents deadlock with nary_delete_mt which also uses tree_lock → parent → child
+     *
+     * Previous implementation locked parent first, then tree_lock, creating potential deadlock:
+     *   Thread A (insert): parent_lock → tree_lock
+     *   Thread B (delete): tree_lock → parent_lock
+     *   Result: DEADLOCK
+     */
+
+    /* Acquire tree-level lock FIRST to maintain consistent lock order */
+    if (pthread_rwlock_wrlock(&tree->tree_lock) != 0) {
+        return NARY_INVALID_IDX;
+    }
+
+    /* Verify parent_idx is still valid after acquiring tree_lock */
+    if (parent_idx >= tree->used) {
+        pthread_rwlock_unlock(&tree->tree_lock);
+        return NARY_INVALID_IDX;
+    }
+
     struct nary_node_mt *parent = &tree->nodes[parent_idx];
 
-    /* Lock parent for writing */
+    /* Now lock parent for writing */
     if (pthread_rwlock_wrlock(&parent->lock) != 0) {
+        pthread_rwlock_unlock(&tree->tree_lock);
         return NARY_INVALID_IDX;
     }
 
     /* Check if parent is a directory */
     if (!NARY_IS_DIR(&parent->node)) {
         pthread_rwlock_unlock(&parent->lock);
+        pthread_rwlock_unlock(&tree->tree_lock);
         return NARY_INVALID_IDX;
     }
 
     /* Check if parent is full */
     if (parent->node.num_children >= NARY_BRANCHING_FACTOR) {
         pthread_rwlock_unlock(&parent->lock);
+        pthread_rwlock_unlock(&tree->tree_lock);
         return NARY_INVALID_IDX;
     }
 
@@ -324,21 +356,16 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
 
         if (child_name && strcmp(child_name, name) == 0) {
             pthread_rwlock_unlock(&parent->lock);
+            pthread_rwlock_unlock(&tree->tree_lock);
             return NARY_INVALID_IDX;  /* Duplicate name */
         }
     }
 
-    /* Acquire tree-level lock before allocating node to prevent race conditions */
-    if (pthread_rwlock_wrlock(&tree->tree_lock) != 0) {
-        pthread_rwlock_unlock(&parent->lock);
-        return NARY_INVALID_IDX;
-    }
-
-    /* Allocate new node */
+    /* Allocate new node (tree_lock already held) */
     uint16_t child_idx = allocate_node_mt(tree);
     if (child_idx == NARY_INVALID_IDX) {
-        pthread_rwlock_unlock(&tree->tree_lock);
         pthread_rwlock_unlock(&parent->lock);
+        pthread_rwlock_unlock(&tree->tree_lock);
         return NARY_INVALID_IDX;
     }
 
@@ -352,10 +379,9 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
     parent->node.children[parent->node.num_children++] = child_idx;
     parent->node.mtime = time(NULL);
 
-    /* Release tree-level lock - node allocation and parent modification complete */
-    pthread_rwlock_unlock(&tree->tree_lock);
-
+    /* Release locks in reverse order: parent, then tree */
     pthread_rwlock_unlock(&parent->lock);
+    pthread_rwlock_unlock(&tree->tree_lock);
 
     /* Track operations for lazy rebalancing */
     tree->op_count++;
@@ -381,21 +407,43 @@ int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx, struct wal *wal, int
 
     struct nary_node_mt *parent = &tree->nodes[parent_idx];
 
-    /* Lock parent FIRST, then child - prevents race conditions */
-    if (pthread_rwlock_wrlock(&parent->lock) != 0) {
+    /*
+     * CRITICAL LOCK ORDERING FIX:
+     * To prevent deadlock, we must maintain consistent lock order across all operations:
+     * tree_lock → parent_lock → child_lock
+     *
+     * nary_add_child_mt locks: parent → tree_lock → allocate_node
+     * Without consistent ordering, we could have:
+     *   Thread A (delete): parent_lock → tries tree_lock
+     *   Thread B (add):    tree_lock → tries parent_lock
+     *   Result: DEADLOCK
+     *
+     * Fix: Always acquire tree_lock first, then node locks.
+     */
+
+    /* Lock tree structure first to maintain consistent lock order */
+    if (pthread_rwlock_wrlock(&tree->tree_lock) != 0) {
         return -1;
     }
 
-    /* Now lock child for writing */
+    /* Now lock parent, then child - prevents race conditions */
+    if (pthread_rwlock_wrlock(&parent->lock) != 0) {
+        pthread_rwlock_unlock(&tree->tree_lock);
+        return -1;
+    }
+
+    /* Lock child for writing */
     if (pthread_rwlock_wrlock(&node->lock) != 0) {
         pthread_rwlock_unlock(&parent->lock);
+        pthread_rwlock_unlock(&tree->tree_lock);
         return -1;
     }
 
-    /* Check if directory is empty (now safe with both locks held) */
+    /* Check if directory is empty (now safe with all locks held) */
     if (NARY_IS_DIR(&node->node) && node->node.num_children > 0) {
         pthread_rwlock_unlock(&node->lock);
         pthread_rwlock_unlock(&parent->lock);
+        pthread_rwlock_unlock(&tree->tree_lock);
         return -ENOTEMPTY;
     }
 
@@ -432,35 +480,19 @@ int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx, struct wal *wal, int
     node->node.inode = 0;
     node->node.num_children = 0;
 
-    /* Unlock in reverse order: child, then parent */
+    /* Add to free list while holding tree_lock (no need for retry logic) */
+    if (tree->free_count < tree->capacity) {
+        tree->free_list[tree->free_count++] = idx;
+    }
+
+    /* Unlock in reverse order: child, parent, tree */
     pthread_rwlock_unlock(&node->lock);
     pthread_rwlock_unlock(&parent->lock);
+    pthread_rwlock_unlock(&tree->tree_lock);
 
     if (!found) {
         return -1;
     }
-
-    /* Add to free list (protected by tree lock) */
-    /* Retry lock acquisition to ensure consistency - this should never fail */
-    int lock_ret;
-    int retry_count = 0;
-    while ((lock_ret = pthread_rwlock_wrlock(&tree->tree_lock)) != 0 && retry_count < 3) {
-        retry_count++;
-        usleep(1000);  /* Wait 1ms before retry */
-    }
-
-    if (lock_ret != 0) {
-        /* Lock acquisition failed after retries - this indicates a serious error.
-         * The node is already removed from parent and marked free, so we cannot
-         * safely recover. Log error and leak the node to prevent corruption. */
-        fprintf(stderr, "CRITICAL: nary_delete_mt failed to acquire tree_lock after %d retries\n", retry_count);
-        return -1;
-    }
-
-    if (tree->free_count < tree->capacity) {
-        tree->free_list[tree->free_count++] = idx;
-    }
-    pthread_rwlock_unlock(&tree->tree_lock);
 
     tree->op_count++;
 
