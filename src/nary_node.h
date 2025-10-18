@@ -4,8 +4,14 @@
  * CRITICAL DESIGN CONSTRAINT: Node MUST be exactly 64 bytes (1 cache line)
  * This ensures optimal CPU cache utilization and prevents false sharing.
  *
- * Architecture: Contiguous array-based n-ary tree
+ * Architecture: Contiguous array-based n-ary tree with sorted children
  * Complexity: O(log n) for all operations
+ *   - Path lookup: O(d × log k) where d=depth, k=branching factor
+ *   - Insert: O(d × log k + k) (lookup + sorted insertion)
+ *   - Delete: O(d × log k + k) (lookup + linear removal)
+ *   - Find child: O(log k) using binary search on sorted children
+ *
+ * Children Array: Maintained in sorted order by filename for binary search
  * Reference: https://github.com/ncandio/n-ary_python_package
  */
 

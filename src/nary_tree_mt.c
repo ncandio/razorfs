@@ -249,21 +249,65 @@ uint16_t nary_find_child_mt(struct nary_tree_mt *tree,
         return NARY_INVALID_IDX;
     }
 
-    /* Linear search through children (small N, cache-friendly)
-     * Note: No need to lock children - parent lock prevents modification
-     * of children array, and name_offset is immutable once set */
-    for (uint16_t i = 0; i < parent->node.num_children; i++) {
-        uint16_t child_idx = parent->node.children[i];
-        if (child_idx == NARY_INVALID_IDX) break;
+    uint16_t num_children = parent->node.num_children;
 
-        const struct nary_node_mt *child = &tree->nodes[child_idx];
+    /* Optimization: Use linear search for small arrays, binary search for large
+     * Threshold at 8: linear search is faster for small N due to cache locality
+     * and avoiding the overhead of binary search comparisons */
+    if (num_children <= 8) {
+        /* Linear search for small number of children */
+        for (uint16_t i = 0; i < num_children; i++) {
+            uint16_t child_idx = parent->node.children[i];
+            if (child_idx == NARY_INVALID_IDX) break;
 
-        const char *child_name = string_table_get(&tree->strings,
-                                                  child->node.name_offset);
+            const struct nary_node_mt *child = &tree->nodes[child_idx];
+            const char *child_name = string_table_get(&tree->strings,
+                                                      child->node.name_offset);
 
-        if (child_name && strcmp(child_name, name) == 0) {
-            pthread_rwlock_unlock(&parent->lock);
-            return child_idx;
+            if (child_name && strcmp(child_name, name) == 0) {
+                pthread_rwlock_unlock(&parent->lock);
+                return child_idx;
+            }
+        }
+    } else {
+        /* Binary search through sorted children array
+         * Children are kept sorted by filename during insert/delete
+         * Complexity: O(log k) where k is branching factor
+         * Note: No need to lock children - parent lock prevents modification
+         * of children array, and name_offset is immutable once set */
+        int left = 0;
+        int right = (int)num_children - 1;
+
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            uint16_t child_idx = parent->node.children[mid];
+
+            if (child_idx == NARY_INVALID_IDX) {
+                /* Should never happen in a properly maintained tree */
+                break;
+            }
+
+            const struct nary_node_mt *child = &tree->nodes[child_idx];
+            const char *child_name = string_table_get(&tree->strings,
+                                                      child->node.name_offset);
+
+            if (!child_name) {
+                /* Corrupted tree state - abort search */
+                break;
+            }
+
+            int cmp = strcmp(child_name, name);
+            if (cmp == 0) {
+                /* Found exact match */
+                pthread_rwlock_unlock(&parent->lock);
+                return child_idx;
+            } else if (cmp < 0) {
+                /* child_name < name, search right half */
+                left = mid + 1;
+            } else {
+                /* child_name > name, search left half */
+                right = mid - 1;
+            }
         }
     }
 
@@ -375,8 +419,53 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
     /* Initialize child node */
     init_node_mt(&tree->nodes[child_idx], tree->next_inode++, parent_idx, name, &tree->strings, mode);
 
-    /* Add to parent's children array */
-    parent->node.children[parent->node.num_children++] = child_idx;
+    /* Insert child into parent's children array in sorted order
+     * This maintains the invariant that children are sorted by name for binary search
+     * Complexity: O(k) where k is branching factor (typically 16)
+     * Trade-off: Slower insert but much faster lookup O(log k) */
+    uint16_t insert_pos = parent->node.num_children;
+
+    /* Find insertion position using binary search on existing children */
+    if (parent->node.num_children > 0) {
+        int left = 0;
+        int right = (int)parent->node.num_children - 1;
+        insert_pos = 0;
+
+        /* Binary search to find insertion position */
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            uint16_t existing_idx = parent->node.children[mid];
+            const struct nary_node_mt *existing_child = &tree->nodes[existing_idx];
+            const char *existing_name = string_table_get(&tree->strings,
+                                                         existing_child->node.name_offset);
+
+            if (existing_name) {
+                int cmp = strcmp(name, existing_name);
+                if (cmp < 0) {
+                    /* name < existing_name, insert before mid */
+                    right = mid - 1;
+                    insert_pos = mid;
+                } else {
+                    /* name > existing_name, insert after mid */
+                    left = mid + 1;
+                    insert_pos = left;
+                }
+            } else {
+                /* Corrupted entry, insert at end */
+                insert_pos = parent->node.num_children;
+                break;
+            }
+        }
+
+        /* Shift elements right to make space for new child */
+        for (uint16_t i = parent->node.num_children; i > insert_pos; i--) {
+            parent->node.children[i] = parent->node.children[i - 1];
+        }
+    }
+
+    /* Insert new child at sorted position */
+    parent->node.children[insert_pos] = child_idx;
+    parent->node.num_children++;
     parent->node.mtime = time(NULL);
 
     /* Release locks in reverse order: parent, then tree */
@@ -460,11 +549,13 @@ int nary_delete_mt(struct nary_tree_mt *tree, uint16_t idx, struct wal *wal, int
         wal_log_delete(wal, 0, &delete_data);
     }
 
-    /* Remove from parent's children array */
+    /* Remove from parent's children array
+     * Children are kept sorted, so we could use binary search, but since we're
+     * searching by index (not name), linear search is simpler and still O(k) */
     bool found = false;
     for (uint16_t i = 0; i < parent->node.num_children; i++) {
         if (parent->node.children[i] == idx) {
-            /* Shift remaining children down */
+            /* Shift remaining children down to maintain sorted order and compactness */
             for (uint16_t j = i; j < parent->node.num_children - 1; j++) {
                 parent->node.children[j] = parent->node.children[j + 1];
             }
