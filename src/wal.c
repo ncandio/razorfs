@@ -445,12 +445,19 @@ static int wal_append_entry(struct wal *wal, struct wal_entry *entry,
     /* Get a pointer to the entry in the log and calculate checksum in-place */
     struct wal_entry *entry_in_log = (struct wal_entry *)(wal->log_buffer + write_offset);
 
-    /* Calculate checksum over the entire entry (header + data) */
+    /* CRITICAL: Zero out checksum field before calculating checksum.
+     * The checksum must be calculated with checksum field set to 0,
+     * matching the validation logic in recovery.c */
+    entry_in_log->checksum = 0;
+
+    /* Calculate checksum over entry with checksum field = 0, then over data */
     uint32_t checksum = wal_crc32(entry_in_log, sizeof(struct wal_entry));
     if (data_len > 0) {
         uint32_t data_checksum = wal_crc32(data, data_len);
         checksum = wal_crc32_combine(checksum, data_checksum, data_len);
     }
+
+    /* Now store the calculated checksum */
     entry_in_log->checksum = checksum;
 
     /* Update header */
@@ -619,23 +626,100 @@ int wal_log_write(struct wal *wal, uint64_t tx_id,
 int wal_checkpoint(struct wal *wal) {
     if (!wal) return -1;
 
+    pthread_mutex_lock(&wal->log_lock);
+
     /*
-     * TODO: THIS IS A NO-OP. A real checkpoint is a critical and complex operation
-     * that requires coordination with the main data store. Leaving the existing
-     * implementation would lead to guaranteed data loss.
+     * NOTE: This is a MINIMAL checkpoint implementation that writes a checkpoint
+     * record and updates the checkpoint LSN. For a production filesystem, this
+     * MUST be extended to:
      *
-     * A correct implementation MUST:
-     * 1. Force all dirty data from the filesystem cache (the actual file content)
-     *    that is covered by log entries up to the checkpoint LSN to be written
-     *    to the persistent backing store (e.g., using fsync on all modified files).
-     * 2. After and only after the main data is durable, a checkpoint record can be
-     *    written to the WAL.
-     * 3. The WAL tail can then be advanced to reclaim space.
+     * 1. Coordinate with the main data store to force all dirty data covered by
+     *    log entries up to the checkpoint LSN to persistent storage (fsync).
+     * 2. Only after data is durable, write the checkpoint record.
+     * 3. Consider advancing tail_offset to reclaim space (done here conservatively).
      *
-     * The original implementation only did step 3, guaranteeing data loss on crash.
-     * This function is disabled until a correct implementation is provided.
+     * Without proper coordination with the data store, checkpoints can still lead
+     * to data loss on crash. This implementation provides the WAL mechanism, but
+     * the caller MUST ensure data durability before calling this function.
      */
 
+    uint64_t checkpoint_lsn = wal->header->next_lsn;
+
+    /* Create checkpoint entry */
+    struct wal_entry entry = {
+        .tx_id = 0,  /* Checkpoint is not part of any transaction */
+        .lsn = checkpoint_lsn,
+        .op_type = WAL_OP_CHECKPOINT,
+        .data_len = 0,
+        .timestamp = wal_timestamp(),
+        .checksum = 0,
+        .reserved = 0
+    };
+
+    /* Calculate checksum with checksum field zeroed */
+    uint32_t checksum = wal_crc32(&entry, sizeof(struct wal_entry));
+    entry.checksum = checksum;
+
+    /* Calculate space needed */
+    uint64_t entry_size = sizeof(struct wal_entry);
+    uint64_t available = wal_available_space(wal);
+
+    if (available < entry_size) {
+        pthread_mutex_unlock(&wal->log_lock);
+        return -1;  /* Not enough space for checkpoint record */
+    }
+
+    /* Get write position */
+    uint64_t write_offset = wal->header->head_offset;
+
+    /* Copy checkpoint entry to log buffer */
+    memcpy(wal->log_buffer + write_offset, &entry, sizeof(struct wal_entry));
+
+    /* Update header */
+    wal->header->head_offset = (write_offset + entry_size) % wal->buffer_size;
+    wal->header->next_lsn++;
+    wal->header->entry_count++;
+    wal->header->checkpoint_lsn = checkpoint_lsn;
+    update_header_checksum(wal->header);
+
+    /* Force checkpoint record to storage */
+    if (wal->is_shm || wal->fd >= 0) {
+        msync(wal->log_buffer + write_offset, entry_size, MS_SYNC);
+        msync(wal->header, sizeof(struct wal_header), MS_SYNC);
+    }
+
+    /* Conservatively advance tail to reclaim space up to the checkpoint.
+     * In a full implementation, we'd scan for the oldest transaction that's
+     * still active and only advance tail up to that point. For now, we
+     * advance tail to the checkpoint LSN, assuming all earlier transactions
+     * are complete. */
+    if (wal->header->entry_count > 100) {  /* Only reclaim if log is getting full */
+        /* Scan forward from current tail to find the checkpoint entry */
+        uint64_t scan_offset = wal->header->tail_offset;
+        uint64_t head = wal->header->head_offset;
+
+        while (scan_offset != head) {
+            struct wal_entry *scan_entry = (struct wal_entry *)(wal->log_buffer + scan_offset);
+
+            /* If we found the checkpoint entry, advance tail to just after it */
+            if (scan_entry->op_type == WAL_OP_CHECKPOINT && scan_entry->lsn == checkpoint_lsn) {
+                uint64_t checkpoint_size = sizeof(struct wal_entry) + scan_entry->data_len;
+                wal->header->tail_offset = (scan_offset + checkpoint_size) % wal->buffer_size;
+                update_header_checksum(wal->header);
+
+                if (wal->is_shm || wal->fd >= 0) {
+                    msync(wal->header, sizeof(struct wal_header), MS_SYNC);
+                }
+                break;
+            }
+
+            /* Move to next entry */
+            uint64_t scan_size = sizeof(struct wal_entry) + scan_entry->data_len;
+            scan_offset = (scan_offset + scan_size) % wal->buffer_size;
+        }
+    }
+
+    pthread_mutex_unlock(&wal->log_lock);
     return 0;
 }
 

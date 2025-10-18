@@ -532,39 +532,93 @@ static int undo_operation(struct recovery_ctx *ctx, const struct wal_entry *entr
 }
 
 /* Read entry at previous offset in WAL (for backward scan) */
+/* Structure to cache entry offsets for efficient backward traversal */
+struct offset_cache {
+    uint64_t *offsets;
+    uint32_t count;
+    uint32_t capacity;
+};
+
+static struct offset_cache* build_offset_cache(const struct wal *wal) {
+    struct offset_cache *cache = calloc(1, sizeof(struct offset_cache));
+    if (!cache) return NULL;
+
+    cache->capacity = 1024;  /* Initial capacity */
+    cache->offsets = malloc(cache->capacity * sizeof(uint64_t));
+    if (!cache->offsets) {
+        free(cache);
+        return NULL;
+    }
+
+    /* Scan forward from tail to head, recording all entry offsets */
+    uint64_t offset = wal->header->tail_offset;
+    uint64_t head = wal->header->head_offset;
+
+    while (offset != head) {
+        /* Grow cache if needed */
+        if (cache->count >= cache->capacity) {
+            uint32_t new_capacity = cache->capacity * 2;
+            uint64_t *new_offsets = realloc(cache->offsets, new_capacity * sizeof(uint64_t));
+            if (!new_offsets) {
+                free(cache->offsets);
+                free(cache);
+                return NULL;
+            }
+            cache->offsets = new_offsets;
+            cache->capacity = new_capacity;
+        }
+
+        cache->offsets[cache->count++] = offset;
+
+        /* Read entry to get size */
+        struct wal_entry *entry = (struct wal_entry *)(wal->log_buffer + offset);
+        if (entry->data_len > wal->buffer_size) {
+            /* Corruption detected */
+            free(cache->offsets);
+            free(cache);
+            return NULL;
+        }
+
+        /* Advance to next entry */
+        uint64_t entry_size = sizeof(struct wal_entry) + entry->data_len;
+        offset += entry_size;
+        if (offset >= wal->buffer_size) {
+            offset = 0;  /* Wrap around circular buffer */
+        }
+    }
+
+    return cache;
+}
+
+static void free_offset_cache(struct offset_cache *cache) {
+    if (cache) {
+        free(cache->offsets);
+        free(cache);
+    }
+}
+
 static struct wal_entry* read_prev_entry_at(const struct wal *wal, uint64_t *offset,
-                                            void **data_out) {
-    if (*offset == wal->header->tail_offset) {
-        return NULL; /* Reached the beginning of the part of the log we are scanning */
+                                            void **data_out, struct offset_cache *cache) {
+    if (!cache || cache->count == 0) {
+        return NULL;
     }
 
-    uint64_t current_offset = wal->header->tail_offset;
-    uint64_t prev_offset = current_offset;
-
-    // Iterate from the tail until we find the entry whose *next* entry is at *offset
-    while (current_offset != *offset) {
-        struct wal_entry *entry = (struct wal_entry *)(wal->log_buffer + current_offset);
-
-        // Basic validation to avoid infinite loops on corrupted logs
-        if (entry->data_len > wal->buffer_size ||
-            current_offset + sizeof(struct wal_entry) + entry->data_len > wal->buffer_size) {
-            return NULL; // Corruption
-        }
-
-        prev_offset = current_offset;
-        current_offset += sizeof(struct wal_entry) + entry->data_len;
-
-        if (current_offset >= wal->buffer_size) {
-            current_offset = 0;
-        }
-
-        if (current_offset == wal->header->tail_offset) {
-             return NULL; // Scanned the whole log and didn't find it.
+    /* Find current offset in cache */
+    int32_t current_idx = -1;
+    for (uint32_t i = 0; i < cache->count; i++) {
+        if (cache->offsets[i] == *offset) {
+            current_idx = (int32_t)i;
+            break;
         }
     }
 
-    *offset = prev_offset;
-    return read_entry_at(wal, prev_offset, data_out);
+    if (current_idx <= 0) {
+        return NULL;  /* At beginning or not found */
+    }
+
+    /* Get previous offset */
+    *offset = cache->offsets[current_idx - 1];
+    return read_entry_at(wal, *offset, data_out);
 }
 
 
@@ -592,14 +646,25 @@ int recovery_undo(struct recovery_ctx *ctx) {
         return 0; /* Nothing to do */
     }
 
-    /* Scan WAL backwards from head to tail */
+    /* Build offset cache for efficient backward traversal (O(n) instead of O(n^2)) */
+    struct offset_cache *cache = build_offset_cache(ctx->wal);
+    if (!cache) {
+        fprintf(stderr, "[RECOVERY] Failed to build offset cache for undo phase\n");
+        return -1;
+    }
+
+    if (ctx->verbose) {
+        printf("[RECOVERY] Built offset cache with %u entries for backward scan\n", cache->count);
+    }
+
+    /* Scan WAL backwards from head to tail using cached offsets */
     uint64_t offset = ctx->wal->header->head_offset;
     while (offset != ctx->wal->header->tail_offset) {
         if (ctx->verbose) {
             printf("[RECOVERY] Undo loop: current offset = %lu\n", offset);
         }
         void *data = NULL;
-        struct wal_entry *entry = read_prev_entry_at(ctx->wal, &offset, &data);
+        struct wal_entry *entry = read_prev_entry_at(ctx->wal, &offset, &data, cache);
         if (!entry) break;
 
         /* Check if this entry belongs to an active transaction */
@@ -618,6 +683,9 @@ int recovery_undo(struct recovery_ctx *ctx) {
 
         if (data) free(data);
     }
+
+    /* Free the offset cache */
+    free_offset_cache(cache);
 
     if (ctx->verbose) {
         printf("[RECOVERY] Undo complete: %u operations rolled back\n", ctx->ops_undone);

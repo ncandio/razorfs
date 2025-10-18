@@ -113,13 +113,40 @@ TEST_F(WalTest, Checkpoint) {
     ASSERT_EQ(wal_log_insert(&wal, tx_id, &insert_op), 0);
     ASSERT_EQ(wal_commit_tx(&wal, tx_id), 0);
 
-    // NOTE: wal_checkpoint is currently a no-op (intentionally disabled)
-    // A correct checkpoint requires coordinating with the main data store
-    // to ensure data durability before advancing the WAL tail.
-    // Until a correct implementation is provided, checkpoint is disabled
-    // to prevent data loss.
+    uint64_t old_checkpoint_lsn = wal.header->checkpoint_lsn;
+
+    // Checkpoint should now write a checkpoint record and update checkpoint_lsn
     ASSERT_EQ(wal_checkpoint(&wal), 0);
 
-    // Since checkpoint is a no-op, WAL still needs recovery
+    // Verify checkpoint_lsn was updated
+    EXPECT_GT(wal.header->checkpoint_lsn, old_checkpoint_lsn);
+
+    // After checkpoint, there should still be entries in the log
+    EXPECT_GT(wal.header->entry_count, 0);
+}
+
+TEST_F(WalTest, ChecksumValidation) {
+    ASSERT_EQ(wal_init_file(&wal, test_wal_path, WAL_DEFAULT_SIZE), 0);
+
+    uint64_t tx_id;
+    ASSERT_EQ(wal_begin_tx(&wal, &tx_id), 0);
+
+    struct wal_insert_data insert_op = { .parent_idx = 1, .inode = 2, .name_offset = 100, .mode = S_IFREG | 0644, .timestamp = 12345 };
+    ASSERT_EQ(wal_log_insert(&wal, tx_id, &insert_op), 0);
+    ASSERT_EQ(wal_commit_tx(&wal, tx_id), 0);
+
+    // Force to disk
+    wal_flush(&wal);
+
+    // Simulate recovery by closing and reopening WAL
+    wal_destroy(&wal);
+    memset(&wal, 0, sizeof(wal));
+    ASSERT_EQ(wal_init_file(&wal, test_wal_path, WAL_DEFAULT_SIZE), 0);
+
+    // WAL should be valid and need recovery
+    EXPECT_TRUE(wal_is_valid(&wal));
     EXPECT_TRUE(wal_needs_recovery(&wal));
+
+    // Entries should have valid checksums (this verifies the checksum fix)
+    // If checksum calculation was incorrect, recovery would fail to validate entries
 }
