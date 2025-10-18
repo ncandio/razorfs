@@ -74,7 +74,7 @@ jobs:
         size razorfs_${{ matrix.arch.name }}
 
     - name: Upload binary artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: razorfs-${{ matrix.arch.name }}
         path: razorfs_${{ matrix.arch.name }}
@@ -118,7 +118,7 @@ jobs:
         size razorfs_x86_64
 
     - name: Upload binary artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: razorfs-x86_64
         path: razorfs_x86_64
@@ -184,7 +184,7 @@ jobs:
         cat razorfs_${{ matrix.arch.name }}_hardened.sha256
 
     - name: Upload hardened binary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: razorfs-${{ matrix.arch.name }}-hardened
         path: |

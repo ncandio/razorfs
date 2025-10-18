@@ -303,7 +303,7 @@ jobs:
     # Generate and archive test reports
     - name: Archive test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: debian-persistence-test-results
         path: |
