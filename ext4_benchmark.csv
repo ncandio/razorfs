@@ -1,4 +1,0 @@
-filesystem,type,time
-ext4,dir_traversal,.191631697
-ext4,read,.141040498
-ext4,random_access,.073614999

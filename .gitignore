@@ -49,3 +49,14 @@ test.sh
 
 # Duplicates and test repos
 TEST_REPO/
+
+# Reorganization additions
+.archive/
+build/
+benchmarks/results/*.csv
+benchmarks/reports/*.html
+*.log
+reorganization.log
+
+# Backup directories
+*_backup_*/
