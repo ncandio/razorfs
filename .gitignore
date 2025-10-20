@@ -60,3 +60,14 @@ reorganization.log
 
 # Backup directories
 *_backup_*/
+
+# Reorganization additions
+.archive/
+build/
+benchmarks/results/*.csv
+benchmarks/reports/*.html
+*.log
+reorganization.log
+
+# Backup directories
+*_backup_*/
