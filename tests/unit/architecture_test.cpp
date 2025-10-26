@@ -39,9 +39,9 @@ protected:
 };
 
 TEST_F(NaryArchitectureTest, SixteenWayBranchingFactor) {
-    // Verify NARY_BRANCHING_FACTOR is 16
+    // Verify NARY_BRANCHING_FACTOR is 16, which is the initial size
     EXPECT_EQ(NARY_BRANCHING_FACTOR, 16)
-        << "Tree should have 16-way branching factor";
+        << "Tree should have an initial branching factor of 16";
 
     // Create directory and fill with 16 children
     uint16_t dir = nary_insert_mt(&tree, NARY_ROOT_IDX, "test_dir",
@@ -57,14 +57,17 @@ TEST_F(NaryArchitectureTest, SixteenWayBranchingFactor) {
         EXPECT_NE(child, NARY_INVALID_IDX) << "Failed at child " << i;
     }
 
-    // Verify exactly 16 children
+    // Verify exactly 16 children were created
     struct nary_node_mt *node = &tree.nodes[dir];
     EXPECT_EQ(node->node.num_children, 16);
 
-    // 17th child should fail (array full)
+    // 17th child should now SUCCEED due to dynamic array resizing
     uint16_t overflow = nary_insert_mt(&tree, dir, "overflow", S_IFREG | 0644);
-    EXPECT_EQ(overflow, NARY_INVALID_IDX)
-        << "Should not exceed 16 children per node";
+    EXPECT_NE(overflow, NARY_INVALID_IDX)
+        << "Should now succeed in adding more than 16 children";
+
+    // Verify child count is now 17
+    EXPECT_EQ(node->node.num_children, 17);
 }
 
 TEST_F(NaryArchitectureTest, LogarithmicComplexity) {
