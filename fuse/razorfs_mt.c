@@ -543,12 +543,20 @@ static int razorfs_mt_write(const char *path, const char *buf, size_t size,
         return -EFBIG;  /* File too large */
     }
 
+    /* Get old size for WAL */
+    uint64_t old_size = 0;
+    struct nary_node node;
+    if (nary_read_node_mt(&g_mt_fs.tree, idx, &node) == 0) {
+        old_size = node.size;
+    }
+
     if (g_mt_fs.wal_enabled) {
         struct wal_write_data write_data = {
             .node_idx = idx,
             .inode = fi->fh,
             .offset = offset,
             .length = size,
+            .old_size = old_size,
             .new_size = required,
             .data_checksum = wal_crc32(buf, size),
         };

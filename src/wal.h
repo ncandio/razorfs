@@ -23,6 +23,11 @@ extern "C" {
 #define WAL_MIN_SIZE (1 * 1024 * 1024)     // 1MB
 #define WAL_MAX_SIZE (128 * 1024 * 1024)   // 128MB
 
+/* Checkpoint Thresholds */
+#define WAL_CHECKPOINT_SIZE_THRESHOLD 0.75  // Checkpoint at 75% full
+#define WAL_CHECKPOINT_ENTRY_THRESHOLD 1000 // Checkpoint every 1000 entries
+#define WAL_CHECKPOINT_TIME_INTERVAL 30     // Checkpoint every 30 seconds (if background thread enabled)
+
 /* Operation Types */
 enum wal_op_type {
     WAL_OP_BEGIN = 1,        // Begin transaction
@@ -101,6 +106,7 @@ struct wal_write_data {
     uint32_t inode;              // Inode number
     uint64_t offset;             // Offset in file
     uint32_t length;             // Data length
+    uint64_t old_size;           // Previous total size of the file
     uint64_t new_size;           // New total size of the file
     uint32_t data_checksum;      // CRC32 of data
 } __attribute__((packed));
@@ -116,6 +122,14 @@ struct wal {
     int fd;                      // File descriptor (for disk-backed WAL)
     pthread_mutex_t log_lock;    // Protects log buffer
     pthread_mutex_t tx_lock;     // Protects transaction state
+
+    /* Checkpoint automation */
+    int auto_checkpoint;         // Enable automatic checkpointing
+    pthread_t checkpoint_thread; // Background checkpoint thread
+    int checkpoint_thread_running; // Thread status flag
+    pthread_cond_t checkpoint_cond;  // Condition variable for checkpoint trigger
+    pthread_mutex_t checkpoint_lock; // Protects checkpoint state
+    uint64_t last_checkpoint_time;   // Last checkpoint timestamp (microseconds)
 };
 
 /**
@@ -262,6 +276,40 @@ int wal_log_write(struct wal *wal, uint64_t tx_id,
  * @return 0 on success, -1 on error
  */
 int wal_checkpoint(struct wal *wal) __attribute__((unused));
+
+/**
+ * Check if checkpoint is needed based on thresholds
+ *
+ * @param wal WAL context
+ * @return 1 if checkpoint needed, 0 otherwise
+ */
+int wal_should_checkpoint(const struct wal *wal);
+
+/**
+ * Enable/disable automatic checkpointing
+ *
+ * @param wal WAL context
+ * @param enable 1 to enable, 0 to disable
+ * @return 0 on success, -1 on error
+ */
+int wal_set_auto_checkpoint(struct wal *wal, int enable);
+
+/**
+ * Start background checkpoint thread
+ * Thread will perform periodic checkpoints based on time/size thresholds
+ *
+ * @param wal WAL context
+ * @return 0 on success, -1 on error
+ */
+int wal_start_checkpoint_thread(struct wal *wal);
+
+/**
+ * Stop background checkpoint thread
+ *
+ * @param wal WAL context
+ * @return 0 on success, -1 on error
+ */
+int wal_stop_checkpoint_thread(struct wal *wal);
 
 /**
  * Force WAL to persistent storage (msync)

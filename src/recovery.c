@@ -120,10 +120,11 @@ static struct wal_entry* read_entry_at(const struct wal *wal, uint64_t offset,
     }
 
     /* Validate checksum */
-    uint32_t stored_checksum = entry->checksum;
-    entry->checksum = 0;
+    struct wal_entry temp_entry;
+    memcpy(&temp_entry, entry, sizeof(struct wal_entry));
+    temp_entry.checksum = 0; // Zero out checksum in the copy, not the original
 
-    uint32_t header_checksum = wal_crc32(entry, sizeof(struct wal_entry));
+    uint32_t header_checksum = wal_crc32(&temp_entry, sizeof(struct wal_entry));
     uint32_t expected_checksum;
 
     if (entry->data_len > 0) {
@@ -133,8 +134,6 @@ static struct wal_entry* read_entry_at(const struct wal *wal, uint64_t offset,
     } else {
         expected_checksum = header_checksum;
     }
-
-    entry->checksum = stored_checksum; /* Restore checksum for caller */
 
     if (entry->checksum != expected_checksum) {
         return NULL;  /* Corrupted */
@@ -507,6 +506,21 @@ static int undo_update(struct recovery_ctx *ctx, const struct wal_update_data *d
     return 0;
 }
 
+/* Undo a single write operation */
+static int undo_write(struct recovery_ctx *ctx, const struct wal_write_data *data) {
+    if (data->node_idx >= ctx->tree->used) {
+        return 0; /* Node doesn't exist, so write was not applied */
+    }
+
+    /* Restore old file size. This is critical to prevent corruption
+     * where a file has a larger size than its actual content post-recovery. */
+    struct nary_node *node = &ctx->tree->nodes[data->node_idx].node;
+    node->size = data->old_size;
+
+    ctx->ops_undone++;
+    return 0;
+}
+
 /* Undo a single operation */
 static int undo_operation(struct recovery_ctx *ctx, const struct wal_entry *entry, void *data) {
     if (!data) return -1;
@@ -525,7 +539,9 @@ static int undo_operation(struct recovery_ctx *ctx, const struct wal_entry *entr
         case WAL_OP_UPDATE:
             if (entry->data_len < sizeof(struct wal_update_data)) return -1; // Corrupted data_len
             return undo_update(ctx, (struct wal_update_data *)data);
-        /* Writes and other ops are not undone for now */
+        case WAL_OP_WRITE:
+            if (entry->data_len < sizeof(struct wal_write_data)) return -1; // Corrupted data_len
+            return undo_write(ctx, (struct wal_write_data *)data);
         default:
             return 0;
     }
