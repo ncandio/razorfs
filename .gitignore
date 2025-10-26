@@ -71,3 +71,9 @@ reorganization.log
 
 # Backup directories
 *_backup_*/
+
+# Benchmark results and artifacts
+benchmarks/results/
+benchmarks/data/
+benchmarks/*.gp
+benchmarks/BENCHMARK_REPORT_*.md

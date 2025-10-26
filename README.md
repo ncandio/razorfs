@@ -924,11 +924,11 @@ For example: `Generated: 2025-10-08 [a1b2c3d]`
 
 | Graph File | Last Generated | Commit SHA | Generation Method |
 |------------|----------------|------------|-------------------|
-| comprehensive_performance_radar.png | 2025-10-11 | db3b65f | Docker Infrastructure |
-| ologn_scaling_validation.png | 2025-10-11 | db3b65f | Docker Infrastructure |
-| scalability_heatmap.png | 2025-10-11 | db3b65f | Docker Infrastructure |
-| compression_effectiveness.png | 2025-10-11 | db3b65f | Docker Infrastructure |
-| memory_numa_analysis.png | 2025-10-11 | db3b65f | Docker Infrastructure |
+| comprehensive_performance_radar.png | 2025-10-26 | 70f630d | Docker Infrastructure |
+| ologn_scaling_validation.png | 2025-10-26 | 70f630d | Docker Infrastructure |
+| scalability_heatmap.png | 2025-10-26 | 70f630d | Docker Infrastructure |
+| compression_effectiveness.png | 2025-10-26 | 70f630d | Docker Infrastructure |
+| memory_numa_analysis.png | 2025-10-26 | 70f630d | Docker Infrastructure |
 
 **Note about Graph Updates:**
 Performance graphs are periodically regenerated following significant feature implementations or architectural improvements. This ensures that benchmark results accurately reflect the current state of RAZORFS. The testing infrastructure automatically captures the date and commit SHA for full reproducibility and traceability of all performance measurements.

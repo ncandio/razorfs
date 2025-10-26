@@ -2,7 +2,7 @@
 # Enhanced Graph Generation Script
 # Creates professional graphs matching the style of existing RAZORFS documentation
 
-RESULTS_DIR="/mnt/c/Users/liber/Desktop/Testing-Razor-FS/benchmarks"
+RESULTS_DIR="./benchmarks"
 TIMESTAMP=$(ls -t "$RESULTS_DIR/data/compression_"*.dat | head -1 | grep -oP '\d{8}_\d{6}')
 
 echo "Generating enhanced graphs with timestamp: $TIMESTAMP"

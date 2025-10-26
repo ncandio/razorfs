@@ -5,7 +5,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-RESULTS_DIR="/mnt/c/Users/liber/Desktop/Testing-Razor-FS/benchmarks"
+RESULTS_DIR="$REPO_ROOT/benchmarks"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 TEST_FILE_URL="https://github.com/git/git/archive/refs/tags/v2.43.0.tar.gz"
 TEST_FILE_NAME="git-2.43.0.tar.gz"
