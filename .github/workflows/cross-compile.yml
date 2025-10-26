@@ -14,7 +14,7 @@ jobs:
   # Cross-Compilation Matrix for Datacenter Architectures
   ###############################################################################
   cross-compile:
-    name: Cross-Compile for ${{ matrix.arch }}
+    name: Cross-Compile for ${{ matrix.arch.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -23,18 +23,22 @@ jobs:
           - name: arm64
             compiler: aarch64-linux-gnu-gcc
             package: gcc-aarch64-linux-gnu
+            apt_arch: arm64
             description: "ARM64 (AWS Graviton, Ampere Altra)"
           - name: arm32
             compiler: arm-linux-gnueabihf-gcc
             package: gcc-arm-linux-gnueabihf
+            apt_arch: armhf
             description: "ARM32 (Legacy ARM servers)"
           - name: ppc64le
             compiler: powerpc64le-linux-gnu-gcc
             package: gcc-powerpc64le-linux-gnu
+            apt_arch: ppc64el
             description: "PowerPC64LE (IBM POWER9/POWER10)"
           - name: riscv64
             compiler: riscv64-linux-gnu-gcc
             package: gcc-riscv64-linux-gnu
+            apt_arch: riscv64
             description: "RISC-V 64-bit"
 
     steps:
@@ -43,12 +47,13 @@ jobs:
 
     - name: Install cross-compilation toolchain
       run: |
+        sudo dpkg --add-architecture ${{ matrix.arch.apt_arch }}
         sudo apt-get update
         sudo apt-get install -y \
           ${{ matrix.arch.package }} \
-          libfuse3-dev \
-          zlib1g-dev \
-          libnuma-dev \
+          libfuse3-dev:${{ matrix.arch.apt_arch }} \
+          zlib1g-dev:${{ matrix.arch.apt_arch }} \
+          libnuma-dev:${{ matrix.arch.apt_arch }} \
           pkg-config \
           make
 
@@ -128,7 +133,7 @@ jobs:
   # Hardened Builds for Production Deployment
   ###############################################################################
   hardened-builds:
-    name: Hardened Build for ${{ matrix.arch }}
+    name: Hardened Build for ${{ matrix.arch.name }}
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     strategy:
@@ -138,12 +143,15 @@ jobs:
           - name: arm64
             compiler: aarch64-linux-gnu-gcc
             package: gcc-aarch64-linux-gnu
+            apt_arch: arm64
           - name: ppc64le
             compiler: powerpc64le-linux-gnu-gcc
             package: gcc-powerpc64le-linux-gnu
+            apt_arch: ppc64el
           - name: x86_64
             compiler: gcc
             package: gcc
+            apt_arch: ""
 
     steps:
     - name: Checkout code
@@ -152,14 +160,27 @@ jobs:
     - name: Install toolchain and dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          ${{ matrix.arch.package }} \
-          libfuse3-dev \
-          zlib1g-dev \
-          libnuma-dev \
-          binutils \
-          pkg-config \
-          make
+        if [[ -n "${{ matrix.arch.apt_arch }}" ]]; then
+          sudo dpkg --add-architecture ${{ matrix.arch.apt_arch }}
+          sudo apt-get update
+          sudo apt-get install -y \
+            ${{ matrix.arch.package }} \
+            libfuse3-dev:${{ matrix.arch.apt_arch }} \
+            zlib1g-dev:${{ matrix.arch.apt_arch }} \
+            libnuma-dev:${{ matrix.arch.apt_arch }} \
+            binutils \
+            pkg-config \
+            make
+        else
+          sudo apt-get install -y \
+            ${{ matrix.arch.package }} \
+            libfuse3-dev \
+            zlib1g-dev \
+            libnuma-dev \
+            binutils \
+            pkg-config \
+            make
+        fi
 
     - name: Build hardened RazorFS
       run: |
