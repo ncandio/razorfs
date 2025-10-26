@@ -77,3 +77,7 @@ benchmarks/results/
 benchmarks/data/
 benchmarks/*.gp
 benchmarks/BENCHMARK_REPORT_*.md
+
+# Ignore generated graphs and scripts in benchmarks dir
+benchmarks/graphs/
+benchmarks/*.gp
