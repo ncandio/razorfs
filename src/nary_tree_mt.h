@@ -24,6 +24,10 @@ extern "C" {
 #define NARY_MT_REBALANCE_THRESHOLD 1000      /* Rebalance every N operations */
 #define NARY_MT_LOCK_TIMEOUT_MS 5000          /* Lock timeout (5 seconds) */
 
+/* Memory Limits */
+#define NARY_MT_DEFAULT_MAX_MEMORY (1ULL * 1024 * 1024 * 1024)  /* 1GB default */
+#define NARY_MT_NO_LIMIT 0                    /* Unlimited memory (use NARY_MAX_NODES) */
+
 /**
  * Multithreaded Node Structure
  *
@@ -68,12 +72,17 @@ struct nary_tree_mt {
     /* Tree structure lock (only for topology changes) */
     pthread_rwlock_t tree_lock;
 
+    /* Memory management */
+    uint64_t max_memory_bytes;         /* Maximum memory usage (0=unlimited) */
+    uint64_t current_memory_bytes;     /* Current estimated memory usage */
+
     /* Performance counters */
     struct {
         uint64_t total_nodes;
         uint64_t read_locks;
         uint64_t write_locks;
         uint64_t lock_conflicts;
+        uint64_t memory_limit_hits;    /* Count of ENOSPC due to memory limits */
     } stats;
 };
 
@@ -87,6 +96,9 @@ struct nary_mt_stats {
     uint64_t write_locks;
     uint64_t lock_conflicts;
     double avg_lock_time_ns;
+    uint64_t current_memory_bytes;     /* Current memory usage */
+    uint64_t max_memory_bytes;         /* Configured limit (0=unlimited) */
+    uint64_t memory_limit_hits;        /* Times allocation failed due to limit */
 };
 
 /* === Lifecycle Functions === */
@@ -217,6 +229,44 @@ int nary_lock_parent_child(struct nary_tree_mt *tree,
                            uint16_t parent_idx,
                            uint16_t child_idx,
                            bool write);
+
+/**
+ * Rebalance tree in BFS order for cache locality
+ *
+ * Reorganizes tree nodes in breadth-first order to improve cache performance.
+ * This is a lazy operation, automatically triggered every NARY_MT_REBALANCE_THRESHOLD ops.
+ *
+ * Thread Safety: Acquires exclusive tree_lock for entire operation.
+ * Complexity: O(n) where n is number of active nodes.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int nary_rebalance_mt(struct nary_tree_mt *tree);
+
+/**
+ * Set maximum memory usage limit for tree
+ *
+ * When limit is reached, allocation operations will fail with ENOSPC.
+ * This provides backpressure to prevent unbounded memory growth.
+ *
+ * @param tree          Tree structure
+ * @param max_bytes     Maximum memory in bytes (0 = unlimited, use NARY_MAX_NODES)
+ * @return              0 on success, -1 on error
+ */
+int nary_set_memory_limit_mt(struct nary_tree_mt *tree, uint64_t max_bytes);
+
+/**
+ * Get current memory usage estimate
+ *
+ * Returns approximate memory usage including:
+ * - Node array (capacity * sizeof(nary_node_mt))
+ * - Free list (capacity * sizeof(uint16_t))
+ * - String table internals
+ *
+ * @param tree  Tree structure
+ * @return      Estimated memory usage in bytes
+ */
+uint64_t nary_get_memory_usage_mt(const struct nary_tree_mt *tree);
 
 /**
  * Get multithreading statistics

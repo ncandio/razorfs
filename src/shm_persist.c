@@ -481,22 +481,110 @@ int disk_tree_exists(void) {
     return (stat(DISK_TREE_NODES, &st) == 0);
 }
 
+/* Global variable to track which storage path is actually being used */
+static const char *g_active_data_dir = NULL;
+static const char *g_active_tree_nodes = NULL;
+static const char *g_active_string_table = NULL;
+static const char *g_active_file_prefix = NULL;
+
 /**
  * Create data directory if it doesn't exist
+ * Tries /var/lib/razorfs first, falls back to /tmp/razorfs_data for non-root
+ *
+ * @return 0 on success, -1 on failure
  */
 static int ensure_data_dir(void) {
     struct stat st;
-    if (stat(DISK_DATA_DIR, &st) == 0) {
-        return 0;  /* Already exists */
+
+    /* If already determined, just verify it still exists */
+    if (g_active_data_dir != NULL) {
+        if (stat(g_active_data_dir, &st) == 0) {
+            return 0;
+        }
+        /* Directory disappeared - reset and retry */
+        g_active_data_dir = NULL;
     }
 
-    if (mkdir(DISK_DATA_DIR, 0700) < 0) {
+    /* Try primary path first: /var/lib/razorfs */
+    if (stat(DISK_DATA_DIR, &st) == 0) {
+        g_active_data_dir = DISK_DATA_DIR;
+        g_active_tree_nodes = DISK_TREE_NODES;
+        g_active_string_table = DISK_STRING_TABLE;
+        g_active_file_prefix = DISK_FILE_PREFIX;
+        printf("💾 Using persistent storage: %s\n", g_active_data_dir);
+        return 0;
+    }
+
+    /* Try to create primary path */
+    if (mkdir(DISK_DATA_DIR, 0700) == 0) {
+        g_active_data_dir = DISK_DATA_DIR;
+        g_active_tree_nodes = DISK_TREE_NODES;
+        g_active_string_table = DISK_STRING_TABLE;
+        g_active_file_prefix = DISK_FILE_PREFIX;
+        printf("💾 Created persistent storage: %s\n", g_active_data_dir);
+        return 0;
+    }
+
+    if (errno == EEXIST) {
+        /* Race condition - directory was created by another process */
+        g_active_data_dir = DISK_DATA_DIR;
+        g_active_tree_nodes = DISK_TREE_NODES;
+        g_active_string_table = DISK_STRING_TABLE;
+        g_active_file_prefix = DISK_FILE_PREFIX;
+        return 0;
+    }
+
+    /* Primary path failed (probably permission denied) - try fallback */
+    fprintf(stderr, "⚠️  Cannot use %s: %s\n", DISK_DATA_DIR, strerror(errno));
+    fprintf(stderr, "⚠️  Falling back to %s (WARNING: may not survive reboot if tmpfs)\n",
+            DISK_DATA_DIR_FALLBACK);
+
+    /* Check if fallback exists */
+    if (stat(DISK_DATA_DIR_FALLBACK, &st) == 0) {
+        g_active_data_dir = DISK_DATA_DIR_FALLBACK;
+        g_active_tree_nodes = DISK_TREE_NODES_FALLBACK;
+        g_active_string_table = DISK_STRING_TABLE_FALLBACK;
+        g_active_file_prefix = DISK_FILE_PREFIX_FALLBACK;
+        printf("💾 Using fallback storage: %s\n", g_active_data_dir);
+        return 0;
+    }
+
+    /* Try to create fallback */
+    if (mkdir(DISK_DATA_DIR_FALLBACK, 0700) < 0) {
         if (errno != EEXIST) {
-            perror("mkdir (data dir)");
+            perror("mkdir (fallback data dir)");
             return -1;
         }
     }
+
+    g_active_data_dir = DISK_DATA_DIR_FALLBACK;
+    g_active_tree_nodes = DISK_TREE_NODES_FALLBACK;
+    g_active_string_table = DISK_STRING_TABLE_FALLBACK;
+    g_active_file_prefix = DISK_FILE_PREFIX_FALLBACK;
+    printf("💾 Created fallback storage: %s\n", g_active_data_dir);
+
     return 0;
+}
+
+/**
+ * Get the active tree nodes path (after ensure_data_dir has been called)
+ */
+static const char *get_tree_nodes_path(void) {
+    return g_active_tree_nodes ? g_active_tree_nodes : DISK_TREE_NODES;
+}
+
+/**
+ * Get the active string table path (after ensure_data_dir has been called)
+ */
+static const char *get_string_table_path(void) {
+    return g_active_string_table ? g_active_string_table : DISK_STRING_TABLE;
+}
+
+/**
+ * Get the active file prefix (after ensure_data_dir has been called)
+ */
+static const char *get_file_prefix(void) {
+    return g_active_file_prefix ? g_active_file_prefix : DISK_FILE_PREFIX;
 }
 
 int disk_tree_init(struct nary_tree_mt *tree) {
@@ -511,12 +599,13 @@ int disk_tree_init(struct nary_tree_mt *tree) {
     numa_init();
     int numa_node = numa_get_current_node();
 
+    const char *tree_nodes_path = get_tree_nodes_path();
     int is_new = !disk_tree_exists();
     int flags = O_RDWR | (is_new ? O_CREAT : 0);
     size_t shm_size = calculate_shm_size(NARY_MT_INITIAL_CAPACITY);
 
     /* Open/create disk-backed file for tree nodes */
-    int fd = open(DISK_TREE_NODES, flags, 0600);
+    int fd = open(tree_nodes_path, flags, 0600);
     if (fd < 0) {
         perror("open (tree nodes)");
         return -1;
@@ -527,7 +616,7 @@ int disk_tree_init(struct nary_tree_mt *tree) {
         if (ftruncate(fd, shm_size) < 0) {
             perror("ftruncate (tree nodes)");
             close(fd);
-            unlink(DISK_TREE_NODES);
+            unlink(tree_nodes_path);
             return -1;
         }
     }
@@ -539,7 +628,7 @@ int disk_tree_init(struct nary_tree_mt *tree) {
 
     if (addr == MAP_FAILED) {
         perror("mmap (tree nodes)");
-        if (is_new) unlink(DISK_TREE_NODES);
+        if (is_new) unlink(tree_nodes_path);
         return -1;
     }
 
@@ -577,7 +666,7 @@ int disk_tree_init(struct nary_tree_mt *tree) {
         /* Initialize string table in heap mode (we'll persist separately) */
         if (string_table_init(&tree->strings) != 0) {
             munmap(addr, shm_size);
-            unlink(DISK_TREE_NODES);
+            unlink(tree_nodes_path);
             return -1;
         }
 
@@ -613,11 +702,12 @@ int disk_tree_init(struct nary_tree_mt *tree) {
         hdr->next_inode = tree->next_inode;
 
         /* Persist string table to disk */
-        if (disk_string_table_save(&tree->strings, DISK_STRING_TABLE) != 0) {
+        const char *string_table_path = get_string_table_path();
+        if (disk_string_table_save(&tree->strings, string_table_path) != 0) {
             fprintf(stderr, "Failed to save string table to disk\n");
         }
 
-        printf("💾 Disk-backed storage: %s, %s\n", DISK_TREE_NODES, DISK_STRING_TABLE);
+        printf("💾 Disk-backed storage: %s, %s\n", tree_nodes_path, string_table_path);
 
     } else {
         /* Attach to existing disk-backed storage */
@@ -647,7 +737,8 @@ int disk_tree_init(struct nary_tree_mt *tree) {
         }
 
         /* Load string table from disk */
-        if (disk_string_table_load(&tree->strings, DISK_STRING_TABLE) != 0) {
+        const char *string_table_path = get_string_table_path();
+        if (disk_string_table_load(&tree->strings, string_table_path) != 0) {
             fprintf(stderr, "Failed to load string table from disk\n");
             string_table_destroy(&tree->strings);
             munmap(addr, shm_size);
@@ -675,9 +766,10 @@ int disk_file_data_save(uint32_t inode, const void *data, size_t size,
         return -1;
     }
 
-    /* Create file path */
+    /* Create file path using active prefix */
     char filepath[256];
-    snprintf(filepath, sizeof(filepath), "%s%u", DISK_FILE_PREFIX, inode);
+    const char *file_prefix = get_file_prefix();
+    snprintf(filepath, sizeof(filepath), "%s%u", file_prefix, inode);
 
     /* Calculate total size needed */
     size_t total_size = sizeof(struct shm_file_header) + data_size;
@@ -732,9 +824,10 @@ int disk_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
                            size_t *data_size_out, int *is_compressed_out) {
     if (!data_out || !size_out) return -1;
 
-    /* Create file path */
+    /* Create file path using active prefix */
     char filepath[256];
-    snprintf(filepath, sizeof(filepath), "%s%u", DISK_FILE_PREFIX, inode);
+    const char *file_prefix = get_file_prefix();
+    snprintf(filepath, sizeof(filepath), "%s%u", file_prefix, inode);
 
     /* Try to open existing file */
     int fd = open(filepath, O_RDONLY, 0);
@@ -798,7 +891,8 @@ int disk_file_data_restore(uint32_t inode, void **data_out, size_t *size_out,
 
 void disk_file_data_remove(uint32_t inode) {
     char filepath[256];
-    snprintf(filepath, sizeof(filepath), "%s%u", DISK_FILE_PREFIX, inode);
+    const char *file_prefix = get_file_prefix();
+    snprintf(filepath, sizeof(filepath), "%s%u", file_prefix, inode);
     unlink(filepath);  /* Ignore errors - file may not have persisted data */
 }
 

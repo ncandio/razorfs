@@ -194,6 +194,24 @@ int wal_init(struct wal *wal, size_t size) {
         return -1;
     }
 
+    /* Initialize checkpoint automation fields */
+    wal->auto_checkpoint = 0;
+    wal->checkpoint_thread_running = 0;
+    wal->last_checkpoint_time = wal_timestamp();
+    if (pthread_mutex_init(&wal->checkpoint_lock, NULL) != 0) {
+        pthread_mutex_destroy(&wal->tx_lock);
+        pthread_mutex_destroy(&wal->log_lock);
+        free(buffer);
+        return -1;
+    }
+    if (pthread_cond_init(&wal->checkpoint_cond, NULL) != 0) {
+        pthread_mutex_destroy(&wal->checkpoint_lock);
+        pthread_mutex_destroy(&wal->tx_lock);
+        pthread_mutex_destroy(&wal->log_lock);
+        free(buffer);
+        return -1;
+    }
+
     return 0;
 }
 
@@ -350,6 +368,26 @@ int wal_init_file(struct wal *wal, const char *filepath, size_t size) {
         return -1;
     }
 
+    /* Initialize checkpoint automation fields */
+    wal->auto_checkpoint = 0;
+    wal->checkpoint_thread_running = 0;
+    wal->last_checkpoint_time = wal_timestamp();
+    if (pthread_mutex_init(&wal->checkpoint_lock, NULL) != 0) {
+        pthread_mutex_destroy(&wal->tx_lock);
+        pthread_mutex_destroy(&wal->log_lock);
+        munmap(addr, total_size);
+        close(fd);
+        return -1;
+    }
+    if (pthread_cond_init(&wal->checkpoint_cond, NULL) != 0) {
+        pthread_mutex_destroy(&wal->checkpoint_lock);
+        pthread_mutex_destroy(&wal->tx_lock);
+        pthread_mutex_destroy(&wal->log_lock);
+        munmap(addr, total_size);
+        close(fd);
+        return -1;
+    }
+
     return 0;
 }
 
@@ -359,6 +397,13 @@ int wal_init_file(struct wal *wal, const char *filepath, size_t size) {
 void wal_destroy(struct wal *wal) {
     if (!wal) return;
 
+    /* Stop checkpoint thread if running */
+    if (wal->checkpoint_thread_running) {
+        wal_stop_checkpoint_thread(wal);
+    }
+
+    pthread_cond_destroy(&wal->checkpoint_cond);
+    pthread_mutex_destroy(&wal->checkpoint_lock);
     pthread_mutex_destroy(&wal->log_lock);
     pthread_mutex_destroy(&wal->tx_lock);
 
@@ -416,11 +461,34 @@ static int wal_append_entry(struct wal *wal, struct wal_entry *entry,
     /* Check available space */
     size_t available = wal_available_space(wal);
     if (entry_size > available) {
-        /* TODO: Trigger checkpoint or return ENOSPC */
+        /* Attempt automatic checkpoint if enabled */
+        if (wal->auto_checkpoint) {
+            pthread_mutex_unlock(&wal->log_lock);
+
+            /* Trigger checkpoint to reclaim space */
+            if (wal_checkpoint(wal) == 0) {
+                /* Retry after checkpoint */
+                pthread_mutex_lock(&wal->log_lock);
+                available = wal_available_space(wal);
+                if (entry_size <= available) {
+                    /* Checkpoint freed enough space - continue below */
+                    goto space_available;
+                }
+                pthread_mutex_unlock(&wal->log_lock);
+            }
+
+            /* Checkpoint failed or didn't free enough space */
+            errno = ENOSPC;
+            return -1;
+        }
+
+        /* Auto-checkpoint disabled - return ENOSPC */
         pthread_mutex_unlock(&wal->log_lock);
         errno = ENOSPC;
         return -1;
     }
+
+space_available:
 
     uint64_t write_offset = wal->header->head_offset;
 
@@ -744,6 +812,148 @@ void wal_get_stats(const struct wal *wal, struct wal_stats *stats) {
 
     stats->total_entries = wal->header->next_lsn - 1;
     stats->bytes_logged = wal->header->head_offset;
+    stats->total_checkpoints = 0; /* TODO: Track in header */
+    stats->total_commits = 0;     /* TODO: Track in header */
+    stats->total_aborts = 0;      /* TODO: Track in header */
+}
 
-    /* TODO: Track commits/aborts/checkpoints separately */
+/* === Checkpoint Automation === */
+
+/**
+ * Check if checkpoint is needed based on thresholds
+ */
+int wal_should_checkpoint(const struct wal *wal) {
+    if (!wal || !wal->header) return 0;
+
+    /* Check size threshold */
+    size_t used = wal->buffer_size - wal_available_space(wal);
+    double usage = (double)used / wal->buffer_size;
+    if (usage >= WAL_CHECKPOINT_SIZE_THRESHOLD) {
+        return 1;  /* WAL is 75% full */
+    }
+
+    /* Check entry count threshold */
+    if (wal->header->entry_count >= WAL_CHECKPOINT_ENTRY_THRESHOLD) {
+        return 1;  /* Too many entries */
+    }
+
+    /* Check time threshold (if auto-checkpoint enabled) */
+    if (wal->auto_checkpoint) {
+        uint64_t now = wal_timestamp();
+        uint64_t elapsed_sec = (now - wal->last_checkpoint_time) / 1000000;
+        if (elapsed_sec >= WAL_CHECKPOINT_TIME_INTERVAL) {
+            return 1;  /* Time threshold exceeded */
+        }
+    }
+
+    return 0;  /* No checkpoint needed */
+}
+
+/**
+ * Enable/disable automatic checkpointing
+ */
+int wal_set_auto_checkpoint(struct wal *wal, int enable) {
+    if (!wal) return -1;
+
+    pthread_mutex_lock(&wal->checkpoint_lock);
+    wal->auto_checkpoint = enable;
+    pthread_mutex_unlock(&wal->checkpoint_lock);
+
+    return 0;
+}
+
+/**
+ * Background checkpoint thread function
+ */
+static void *checkpoint_thread_func(void *arg) {
+    struct wal *wal = (struct wal *)arg;
+
+    while (1) {
+        pthread_mutex_lock(&wal->checkpoint_lock);
+
+        /* Check if we should stop */
+        if (!wal->checkpoint_thread_running) {
+            pthread_mutex_unlock(&wal->checkpoint_lock);
+            break;
+        }
+
+        /* Wait for signal or timeout */
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_sec += WAL_CHECKPOINT_TIME_INTERVAL;
+
+        pthread_cond_timedwait(&wal->checkpoint_cond, &wal->checkpoint_lock, &ts);
+
+        /* Check again if we should stop (spurious wakeup or signal) */
+        if (!wal->checkpoint_thread_running) {
+            pthread_mutex_unlock(&wal->checkpoint_lock);
+            break;
+        }
+
+        pthread_mutex_unlock(&wal->checkpoint_lock);
+
+        /* Check if checkpoint is needed */
+        if (wal_should_checkpoint(wal)) {
+            /* Perform checkpoint */
+            if (wal_checkpoint(wal) == 0) {
+                pthread_mutex_lock(&wal->checkpoint_lock);
+                wal->last_checkpoint_time = wal_timestamp();
+                pthread_mutex_unlock(&wal->checkpoint_lock);
+            }
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * Start background checkpoint thread
+ */
+int wal_start_checkpoint_thread(struct wal *wal) {
+    if (!wal) return -1;
+
+    pthread_mutex_lock(&wal->checkpoint_lock);
+
+    if (wal->checkpoint_thread_running) {
+        pthread_mutex_unlock(&wal->checkpoint_lock);
+        return 0;  /* Already running */
+    }
+
+    wal->checkpoint_thread_running = 1;
+    wal->auto_checkpoint = 1;  /* Enable auto-checkpoint */
+
+    if (pthread_create(&wal->checkpoint_thread, NULL, checkpoint_thread_func, wal) != 0) {
+        wal->checkpoint_thread_running = 0;
+        wal->auto_checkpoint = 0;
+        pthread_mutex_unlock(&wal->checkpoint_lock);
+        return -1;
+    }
+
+    pthread_mutex_unlock(&wal->checkpoint_lock);
+    return 0;
+}
+
+/**
+ * Stop background checkpoint thread
+ */
+int wal_stop_checkpoint_thread(struct wal *wal) {
+    if (!wal) return -1;
+
+    pthread_mutex_lock(&wal->checkpoint_lock);
+
+    if (!wal->checkpoint_thread_running) {
+        pthread_mutex_unlock(&wal->checkpoint_lock);
+        return 0;  /* Not running */
+    }
+
+    /* Signal thread to stop */
+    wal->checkpoint_thread_running = 0;
+    pthread_cond_signal(&wal->checkpoint_cond);
+
+    pthread_mutex_unlock(&wal->checkpoint_lock);
+
+    /* Wait for thread to finish */
+    pthread_join(wal->checkpoint_thread, NULL);
+
+    return 0;
 }

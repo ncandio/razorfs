@@ -92,6 +92,11 @@ int nary_tree_mt_init(struct nary_tree_mt *tree) {
     tree->op_count = 0;
     tree->free_count = 0;
 
+    /* Initialize memory management */
+    tree->max_memory_bytes = NARY_MT_DEFAULT_MAX_MEMORY;
+    tree->current_memory_bytes = (uint64_t)size +
+                                 (NARY_INITIAL_CAPACITY * sizeof(uint16_t));
+
     /* Initialize tree lock */
     if (pthread_rwlock_init(&tree->tree_lock, NULL) != 0) {
         string_table_destroy(&tree->strings);
@@ -171,9 +176,26 @@ static uint16_t allocate_node_mt(struct nary_tree_mt *tree) {
             return NARY_INVALID_IDX;
         }
 
+        /* Check memory limit before allocation */
+        size_t new_size = new_capacity * sizeof(struct nary_node_mt);
+        size_t old_size = tree->capacity * sizeof(struct nary_node_mt);
+        size_t new_free_list_size = new_capacity * sizeof(uint16_t);
+        size_t old_free_list_size = tree->capacity * sizeof(uint16_t);
+        uint64_t additional_memory = (new_size - old_size) +
+                                     (new_free_list_size - old_free_list_size);
+
+        if (tree->max_memory_bytes != NARY_MT_NO_LIMIT) {
+            uint64_t projected_usage = tree->current_memory_bytes + additional_memory;
+            if (projected_usage > tree->max_memory_bytes) {
+                /* Memory limit exceeded - return ENOSPC via backpressure */
+                tree->stats.memory_limit_hits++;
+                errno = ENOSPC;
+                return NARY_INVALID_IDX;
+            }
+        }
+
         /* Reallocate with 128-byte alignment */
         struct nary_node_mt *new_nodes = NULL;
-        size_t new_size = new_capacity * sizeof(struct nary_node_mt);
         if (posix_memalign((void **)&new_nodes, 128, new_size) != 0) {
             return NARY_INVALID_IDX;
         }
@@ -193,6 +215,9 @@ static uint16_t allocate_node_mt(struct nary_tree_mt *tree) {
             return NARY_INVALID_IDX;
         }
         tree->free_list = new_free_list;
+
+        /* Update memory tracking */
+        tree->current_memory_bytes += additional_memory;
     }
 
     /* Use atomic fetch_add to safely increment used counter
@@ -475,7 +500,8 @@ uint16_t nary_insert_mt(struct nary_tree_mt *tree,
     /* Track operations for lazy rebalancing */
     tree->op_count++;
     if (tree->op_count >= NARY_REBALANCE_THRESHOLD) {
-        /* TODO: Implement lazy rebalancing */
+        /* Trigger lazy BFS rebalancing for cache locality */
+        nary_rebalance_mt(tree);
         tree->op_count = 0;
     }
 
@@ -717,6 +743,219 @@ int nary_unlock(struct nary_tree_mt *tree, uint16_t idx) {
     return pthread_rwlock_unlock(&tree->nodes[idx].lock);
 }
 
+/**
+ * BFS Rebalancing Implementation
+ *
+ * Reorganizes tree nodes in breadth-first order for optimal cache locality.
+ * This ensures that parent nodes and their children are stored close together
+ * in memory, improving cache hit rates during tree traversal.
+ *
+ * Algorithm:
+ * 1. Acquire exclusive tree lock (prevents all concurrent modifications)
+ * 2. Perform BFS traversal starting from root
+ * 3. Build mapping from old indices to new BFS-ordered indices
+ * 4. Compact nodes into new array in BFS order
+ * 5. Update all parent/child pointers to new indices
+ * 6. Update free list with compacted indices
+ *
+ * Thread Safety:
+ * - Acquires exclusive write lock on tree_lock for entire operation
+ * - Temporarily acquires read locks on individual nodes during traversal
+ * - No other operations can proceed during rebalancing
+ *
+ * Performance:
+ * - Complexity: O(n) where n is number of active nodes
+ * - Memory: Allocates temporary arrays for mapping and BFS queue
+ * - Triggered every NARY_REBALANCE_THRESHOLD operations (lazy)
+ */
+int nary_rebalance_mt(struct nary_tree_mt *tree) {
+    if (!tree || tree->used == 0) return 0;
+
+    /* Acquire exclusive tree lock for entire rebalancing operation */
+    if (pthread_rwlock_wrlock(&tree->tree_lock) != 0) {
+        return -1;
+    }
+
+    /* Allocate temporary arrays for rebalancing */
+    uint16_t *index_map = malloc(tree->used * sizeof(uint16_t));
+    uint16_t *bfs_queue = malloc(tree->used * sizeof(uint16_t));
+    struct nary_node_mt *new_nodes = NULL;
+
+    if (!index_map || !bfs_queue) {
+        free(index_map);
+        free(bfs_queue);
+        pthread_rwlock_unlock(&tree->tree_lock);
+        return -1;
+    }
+
+    /* Initialize index map to invalid */
+    for (uint32_t i = 0; i < tree->used; i++) {
+        index_map[i] = NARY_INVALID_IDX;
+    }
+
+    /* Allocate new node array with same capacity and alignment */
+    size_t new_size = tree->capacity * sizeof(struct nary_node_mt);
+    if (posix_memalign((void **)&new_nodes, 128, new_size) != 0) {
+        free(index_map);
+        free(bfs_queue);
+        pthread_rwlock_unlock(&tree->tree_lock);
+        return -1;
+    }
+    memset(new_nodes, 0, new_size);
+
+    /* BFS traversal to determine new ordering */
+    uint32_t queue_head = 0;
+    uint32_t queue_tail = 0;
+    uint32_t new_idx = 0;
+
+    /* Start with root node */
+    bfs_queue[queue_tail++] = NARY_ROOT_IDX;
+    index_map[NARY_ROOT_IDX] = new_idx++;
+
+    while (queue_head < queue_tail) {
+        uint16_t old_idx = bfs_queue[queue_head++];
+        struct nary_node_mt *old_node = &tree->nodes[old_idx];
+
+        /* Lock node for reading to safely access children */
+        if (pthread_rwlock_rdlock(&old_node->lock) != 0) {
+            /* Lock failure - abort rebalancing */
+            free(new_nodes);
+            free(bfs_queue);
+            free(index_map);
+            pthread_rwlock_unlock(&tree->tree_lock);
+            return -1;
+        }
+
+        /* Skip logically deleted nodes */
+        if (old_node->node.inode == 0) {
+            pthread_rwlock_unlock(&old_node->lock);
+            continue;
+        }
+
+        /* Enqueue children for BFS traversal */
+        for (uint16_t i = 0; i < old_node->node.num_children; i++) {
+            uint16_t child_idx = old_node->node.children[i];
+            if (child_idx == NARY_INVALID_IDX) break;
+
+            /* Assign new index to child */
+            if (index_map[child_idx] == NARY_INVALID_IDX) {
+                index_map[child_idx] = new_idx++;
+                bfs_queue[queue_tail++] = child_idx;
+            }
+        }
+
+        pthread_rwlock_unlock(&old_node->lock);
+    }
+
+    /* Copy nodes to new array in BFS order and update indices */
+    for (uint32_t old_i = 0; old_i < tree->used; old_i++) {
+        if (index_map[old_i] == NARY_INVALID_IDX) continue;
+
+        uint16_t new_i = index_map[old_i];
+        struct nary_node_mt *old_node = &tree->nodes[old_i];
+        struct nary_node_mt *new_node = &new_nodes[new_i];
+
+        /* Lock old node for reading */
+        if (pthread_rwlock_rdlock(&old_node->lock) != 0) {
+            /* Lock failure - abort */
+            free(new_nodes);
+            free(bfs_queue);
+            free(index_map);
+            pthread_rwlock_unlock(&tree->tree_lock);
+            return -1;
+        }
+
+        /* Copy node data */
+        memcpy(&new_node->node, &old_node->node, sizeof(struct nary_node));
+
+        /* Update parent index */
+        if (new_node->node.parent_idx != NARY_INVALID_IDX) {
+            new_node->node.parent_idx = index_map[new_node->node.parent_idx];
+        }
+
+        /* Update children indices */
+        for (uint16_t i = 0; i < new_node->node.num_children; i++) {
+            uint16_t old_child_idx = new_node->node.children[i];
+            if (old_child_idx == NARY_INVALID_IDX) break;
+            new_node->node.children[i] = index_map[old_child_idx];
+        }
+
+        pthread_rwlock_unlock(&old_node->lock);
+
+        /* Initialize new node lock */
+        if (pthread_rwlock_init(&new_node->lock, NULL) != 0) {
+            /* Cleanup already initialized locks */
+            for (uint16_t j = 0; j < new_i; j++) {
+                pthread_rwlock_destroy(&new_nodes[j].lock);
+            }
+            free(new_nodes);
+            free(bfs_queue);
+            free(index_map);
+            pthread_rwlock_unlock(&tree->tree_lock);
+            return -1;
+        }
+    }
+
+    /* Destroy old node locks */
+    for (uint32_t i = 0; i < tree->used; i++) {
+        if (tree->nodes[i].node.inode != 0) {
+            pthread_rwlock_destroy(&tree->nodes[i].lock);
+        }
+    }
+
+    /* Replace old array with new BFS-ordered array */
+    free(tree->nodes);
+    tree->nodes = new_nodes;
+    tree->used = new_idx;
+
+    /* Rebuild free list - all indices >= new_idx are free */
+    tree->free_count = 0;
+    for (uint32_t i = tree->used; i < tree->capacity; i++) {
+        tree->free_list[tree->free_count++] = i;
+    }
+
+    /* Cleanup temporary arrays */
+    free(bfs_queue);
+    free(index_map);
+
+    pthread_rwlock_unlock(&tree->tree_lock);
+    return 0;
+}
+
+int nary_set_memory_limit_mt(struct nary_tree_mt *tree, uint64_t max_bytes) {
+    if (!tree) return -1;
+
+    /* Acquire tree lock to ensure thread-safe update */
+    if (pthread_rwlock_wrlock(&tree->tree_lock) != 0) {
+        return -1;
+    }
+
+    tree->max_memory_bytes = max_bytes;
+
+    pthread_rwlock_unlock(&tree->tree_lock);
+    return 0;
+}
+
+uint64_t nary_get_memory_usage_mt(const struct nary_tree_mt *tree) {
+    if (!tree) return 0;
+
+    /* Memory usage breakdown:
+     * 1. Node array: capacity * sizeof(nary_node_mt)
+     * 2. Free list: capacity * sizeof(uint16_t)
+     * 3. String table: approximated via string_table_stats
+     */
+    uint64_t node_array_bytes = (uint64_t)tree->capacity * sizeof(struct nary_node_mt);
+    uint64_t free_list_bytes = (uint64_t)tree->capacity * sizeof(uint16_t);
+
+    /* Get string table size */
+    uint32_t st_total_size = 0;
+    uint32_t st_used_size = 0;
+    string_table_stats((struct string_table *)&tree->strings, &st_total_size, &st_used_size);
+    uint64_t string_table_bytes = st_total_size;
+
+    return node_array_bytes + free_list_bytes + string_table_bytes;
+}
+
 void nary_get_mt_stats(struct nary_tree_mt *tree,
                        struct nary_mt_stats *stats) {
     if (!tree || !stats) return;
@@ -729,6 +968,9 @@ void nary_get_mt_stats(struct nary_tree_mt *tree,
     stats->write_locks = tree->stats.write_locks;
     stats->lock_conflicts = tree->stats.lock_conflicts;
     stats->avg_lock_time_ns = 0;
+    stats->current_memory_bytes = tree->current_memory_bytes;
+    stats->max_memory_bytes = tree->max_memory_bytes;
+    stats->memory_limit_hits = tree->stats.memory_limit_hits;
 }
 
 int nary_check_deadlocks(struct nary_tree_mt *tree) __attribute__((unused));
