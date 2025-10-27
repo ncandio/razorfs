@@ -1,13 +1,20 @@
 name: Cross-Compile for Datacenter Architectures
 
+# ⚠️ MANUAL WORKFLOW ONLY ⚠️
+# This workflow is disabled for automatic runs (push/PR) because:
+# - Cross-compilation toolchains often fail in CI environments
+# - Primary development is on x86_64 architecture
+# - Cross-arch builds are for future datacenter deployment only
+#
+# To test cross-compilation:
+# 1. Go to Actions tab → "Cross-Compile for Datacenter Architectures"
+# 2. Click "Run workflow" → Select branch → Run
+#
+# Automatic builds only run on release creation
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
-  workflow_dispatch:
+  workflow_dispatch:  # Manual trigger only
   release:
-    types: [created]
+    types: [created]  # Automatic on release
 
 jobs:
   ###############################################################################
