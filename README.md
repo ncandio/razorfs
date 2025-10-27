@@ -924,11 +924,11 @@ For example: `Generated: 2025-10-08 [a1b2c3d]`
 
 | Graph File | Last Generated | Commit SHA | Generation Method |
 |------------|----------------|------------|-------------------|
-| comprehensive_performance_radar.png | 2025-10-26 | 70f630d | Docker Infrastructure |
-| ologn_scaling_validation.png | 2025-10-26 | 70f630d | Docker Infrastructure |
-| scalability_heatmap.png | 2025-10-26 | 70f630d | Docker Infrastructure |
-| compression_effectiveness.png | 2025-10-26 | 70f630d | Docker Infrastructure |
-| memory_numa_analysis.png | 2025-10-26 | 70f630d | Docker Infrastructure |
+| comprehensive_performance_radar.png | 2025-10-26 | 257cf0f | Enhanced Graph Generator |
+| ologn_scaling_validation.png | 2025-10-26 | 257cf0f | Enhanced Graph Generator |
+| scalability_heatmap.png | 2025-10-26 | 257cf0f | Enhanced Graph Generator |
+| compression_effectiveness.png | 2025-10-26 | 257cf0f | Enhanced Graph Generator |
+| memory_numa_analysis.png | 2025-10-26 | 257cf0f | Enhanced Graph Generator |
 
 **Note about Graph Updates:**
 Performance graphs are periodically regenerated following significant feature implementations or architectural improvements. This ensures that benchmark results accurately reflect the current state of RAZORFS. The testing infrastructure automatically captures the date and commit SHA for full reproducibility and traceability of all performance measurements.
@@ -974,7 +974,7 @@ RazorFS implements comprehensive automated security testing to identify and prev
 *Tested on live system - October 2025 (Generated with Docker test infrastructure)*
 
 ![O(log n) Comparison](readme_graphs/ologn_scaling_validation.png)
-*Generated: 2025-10-08 [84493cf] - Docker Infrastructure*
+*Generated: 2025-10-26 [257cf0f] - Enhanced Graph Generator*
 
 **Key Findings:**
 - **10 files:** 2079μs per lookup
@@ -989,7 +989,7 @@ RazorFS implements comprehensive automated security testing to identify and prev
 *RAZORFS Phase 6 vs ext4, ZFS, ReiserFS across 8 dimensions (Generated with Docker test infrastructure)*
 
 ![Feature Radar](readme_graphs/comprehensive_performance_radar.png)
-*Generated: 2025-10-08 [84493cf] - Docker Infrastructure*
+*Generated: 2025-10-26 [257cf0f] - Enhanced Graph Generator*
 
 **Graph Legend Explanation:**
 The 8 dimensions represented in the radar chart are:
@@ -1007,7 +1007,7 @@ The 8 dimensions represented in the radar chart are:
 *Side-by-side comparison across all metrics (Generated with Docker test infrastructure)*
 
 ![Performance Heatmap](readme_graphs/scalability_heatmap.png)
-*Generated: 2025-10-08 [84493cf] - Docker Infrastructure*
+*Generated: 2025-10-26 [257cf0f] - Enhanced Graph Generator*
 
 ### Measured Performance Metrics
 
