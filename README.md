@@ -54,6 +54,8 @@ We believe AI-assisted development represents the future of systems programming,
 
 RAZORFS was built in 6 iterative phases over 48 hours, demonstrating rapid AI-assisted systems development:
 
+**Fast Prototyping AI Assisted**
+
 ![Development Phases](benchmarks/graphs/razorfs_phases.png)
 
 ### Phase Breakdown
