@@ -135,7 +135,7 @@ install-aws-sdk:
 
 test:
 	@echo "Running comprehensive test suite..."
-	@./scripts/testing/run_tests.sh
+	@./scripts/run_all_tests.sh
 
 test-unit:
 	@echo "Running unit tests only..."
