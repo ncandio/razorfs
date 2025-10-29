@@ -1,0 +1,149 @@
+version: '3.8'
+
+# RAZORFS Docker Test Infrastructure
+# Continuous testing and benchmarking with Windows sync
+# Usage: docker-compose up
+
+services:
+  # Main RAZORFS test container
+  razorfs-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: razorfs-test:latest
+    container_name: razorfs-continuous-test
+    privileged: true  # Required for FUSE and loop devices
+
+    volumes:
+      # Source code (read-only for safety)
+      - .:/app:ro
+
+      # Writable results directories
+      - ./benchmarks:/app/benchmarks
+      - ./readme_graphs:/app/readme_graphs
+      - ./logs:/app/logs
+
+      # Windows sync (WSL2 mount point)
+      - /mnt/c/Users/liber/Desktop/Testing-Razor-FS:/windows-sync
+
+      # Shared memory for FUSE
+      - /dev/shm:/dev/shm
+
+    environment:
+      - TEST_MODE=full
+      - SYNC_TO_WINDOWS=true
+      - RAZORFS_VERSION=Phase7
+      - CONTINUOUS_TEST=true
+
+    networks:
+      - razorfs-network
+
+    # Run full benchmark suite on start
+    command: >
+      bash -c "
+      echo '╔══════════════════════════════════════════════════╗'
+      echo '║  RAZORFS Continuous Testing - Started           ║'
+      echo '╚══════════════════════════════════════════════════╝'
+      echo ''
+      echo 'Running full benchmark suite...'
+      ./tests/docker/benchmark_filesystems.sh || true
+      echo ''
+      echo 'Generating README graphs...'
+      ./generate_tagged_graphs.sh || true
+      echo ''
+      echo 'Syncing to Windows...'
+      cp -rv benchmarks/* /windows-sync/benchmarks/ 2>/dev/null || true
+      cp -rv readme_graphs/* /windows-sync/readme_graphs/ 2>/dev/null || true
+      cp -rv logs/* /windows-sync/logs/ 2>/dev/null || true
+      echo ''
+      echo '✅ All tests complete! Results synced to:'
+      echo '   C:\\Users\\liber\\Desktop\\Testing-Razor-FS\\'
+      echo ''
+      echo 'Container will remain running. Access with:'
+      echo '   docker exec -it razorfs-continuous-test bash'
+      tail -f /dev/null
+      "
+
+  # Graph generation service (lightweight)
+  graph-generator:
+    image: razorfs-test:latest
+    container_name: razorfs-graph-gen
+
+    volumes:
+      - .:/app:ro
+      - ./readme_graphs:/app/readme_graphs
+      - /mnt/c/Users/liber/Desktop/Testing-Razor-FS/readme_graphs:/windows-sync/readme_graphs
+
+    environment:
+      - RAZORFS_VERSION=Phase7
+
+    networks:
+      - razorfs-network
+
+    command: >
+      bash -c "
+      echo 'Graph Generator Service - Waiting for trigger...'
+      while true; do
+        if [ -f /app/.trigger-graphs ]; then
+          echo 'Trigger detected! Generating graphs...'
+          ./generate_tagged_graphs.sh
+          cp -rv readme_graphs/* /windows-sync/readme_graphs/
+          rm -f /app/.trigger-graphs
+          echo 'Graphs generated and synced.'
+        fi
+        sleep 10
+      done
+      "
+
+    profiles:
+      - graph-only
+
+  # Continuous benchmark runner (runs every hour)
+  benchmark-scheduler:
+    image: razorfs-test:latest
+    container_name: razorfs-benchmark-scheduler
+    privileged: true
+
+    volumes:
+      - .:/app
+      - ./benchmarks:/app/benchmarks
+      - /mnt/c/Users/liber/Desktop/Testing-Razor-FS/benchmarks:/windows-sync/benchmarks
+
+    environment:
+      - TEST_MODE=full
+      - SYNC_TO_WINDOWS=true
+      - SCHEDULE_INTERVAL=3600  # 1 hour
+
+    networks:
+      - razorfs-network
+
+    command: >
+      bash -c "
+      echo 'Benchmark Scheduler - Running tests every \$SCHEDULE_INTERVAL seconds'
+      while true; do
+        echo ''
+        echo '================================================'
+        echo 'Scheduled benchmark run: \$(date)'
+        echo '================================================'
+        ./tests/docker/benchmark_filesystems.sh
+        cp -rv benchmarks/* /windows-sync/benchmarks/
+        echo 'Next run in \$SCHEDULE_INTERVAL seconds...'
+        sleep \$SCHEDULE_INTERVAL
+      done
+      "
+
+    profiles:
+      - scheduler
+
+networks:
+  razorfs-network:
+    driver: bridge
+
+# Volume definitions
+volumes:
+  benchmarks:
+    driver: local
+  readme_graphs:
+    driver: local
+  logs:
+    driver: local
