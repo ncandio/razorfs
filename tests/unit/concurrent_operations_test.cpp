@@ -276,7 +276,7 @@ TEST_F(ConcurrentOpsTest, LongRunningConcurrent) {
         threads.emplace_back([&, t]() {
             // Create directory
             char dirname[32];
-            snprintf(dirname, sizeof(name), "long_%d", t);
+            snprintf(dirname, sizeof(dirname), "long_%d", t);
             uint16_t dir = nary_insert_mt(&tree, NARY_ROOT_IDX, dirname, S_IFDIR | 0755);
             
             if (dir != NARY_INVALID_IDX) {
