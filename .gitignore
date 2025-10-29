@@ -10,10 +10,13 @@ test_s3_backend
 src/*.o
 fuse/*.o
 
-# Test builds and binaries
+# Build directories
 build/
 build_tests/
 tests/build/
+fuzz-build/
+
+# Test results
 tests/results/
 test_*
 !test_*.sh
@@ -25,14 +28,13 @@ performance_comparison
 performance_benchmark
 nary_vs_flat_comparison
 
-# Compiled binaries (all patterns)
+# Compiled test binaries
 tests/benchmarks/performance_*
 tests/benchmarks/test_*
 !tests/benchmarks/*.c
 !tests/benchmarks/*.cpp
 
-# Fuzzing
-fuzz-build/
+# Fuzzing artifacts
 findings/
 
 # IDE
@@ -44,40 +46,21 @@ findings/
 *.swp
 *~
 
-# Temporary test scripts
+# Logs and temporary files
+*.log
+reorganization*.log
 test.sh
 
 # Duplicates and test repos
 TEST_REPO/
 
-# Reorganization additions
+# Archives and backups
 .archive/
-build/
-benchmarks/results/*.csv
-benchmarks/reports/*.html
-*.log
-reorganization.log
-
-# Backup directories
-*_backup_*/
-
-# Reorganization additions
-.archive/
-build/
-benchmarks/results/*.csv
-benchmarks/reports/*.html
-*.log
-reorganization.log
-
-# Backup directories
 *_backup_*/
 
 # Benchmark results and artifacts
 benchmarks/results/
 benchmarks/data/
-benchmarks/*.gp
-benchmarks/BENCHMARK_REPORT_*.md
-
-# Ignore generated graphs and scripts in benchmarks dir
 benchmarks/graphs/
 benchmarks/*.gp
+benchmarks/BENCHMARK_REPORT_*.md
