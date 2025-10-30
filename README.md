@@ -73,19 +73,19 @@ fusermount3 -u /tmp/razorfs_mount
 
 ---
 
-## Performance
+## Performance Benchmarks
 
-### O(log n) Scalability
+### Comprehensive Performance Analysis
 
-![O(log n) Validation](readme_graphs/ologn_scaling_validation.png)
+![RazorFS Comprehensive Benchmarks](readme_graphs/razorfs_comprehensive_benchmark.png)
 
-Consistent performance from 10 to 1,000 files demonstrates true O(log n) complexity.
+**Four key performance dimensions** (clockwise from top-left):
+1. **O(log n) Scalability** - Consistent logarithmic performance across file counts
+2. **Performance Heatmap** - Cross-filesystem comparison matrix
+3. **Feature Radar** - 8-dimensional analysis vs ext4, ZFS, ReiserFS
+4. **Compression Effectiveness** - Space savings on real-world data
 
-### Feature Comparison
-
-![Performance Radar](readme_graphs/comprehensive_performance_radar.png)
-
-RazorFS compared against ext4, ZFS, and ReiserFS across 8 dimensions.
+**Generated using automated Docker test infrastructure** - reproducible, isolated benchmarking environment comparing RazorFS against established filesystems (ext4, ZFS, ReiserFS).
 
 ### Measured Metrics
 
@@ -168,6 +168,89 @@ NUMA System:
 - **No retry logic** - Eliminates livelock
 
 **📖 Full Details:** See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+---
+
+## Architectural Will
+
+RazorFS is built on six fundamental architectural principles that work together to deliver high performance while maintaining compatibility with standard hardware:
+
+### 1. Adaptive NUMA-Aware Performance
+
+**Hardware-Driven Optimization** - RazorFS operates with an intelligent, adaptive performance model:
+
+**On Standard (Non-NUMA) Systems:**
+- Detects absence of NUMA architecture
+- NUMA optimizations remain disabled
+- Performs like traditional filesystems (ext4-level baseline)
+- Uses standard memory allocation
+
+**On NUMA Systems:**
+- Detects NUMA topology via `/sys/devices/system/node/`
+- Activates NUMA optimizations using `mbind()` syscall
+- Binds metadata structures to local memory node
+- Minimizes remote memory access latency
+
+**Key Insight:** RazorFS doesn't degrade on non-NUMA systems—it simply doesn't gain the NUMA boost. Baseline performance remains competitive.
+
+### 2. True O(log n) Complexity Through Binary Search
+
+**Genuine logarithmic complexity** for all filesystem operations:
+
+- **16-ary tree structure** balances depth with cache efficiency
+- **Sorted children arrays** enable binary search
+- **Hybrid search**: Linear for ≤8 children, binary for >8
+- **Concrete example**: 1M files = 20 operations (vs 80 with linear search)
+
+**Mathematical proof:** For tree with n files and k=16 branching:
+```
+Tree depth: log₁₆(n) levels
+Operations/level: log₂(16) = 4 comparisons
+Total: log₁₆(n) × 4 = log₂(n) = O(log n) ✓
+```
+
+### 3. Cache-Conscious Design
+
+**Hardware-Aligned Data Structures:**
+
+- **Node size:** Exactly 64 bytes (single L1 cache line)
+- **MT node size:** 128 bytes (prevents false sharing)
+- **Children array:** 32 bytes (fits in half cache line)
+- **Alignment:** All nodes cache-line aligned
+
+**Benefits:** Single-fetch node loading, no pointer chasing, 70%+ cache hit ratios.
+
+### 4. Memory Locality Through BFS Layout
+
+**Breadth-First Search (BFS) memory layout:**
+
+Traditional (depth-first): Siblings scattered, poor locality
+RazorFS (BFS): Siblings consecutive, excellent locality
+
+**Benefits:** Directory listings fetch single cache line, predictable prefetch, fewer TLB misses.
+
+### 5. Transparent Compression
+
+**Intelligent, automatic compression:**
+
+- **Algorithm:** zlib level 1 (fastest)
+- **Threshold:** Files ≥ 512 bytes
+- **Skip logic:** Only compress if beneficial
+- **Performance:** 50-70% space savings on text, minimal CPU impact
+
+### 6. Deadlock-Free Concurrency
+
+**Global lock ordering** eliminates all deadlock possibilities:
+
+**Lock Hierarchy:** `tree_lock → parent_lock → child_lock`
+
+All operations acquire locks in this exact order, preventing circular wait conditions.
+
+**Concurrency Model:**
+- Per-inode `pthread_rwlock_t` locks
+- Reader-writer locks (multiple readers, single writer)
+- Consistent ordering across all operations
+- No retry logic (eliminates livelock)
 
 ---
 
