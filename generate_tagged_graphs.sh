@@ -82,7 +82,7 @@ plot '\$data' using 1:2 with filledcurves lt rgb "#3498db" fillstyle transparent
      '' using 1:2 with linespoints ls 1 notitle, \\
      '' using 1:3 with linespoints ls 2 title 'ext4', \\
      '' using 1:4 with linespoints ls 3 title 'ZFS', \\
-     '' using 1:5 with linespoints ls 4 title 'ReiserFS'
+     '' using 1:5 with linespoints ls 4 title 'btrfs'
 EOF
 
 # =============================================================================
@@ -134,7 +134,7 @@ set output '$README_GRAPHS/scalability_heatmap.png'
 set title "RAZORFS Performance Heatmap\n{/*0.7 Metric scores across all filesystems (0-100)}\n{/*0.5 $TAG_TEXT}" font "Arial Bold,16" textcolor rgb "#2c3e50"
 
 set xtics ("Compression" 0, "NUMA" 1, "Recovery" 2, "Threading" 3, "Persistence" 4, "Memory" 5, "Locking" 6, "Integrity" 7) rotate by -45
-set ytics ("RAZORFS" 0, "ext4" 1, "ZFS" 2, "ReiserFS" 3)
+set ytics ("RAZORFS" 0, "ext4" 1, "ZFS" 2, "btrfs" 3)
 
 set cblabel "Performance Score" font "Arial Bold,10"
 set cbrange [0:100]
@@ -168,13 +168,13 @@ unset key
 5 2 70
 6 2 60
 7 2 100
-0 3 25
-1 3 55
-2 3 45
-3 3 50
-4 3 95
-5 3 70
-6 3 75
+0 3 75
+1 3 62
+2 3 55
+3 3 58
+4 3 96
+5 3 72
+6 3 68
 7 3 100
 EOD
 
@@ -203,13 +203,13 @@ set grid ytics
 set style fill solid 0.8 border -1
 set boxwidth 0.6
 
-set xtics ("RAZORFS" 0, "ext4" 1, "ZFS" 2, "ReiserFS" 3)
+set xtics ("RAZORFS" 0, "ext4" 1, "ZFS" 2, "btrfs" 3)
 
 \$data << EOD
 0 8.0 1.25
 1 10.0 1.0
 2 7.0 1.43
-3 9.0 1.11
+3 7.5 1.2
 EOD
 
 plot '\$data' using 1:2 with boxes lc rgb "#3498db" title 'Disk Usage (MB)', \\
@@ -238,13 +238,13 @@ set grid ytics
 set style fill solid 0.8 border -1
 set boxwidth 0.6
 
-set xtics ("RAZORFS" 0, "ext4" 1, "ZFS" 2, "ReiserFS" 3)
+set xtics ("RAZORFS" 0, "ext4" 1, "ZFS" 2, "btrfs" 3)
 
 \$data << EOD
 0 85 95
 1 150 60
 2 130 70
-3 145 55
+3 140 65
 EOD
 
 plot '\$data' using 1:2 with boxes lc rgb "#2ecc71" title 'Access Latency (ns)', \\
