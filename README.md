@@ -1,3 +1,16 @@
+## RazorFS build notes (local dev box)
+
+### 1. Required packages (Ubuntu/Debian)
+- `build-essential`   # provides gcc, g++, make
+- `libfuse3-dev`      # FUSE3 headers and libs, used via /usr/include/fuse3
+- `zlib1g-dev`        # provides zlib.h and libz for compression support
+- `pkg-config`        # used by the Makefile to detect libraries
+
+### 2. Optional packages (for S3 support)
+- `aws-sdk-cpp` or `aws-sdk-cpp-dev`
+  - Without this, build shows: "AWS SDK not found - S3 integration will be disabled"
+  - Core RazorFS still builds; only S3 integration is disabled.
+
 <div align="center">
 
 ![RAZORFS Logo](docs/images/razorfs-logo.jpg)
