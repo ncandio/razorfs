@@ -47,17 +47,39 @@ RazorFS is an experimental FUSE3-based filesystem implementing an **n-ary tree s
 
 ---
 
-## Quick Start
+## Prerequisites
 
-### Prerequisites
-- Linux with FUSE3
-- GCC/Clang compiler
-- zlib development libraries
+### Build Dependencies (Ubuntu/Debian)
+
+- `build-essential`   # provides gcc, g++, make
+- `libfuse3-dev`      # FUSE3 headers and libs, used via /usr/include/fuse3
+- `zlib1g-dev`        # provides zlib.h and libz for compression support
+- `pkg-config`        # used by the Makefile to detect libraries
 
 ```bash
-# Install dependencies (Ubuntu/Debian)
-sudo apt-get install fuse3 libfuse3-dev zlib1g-dev build-essential
+# Install required dependencies
+sudo apt-get update
+sudo apt-get install -y build-essential libfuse3-dev zlib1g-dev pkg-config
 ```
+
+### Optional Dependencies (for S3 support)
+
+- `aws-sdk-cpp` or `aws-sdk-cpp-dev`
+  - Without this, the build will show: "AWS SDK not found - S3 integration will be disabled"
+  - Core RazorFS will still build; only S3 integration will be disabled.
+
+```bash
+# Install optional S3 dependencies
+# Note: AWS SDK CPP installation can be complex. Refer to AWS documentation.
+# Example for Ubuntu/Debian (may vary based on version and setup):
+# sudo apt-get install -y libaws-sdk-cpp-dev
+```
+
+---
+
+## Quick Start
+
+
 
 ### Build and Run
 
